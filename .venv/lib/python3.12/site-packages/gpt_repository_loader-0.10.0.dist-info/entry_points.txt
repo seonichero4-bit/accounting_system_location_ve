@@ -1,0 +1,2 @@
+[console_scripts]
+gpt-repository-loader = gpt_repository_loader:main

@@ -1,0 +1,8 @@
+<h1>Detalle del Proveedor: {{ proveedor.nombre }}</h1>
+<p><strong>RIF:</strong> {{ proveedor.rif }}</p>
+<p><strong>Código:</strong> {{ proveedor.codigo }}</p>
+<p><strong>Tipo:</strong> {{ proveedor.get_tipo_proveedor_display }}</p>
+
+<a href="{% url 'proveedor-update' proveedor.pk %}">Editar</a>
+<a href="{% url 'proveedor-delete' proveedor.pk %}">Eliminar</a>
+<a href="{% url 'proveedor-list' %}">Volver a la lista</a>
