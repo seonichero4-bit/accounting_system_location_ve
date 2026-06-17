@@ -7,17 +7,17 @@ nueva arquitectura de directorios.
 """
 
 from .supplier import (
-    ProveedorLocalCreateView,
-    ProveedorLocalDeleteView,
-    ProveedorLocalDetailView,
-    ProveedorLocalListView,
-    ProveedorLocalUpdateView,
+    LocalSupplierCreateView,
+    LocalSupplierDeleteView,
+    LocalSupplierDetailView,
+    LocalSupplierListView,
+    LocalSupplierUpdateView,
 )
 
 __all__ = [
-    "ProveedorLocalCreateView",
-    "ProveedorLocalDeleteView",
-    "ProveedorLocalDetailView",
-    "ProveedorLocalListView",
-    "ProveedorLocalUpdateView",
+    "LocalSupplierCreateView",
+    "LocalSupplierDeleteView",
+    "LocalSupplierDetailView",
+    "LocalSupplierListView",
+    "LocalSupplierUpdateView",
 ]

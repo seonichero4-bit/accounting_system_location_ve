@@ -2,10 +2,9 @@ from typing import Any
 from django import forms
 from django.forms import inlineformset_factory
 
-# Se asume la existencia de estos modelos en la capa de datos
-from accounting_system_ve.data_access.models.purchase_book import LibroComprasFactura, LineaFacturaCompra
+from data_access.models.purchase_book import PurchaseLedgerInvoice, PurchaseInvoiceLine
 
-class LibroComprasFacturaForm(forms.ModelForm):
+class PurchaseLedgerInvoiceForm(forms.ModelForm):
     """
     Formulario de cabecera para el registro en el Libro de Compras.
     
@@ -15,31 +14,31 @@ class LibroComprasFacturaForm(forms.ModelForm):
     """
     
     class Meta:
-        model = LibroComprasFactura
+        model = PurchaseLedgerInvoice
         fields = [
-            'tipo_documento', 
-            'numero', 
-            'control_factura', 
-            'fecha', 
-            'tipo_compra'
+            'document_type', 
+            'number', 
+            'invoice_control', 
+            'date', 
+            'purchase_type'
         ]
 
 
 # Factory para inyección dinámica de múltiples filas de detalle contable y comercial.
 # Permite mantener la integridad referencial (Cabecera -> Líneas) en la interfaz.
-LineaFacturaCompraFormSet = inlineformset_factory(
-    parent_model=LibroComprasFactura,
-    model=LineaFacturaCompra,
+PurchaseInvoiceLineFormSet = inlineformset_factory(
+    parent_model=PurchaseLedgerInvoice,
+    model=PurchaseInvoiceLine,
     fields=[
-        'descripcion', 
-        'precio_unitario', 
-        'unidades', 
-        'porcentaje_descuento', 
-        'alicuota_iva', 
-        'naturaleza', 
-        'aplica_retencion_islr', 
-        'porcentaje_retencion_islr', 
-        'mapeo_contable'
+        'description', 
+        'unit_price', 
+        'units', 
+        'discount_percentage', 
+        'vat_rate', 
+        'nature', 
+        'applies_islr_withholding', 
+        'islr_withholding_percentage', 
+        'accounting_mapping'
     ],
     extra=1,
     can_delete=True

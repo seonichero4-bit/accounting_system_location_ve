@@ -6,10 +6,10 @@ from django.shortcuts import redirect
 from django.urls import reverse_lazy, reverse
 from django.views.generic import FormView, ListView, DetailView, CreateView, UpdateView, DeleteView
 
-from accounting_system_ve.data_access.models.supplier import ProveedorLocal
-from accounting_system_ve.data_access.models.base import FiscalProfile
-from ..forms.supplier import ProveedorLocalForm
-from accounting_system_ve.business_logic.servicios.proveedor_servicio import ProveedorService
+from data_access.models.supplier import LocalSupplier
+from data_access.models.base import FiscalProfile
+from ..forms.supplier import LocalSupplierForm
+from business_logic.services.supplier_service import SupplierService
 
 
 class FiscalTenantMixin:
@@ -25,30 +25,34 @@ class FiscalTenantMixin:
 
     def get_queryset(self):
         """Aísla las consultas estrictamente al perfil fiscal actual."""
-        return ProveedorLocal.objects.filter(fiscal_profile=self.get_fiscal_profile())
+        return LocalSupplier.objects.filter(fiscal_profile=self.get_fiscal_profile())
 
 
-class ProveedorLocalListView(FiscalTenantMixin, ListView):
+class LocalSupplierListView(FiscalTenantMixin, ListView):
     """Vista para listar los proveedores del inquilino activo."""
-    model = ProveedorLocal
-    context_object_name = "proveedores"
+    model = LocalSupplier
+    context_object_name = "suppliers"
+    template_name = "localsupplier_list.html"
 
-class ProveedorLocalDetailView(FiscalTenantMixin, DetailView):
+
+class LocalSupplierDetailView(FiscalTenantMixin, DetailView):
     """Vista para ver el detalle de un proveedor específico."""
-    model = ProveedorLocal
-    context_object_name = "proveedor"
+    model = LocalSupplier
+    context_object_name = "supplier"
+    template_name = "localsupplier_detail.html"
 
 
-class ProveedorLocalCreateView(FiscalTenantMixin, FormView):
+class LocalSupplierCreateView(FiscalTenantMixin, FormView):
     """Vista para la creación o recuperación de un proveedor local.
 
     Utiliza FormView para separar estrictamente la lógica de negocio de la
     capa de presentación, delegando el procesamiento al servicio del dominio.
     """
-    form_class = ProveedorLocalForm
-    template_name = "fiscal_localization/proveedorlocal_form.html"
+    model = LocalSupplier
+    form_class = LocalSupplierForm 
+    template_name = "localsupplier_form.html"
 
-    def form_valid(self, form: ProveedorLocalForm) -> HttpResponse:
+    def form_valid(self, form: LocalSupplierForm) -> HttpResponse:
         """Procesa el formulario validado utilizando la capa de servicios.
 
         Instancia el servicio con el contexto del inquilino, delega la decisión 
@@ -61,23 +65,25 @@ class ProveedorLocalCreateView(FiscalTenantMixin, FormView):
             HttpResponse: Redirección a la vista de detalle del proveedor procesado.
         """
        
-        servicio = ProveedorService(fiscal_profile=self.get_fiscal_profile())
+        service = SupplierService(fiscal_profile=self.get_fiscal_profile())
     
-        proveedor, creado = servicio.registrar_o_recuperar_local(form.cleaned_data)
+        supplier, created = service.register_or_retrieve_local(form.cleaned_data)
         
-        return redirect("proveedor-detail", pk=proveedor.pk)
+        return redirect("supplier-detail", pk=supplier.pk)
 
 
-class ProveedorLocalUpdateView(FiscalTenantMixin, UpdateView):
+class LocalSupplierUpdateView(FiscalTenantMixin, UpdateView):
     """Vista para la actualización de datos de un proveedor."""
-    model = ProveedorLocal
-    form_class = ProveedorLocalForm
+    model = LocalSupplier
+    form_class = LocalSupplierForm
+    template_name = "localsupplier_form.html"
 
     def get_success_url(self) -> str:
-        return reverse("proveedor-detail", kwargs={"pk": self.object.pk})
+        return reverse("supplier-detail", kwargs={"pk": self.object.pk})
 
 
-class ProveedorLocalDeleteView(FiscalTenantMixin, DeleteView):
+class LocalSupplierDeleteView(FiscalTenantMixin, DeleteView):
     """Vista para eliminar lógicamente o físicamente un proveedor."""
-    model = ProveedorLocal
-    success_url = reverse_lazy("proveedor-list")
+    model = LocalSupplier
+    template_name = "localsupplier_confirm_delete.html"
+    success_url = reverse_lazy("supplier-list")

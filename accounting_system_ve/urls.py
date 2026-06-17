@@ -16,13 +16,14 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from fiscal_localization.presentation.views import supplier
+from django.urls import path
+from presentation.views import supplier
 
 urlpatterns = [
     # urls_supplier
-    path("proveedores/", supplier.ProveedorLocalListView.as_view(), name="proveedor-list"),
-    path("proveedores/nuevo/", supplier.ProveedorLocalCreateView.as_view(), name="proveedor-create"),
-    path("proveedores/<int:pk>/", supplier.ProveedorLocalDetailView.as_view(), name="proveedor-detail"),
-    path("proveedores/<int:pk>/editar/", supplier.ProveedorLocalUpdateView.as_view(), name="proveedor-update"),
-    path("proveedores/<int:pk>/eliminar/", supplier.ProveedorLocalDeleteView.as_view(), name="proveedor-delete"),
+    path("suppliers/", supplier.LocalSupplierListView.as_view(), name="supplier-list"),
+    path("suppliers/new/", supplier.LocalSupplierCreateView.as_view(), name="supplier-create"),
+    path("suppliers/<int:pk>/", supplier.LocalSupplierDetailView.as_view(), name="supplier-detail"),
+    path("suppliers/<int:pk>/edit/", supplier.LocalSupplierUpdateView.as_view(), name="supplier-update"),
+    path("suppliers/<int:pk>/delete/", supplier.LocalSupplierDeleteView.as_view(), name="supplier-delete"),
 ]

@@ -4,11 +4,9 @@ Define el perfil fiscal asociado a las entidades de contabilidad de Django Ledge
 y proporciona un modelo abstracto para imponer un aislamiento estricto de datos
 por cada inquilino (tenant) sobre el backend de PostgreSQL.
 """
-
 from django.db import models
 from django_ledger.models import EntityModel
 from typing import Optional
-
 
 class FiscalProfile(models.Model):
     """Modelo estructural central para la identificación fiscal.
@@ -17,46 +15,46 @@ class FiscalProfile(models.Model):
     actuando como el núcleo de gobernanza de datos multi-inquilino del sistema.
     """
 
-    class TipoContribuyente(models.TextChoices):
+    class TaxpayerType(models.TextChoices):
         """Opciones legales para la categorización del tipo de contribuyente."""
 
         FORMAL = "FORMAL", "Formal"
-        ORDINARIO = "ORDINARIO", "Ordinario"
-        ESPECIAL = "ESPECIAL", "Especial"
+        ORDINARY = "ORDINARY", "Ordinary"
+        SPECIAL = "SPECIAL", "Special"
 
     entity = models.OneToOneField(
         EntityModel,
         on_delete=models.PROTECT,
         related_name="fiscal_profile",
-        verbose_name="Entidad de Django Ledger",
+        verbose_name="Django Ledger Entity",
     )
-    codigo = models.CharField(
+    code = models.CharField(
         max_length=50,
         unique=True,
-        verbose_name="Código de Control Interno",
+        verbose_name="Internal Control Code",
     )
-    nombre = models.CharField(
+    name = models.CharField(
         max_length=35,
-        verbose_name="Nombre o Razón Social Legal",
+        verbose_name="Legal Name or Corporate Name",
     )
     rif = models.CharField(
         max_length=20,
         unique=True,
-        verbose_name="Registro de Información Fiscal (RIF)",
+        verbose_name="Fiscal Information Registry (RIF)",
     )
     nit = models.CharField(
         max_length=20,
         null=True,
         blank=True,
-        verbose_name="Número de Identificación Tributaria (NIT)",
+        verbose_name="Tax Identification Number (NIT)",
     )
-    tipo_contribuyente = models.CharField(
+    taxpayer_type = models.CharField(
         max_length=15,
-        choices=TipoContribuyente.choices,
-        verbose_name="Tipo de Contribuyente",
+        choices=TaxpayerType.choices,
+        verbose_name="Taxpayer Type",
     )
 
-    def obtener_proveedor_por_rif(self, rif: str) -> Optional["ProveedorLocal"]:
+    def get_supplier_by_rif(self, rif: str) -> Optional["LocalSupplier"]:
         """Obtiene un proveedor local asociado a esta instancia mediante su RIF.
 
         Utiliza el mánager de la relación inversa (related_name) para buscar
@@ -71,11 +69,11 @@ class FiscalProfile(models.Model):
         """
 
         try:
-            return self.proveedores_locales.get(rif=rif)
-        except proveedores_locales.DoesNotExist:
+            return self.local_suppliers.get(rif=rif)
+        except local_suppliers.DoesNotExist:
             return None
 
-    def crear_proveedor(self, **kwargs) -> "ProveedorLocal":
+    def create_supplier(self, **kwargs) -> "LocalSupplier":
         """Crea y persiste un nuevo proveedor local asociado directamente a este perfil.
 
         Aprovecha la relación inversa para asegurar la asignación implícita
@@ -88,17 +86,17 @@ class FiscalProfile(models.Model):
         Returns:
             ProveedorLocal: La instancia del proveedor local recién creada.
         """
-        return self.proveedores_locales.create(**kwargs)                 
+        return self.local_suppliers.create(**kwargs)                
 
     class Meta:
         """Configuración de metadatos del modelo FiscalProfile."""
 
-        verbose_name = "Perfil Fiscal"
-        verbose_name_plural = "Perfiles Fiscales"
+        verbose_name = "Fiscal Profile"
+        verbose_name_plural = "Fiscal Profiles"
 
     def __str__(self) -> str:
         """Retorna una representación legible del Perfil Fiscal."""
-        return f"{self.nombre} ({self.rif})"
+        return f"{self.name} ({self.rif})"
 
 
 class FiscalModuleAbstractModel(models.Model):
@@ -113,7 +111,7 @@ class FiscalModuleAbstractModel(models.Model):
         FiscalProfile,
         on_delete=models.PROTECT,
         related_name="%(class)s_modules",
-        verbose_name="Inquilino / Perfil Fiscal Asociado",
+        verbose_name="Tenant / Associated Fiscal Profile",
     )
 
     class Meta:

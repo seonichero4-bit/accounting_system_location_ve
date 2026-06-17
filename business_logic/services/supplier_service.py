@@ -7,11 +7,11 @@ manteniendo los modelos y controladores limpios.
 
 from typing import Tuple, Dict, Any
 
-from accounting_system_ve.data_access.models.base import FiscalProfile
-from accounting_system_ve.data_access.models.supplier import ProveedorLocal
+from data_access.models.base import FiscalProfile
+from data_access.models.supplier import LocalSupplier
 
 
-class ProveedorService:
+class SupplierService:
     """Servicio encargado de coordinar la lógica de negocio para los proveedores.
 
     Actúa como intermediario aislando la lógica específica del inquilino mediante
@@ -27,9 +27,9 @@ class ProveedorService:
         """
         self.fiscal_profile = fiscal_profile
 
-    def registrar_o_recuperar_local(
-        self, datos_proveedor: Dict[str, Any]
-    ) -> Tuple[ProveedorLocal, bool]:
+    def register_or_retrieve_local(
+        self, supplier_data: Dict[str, Any]
+    ) -> Tuple[LocalSupplier, bool]:
         """Registra un nuevo proveedor local o devuelve el existente si su RIF coincide.
 
         Implementa una lógica segura de creación (idempotente) delegando la
@@ -42,16 +42,16 @@ class ProveedorService:
 
         Returns:
             Tuple[ProveedorLocal, bool]: Una tupla que contiene la instancia del
-            proveedor (sea nueva o recuperada) y un booleano que es `True` si
-            el registro fue creado en esta ejecución, o `False` si ya existía.
+                proveedor (sea nueva o recuperada) y un booleano que es `True` si
+                el registro fue creado en esta ejecución, o `False` si ya existía.
         """
-        rif = datos_proveedor.get("rif")
+        rif = supplier_data.get("rif")
         
         if rif:
-            existente = self.fiscal_profile.obtener_proveedor_por_rif(rif=rif)
-            if existente:
-                return existente, False  # No fue creado, ya existía
+            existing = self.fiscal_profile.get_supplier_by_rif(rif=rif)
+            if existing:
+                return existing, False  # No fue creado, ya existía
 
         # Si no existe, lo crea usando la lógica de fábrica delegada
-        nuevo_proveedor = self.fiscal_profile.crear_proveedor(**datos_proveedor)
-        return nuevo_proveedor, True
+        new_supplier = self.fiscal_profile.create_supplier(**supplier_data)
+        return new_supplier, True

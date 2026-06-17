@@ -7,16 +7,16 @@ migraciones sobre el backend de PostgreSQL.
 """
 
 from .base import FiscalModuleAbstractModel, FiscalProfile
-from .purchase_book import LibroComprasFactura, LineaFacturaCompra
-from .supplier import ProveedorLocal
-from .withholding import ComprobanteRetencionISLR, ComprobanteRetencionIVA
+from .purchase_book import PurchaseLedgerInvoice, PurchaseInvoiceLine
+from .supplier import LocalSupplier
+from .withholding import IslrWithholdingCertificate, VatWithholdingCertificate
 
 __all__ = [
     "FiscalProfile",
     "FiscalModuleAbstractModel",
-    "ProveedorLocal",
-    "LibroComprasFactura",
-    "LineaFacturaCompra",
-    "ComprobanteRetencionIVA",
-    "ComprobanteRetencionISLR",
+    "LocalSupplier",
+    "PurchaseLedgerInvoice",
+    "PurchaseInvoiceLine",
+    "VatWithholdingCertificate",
+    "IslrWithholdingCertificate",
 ]

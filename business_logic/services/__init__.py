@@ -6,8 +6,8 @@ comunicación limpia entre la capa de presentación (vistas/formularios)
 y la capa de acceso a datos (modelos).
 """
 
-from .proveedor_servicio import ProveedorService
+from .supplier_service import SupplierService
 
 __all__ = [
-    "ProveedorService",
+    "SupplierService",
 ]

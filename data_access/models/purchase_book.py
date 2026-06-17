@@ -7,11 +7,11 @@ multitenant requerido.
 
 from decimal import Decimal
 from django.db import models
-from accounting_system_ve.data_access.models.base import FiscalModuleAbstractModel
-from accounting_system_ve.data_access.models.supplier import ProveedorLocal
+from data_access.models.base import FiscalModuleAbstractModel
+from data_access.models.supplier import LocalSupplier
 
 
-class LibroComprasFactura(FiscalModuleAbstractModel):
+class PurchaseLedgerInvoice(FiscalModuleAbstractModel):
     """Modelo para la gestión del encabezado del libro de compras fiscal.
 
     Almacena los metadatos globales, identificadores de impresión obligatorios,
@@ -19,259 +19,259 @@ class LibroComprasFactura(FiscalModuleAbstractModel):
     de compra.
     """
 
-    class EstadoFactura(models.TextChoices):
+    class InvoiceStatus(models.TextChoices):
         """Estados operativos y fiscales de la factura."""
 
-        PRELIMINAR = "PRELIMINAR", "Preliminar"
-        PROCESADA = "PROCESADA", "Procesada"
+        PRELIMINARY = "PRELIMINARY", "Preliminary"
+        PROCESSED = "PROCESSED", "Processed"
 
-    class TipoDocumento(models.TextChoices):
+    class DocumentType(models.TextChoices):
         """Tipos de documentos fiscales soportados en el libro de compras."""
 
-        FACTURA = "FACTURA", "Factura"
-        NOTA_CREDITO = "NOTA_CREDITO", "Nota de Crédito"
-        NOTA_DEBITO = "NOTA_DEBITO", "Nota de Débito"
+        INVOICE = "INVOICE", "Invoice"
+        CREDIT_NOTE = "CREDIT_NOTE", "Credit Note"
+        DEBIT_NOTE = "DEBIT_NOTE", "Debit Note"
 
-    class TipoCompra(models.TextChoices):
+    class PurchaseType(models.TextChoices):
         """Clasificación del origen de la compra."""
 
-        INTERNA = "INTERNA", "Interna"
-        IMPORTACION = "IMPORTACION", "Importación"
+        INTERNAL = "INTERNAL", "Internal"
+        IMPORT = "IMPORT", "Import"
 
     # Identificación y Relaciones
-    tipo_documento = models.CharField(
+    document_type = models.CharField(
         max_length=20,
-        choices=TipoDocumento.choices,
-        default=TipoDocumento.FACTURA,
-        verbose_name="Tipo de Documento",
+        choices=DocumentType.choices,
+        default=DocumentType.INVOICE,
+        verbose_name="Document Type",
     )
-    numero = models.CharField(
+    number = models.CharField(
         max_length=50,
-        verbose_name="Número de Documento",
+        verbose_name="Document Number",
     )
-    control_factura = models.CharField(
+    invoice_control = models.CharField(
         max_length=50,
-        verbose_name="Número de Control de Factura",
+        verbose_name="Invoice Control Number",
     )
-    proveedor = models.ForeignKey(
-        ProveedorLocal,
+    supplier = models.ForeignKey(
+        LocalSupplier,
         on_delete=models.PROTECT,
-        related_name="facturas_compra",
-        verbose_name="Proveedor Local",
+        related_name="purchase_invoices",
+        verbose_name="Local Supplier",
     )
 
     # Fechas y Periodos
-    fecha = models.DateField(
-        verbose_name="Fecha de Emisión",
+    date = models.DateField(
+        verbose_name="Issue Date",
     )
-    fecha_pago = models.DateField(
+    payment_date = models.DateField(
         null=True,
         blank=True,
-        verbose_name="Fecha de Pago",
+        verbose_name="Payment Date",
     )
-    mes_ano_aplicacion = models.CharField(
+    application_month_year = models.CharField(
         max_length=7,
-        verbose_name="Mes y Año de Aplicación (MM-YYYY)",
+        verbose_name="Application Month and Year (MM-YYYY)",
     )
 
     # Controles Operativos e Importación
-    tipo_compra = models.CharField(
+    purchase_type = models.CharField(
         max_length=20,
-        choices=TipoCompra.choices,
-        default=TipoCompra.INTERNA,
-        verbose_name="Tipo de Compra",
+        choices=PurchaseType.choices,
+        default=PurchaseType.INTERNAL,
+        verbose_name="Purchase Type",
     )
-    numero_planilla_importacion = models.CharField(
+    import_form_number = models.CharField(
         max_length=50,
         null=True,
         blank=True,
-        verbose_name="Número de Planilla de Importación",
+        verbose_name="Import Form Number",
     )
-    numero_expediente_importacion = models.CharField(
+    import_file_number = models.CharField(
         max_length=50,
         null=True,
         blank=True,
-        verbose_name="Número de Expediente de Importación",
+        verbose_name="Import File Number",
     )
-    tipo_transaccion = models.CharField(
+    transaction_type = models.CharField(
         max_length=50,
-        verbose_name="Tipo de Transacción",
+        verbose_name="Transaction Type",
     )
-    factura_afectada = models.CharField(
+    affected_invoice = models.CharField(
         max_length=50,
         null=True,
         blank=True,
-        verbose_name="Factura Afectada (Notas de Crédito/Débito)",
+        verbose_name="Affected Invoice (Credit/Debit Notes)",
     )
-    credito_fiscal_tipo = models.CharField(
+    tax_credit_type = models.CharField(
         max_length=50,
-        verbose_name="Tipo de Crédito Fiscal",
+        verbose_name="Tax Credit Type",
     )
 
     # Integración Contable
-    mapeo_contable_retencion_iva = models.CharField(
+    vat_withholding_accounting_mapping = models.CharField(
         max_length=255,
         null=True,
         blank=True,
-        verbose_name="Mapeo Contable de Retención IVA",
+        verbose_name="VAT Withholding Accounting Mapping",
     )
 
     # Totales y Financieros Globales
-    monto_exento = models.DecimalField(
+    exempt_amount = models.DecimalField(
         max_digits=15,
         decimal_places=2,
         default=Decimal("0.00"),
-        verbose_name="Monto Exento",
+        verbose_name="Exempt Amount",
     )
-    base_imponible = models.DecimalField(
+    taxable_base = models.DecimalField(
         max_digits=15,
         decimal_places=2,
         default=Decimal("0.00"),
-        verbose_name="Base Imponible",
+        verbose_name="Taxable Base",
     )
-    sub_total = models.DecimalField(
+    subtotal = models.DecimalField(
         max_digits=15,
         decimal_places=2,
         default=Decimal("0.00"),
         verbose_name="Sub Total",
     )
-    tasa_general = models.DecimalField(
+    general_rate = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         default=Decimal("16.00"),
-        verbose_name="Tasa General Alícuota (%)",
+        verbose_name="General Tax Rate (%)",
     )
-    monto_iva = models.DecimalField(
+    vat_amount = models.DecimalField(
         max_digits=15,
         decimal_places=2,
         default=Decimal("0.00"),
-        verbose_name="Monto IVA",
+        verbose_name="VAT Amount",
     )
-    base_igtf = models.DecimalField(
+    igtf_base = models.DecimalField(
         max_digits=15,
         decimal_places=2,
         default=Decimal("0.00"),
-        verbose_name="Base IGTF",
+        verbose_name="IGTF Base",
     )
-    monto_igtf = models.DecimalField(
+    igtf_amount = models.DecimalField(
         max_digits=15,
         decimal_places=2,
         default=Decimal("0.00"),
-        verbose_name="Monto IGTF",
+        verbose_name="IGTF Amount",
     )
-    total_compra = models.DecimalField(
+    total_purchase = models.DecimalField(
         max_digits=15,
         decimal_places=2,
         default=Decimal("0.00"),
-        verbose_name="Total Compra",
+        verbose_name="Total Purchase",
     )
 
     # Control de Flujo del Ciclo de Vida
-    estado = models.CharField(
+    status = models.CharField(
         max_length=15,
-        choices=EstadoFactura.choices,
-        default=EstadoFactura.PRELIMINAR,
-        verbose_name="Estado de Factura",
+        choices=InvoiceStatus.choices,
+        default=InvoiceStatus.PRELIMINARY,
+        verbose_name="Invoice Status",
     )
 
     class Meta:
         """Configuración de metadatos del modelo LibroComprasFactura."""
 
-        verbose_name = "Factura de Compra (Libro)"
-        verbose_name_plural = "Facturas de Compra (Libro)"
+        verbose_name = "Purchase Invoice (Ledger)"
+        verbose_name_plural = "Purchase Invoices (Ledger)"
 
     def __str__(self) -> str:
         """Retorna una representación descriptiva de la factura."""
-        return f"{self.tipo_documento} N° {self.numero} - Control {self.control_factura}"
+        return f"{self.document_type} N° {self.number} - Control {self.invoice_control}"
 
 
-class LineaFacturaCompra(models.Model):
+class PurchaseInvoiceLine(models.Model):
     """Modelo operativo para el desglose detallado de los ítems de una compra.
 
     Vinculado directamente a un registro del libro de compras mediante una relación
     de dependencia estricta.
     """
 
-    class NaturalezaLinea(models.TextChoices):
+    class LineNature(models.TextChoices):
         """Clasificación legal de los bienes o servicios adquiridos."""
 
-        BIEN = "BIEN", "Bien"
-        SERVICIO = "SERVICIO", "Servicio"
+        GOOD = "GOOD", "Good"
+        SERVICE = "SERVICE", "Service"
 
-    factura_compra = models.ForeignKey(
-        LibroComprasFactura,
+    purchase_invoice = models.ForeignKey(
+        PurchaseLedgerInvoice,
         on_delete=models.CASCADE,
-        related_name="lineas",
-        verbose_name="Factura de Compra Asociada",
+        related_name="lines",
+        verbose_name="Associated Purchase Invoice",
     )
-    descripcion = models.CharField(
+    description = models.CharField(
         max_length=255,
-        verbose_name="Descripción del Ítems/Servicio",
+        verbose_name="Item/Service Description",
     )
-    precio_unitario = models.DecimalField(
+    unit_price = models.DecimalField(
         max_digits=15,
         decimal_places=2,
-        verbose_name="Precio Unitario",
+        verbose_name="Unit Price",
     )
-    unidades = models.DecimalField(
+    units = models.DecimalField(
         max_digits=12,
         decimal_places=4,
-        verbose_name="Unidades",
+        verbose_name="Units",
     )
-    porcentaje_descuento = models.DecimalField(
+    discount_percentage = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         default=Decimal("0.00"),
-        verbose_name="Porcentaje de Descuento (%)",
+        verbose_name="Discount Percentage (%)",
     )
-    subtotal_antes_iva = models.DecimalField(
+    subtotal_before_vat = models.DecimalField(
         max_digits=15,
         decimal_places=2,
-        verbose_name="Subtotal antes de IVA",
+        verbose_name="Subtotal before VAT",
     )
-    alicuota_iva = models.DecimalField(
+    vat_rate = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        verbose_name="Alícuota IVA (%)",
+        verbose_name="VAT Rate (%)",
     )
-    monto_iva_linea = models.DecimalField(
+    line_vat_amount = models.DecimalField(
         max_digits=15,
         decimal_places=2,
-        verbose_name="Monto IVA de la Línea",
+        verbose_name="Line VAT Amount",
     )
-    naturaleza = models.CharField(
+    nature = models.CharField(
         max_length=10,
-        choices=NaturalezaLinea.choices,
-        verbose_name="Naturaleza de la Línea",
+        choices=LineNature.choices,
+        verbose_name="Line Nature",
     )
-    aplica_retencion_islr = models.BooleanField(
+    applies_islr_withholding = models.BooleanField(
         default=False,
-        verbose_name="¿Aplica Retención ISLR?",
+        verbose_name="Applies ISLR Withholding?",
     )
-    porcentaje_retencion_islr = models.DecimalField(
+    islr_withholding_percentage = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         default=Decimal("0.00"),
-        verbose_name="Porcentaje Retención ISLR (%)",
+        verbose_name="ISLR Withholding Percentage (%)",
     )
-    descripcion_vectorizar = models.TextField(
+    vectorize_description = models.TextField(
         null=True,
         blank=True,
-        verbose_name="Texto Descriptivo para Procesamiento Semántico / Embeddings",
+        verbose_name="Descriptive Text for Semantic Processing / Embeddings",
     )
-    mapeo_contable = models.CharField(
+    accounting_mapping = models.CharField(
         max_length=255,
         null=True,
         blank=True,
-        verbose_name="Mapeo Contable de Gasto/Inventario",
+        verbose_name="Expense/Inventory Accounting Mapping",
     )
 
     class Meta:
         """Configuración de metadatos del modelo LineaFacturaCompra."""
 
-        verbose_name = "Línea de Factura de Compra"
-        verbose_name_plural = "Líneas de Factura de Compra"
+        verbose_name = "Purchase Invoice Line"
+        verbose_name_plural = "Purchase Invoice Lines"
 
     def __str__(self) -> str:
         """Retorna una visualización rápida de la línea operativa."""
-        return f"{self.descripcion} (x{self.unidades})"
+        return f"{self.description} (x{self.units})"

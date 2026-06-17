@@ -6,102 +6,102 @@ al libro de compras multi-inquilino.
 """
 
 from django.db import models
-from accounting_system_ve.data_access.models.base import FiscalModuleAbstractModel
-from accounting_system_ve.data_access.models.purchase_book import LibroComprasFactura, LineaFacturaCompra
+from data_access.models.base import FiscalModuleAbstractModel
+from data_access.models.purchase_book import PurchaseLedgerInvoice, PurchaseInvoiceLine
 
 
-class ComprobanteRetencionIVA(FiscalModuleAbstractModel):
+class VatWithholdingCertificate(FiscalModuleAbstractModel):
     """Modelo legal para el registro de comprobantes de retención de IVA.
 
     Establece un vínculo unívoco e inseparabe con una factura de compra del libro
     fiscal, resguardando la integridad de la recaudación del tributo.
     """
 
-    factura_compra = models.OneToOneField(
-        LibroComprasFactura,
+    purchase_invoice = models.OneToOneField(
+        PurchaseLedgerInvoice,
         on_delete=models.PROTECT,
-        related_name="comprobante_iva",
-        verbose_name="Factura de Compra Asociada",
+        related_name="vat_withholding_certificate",
+        verbose_name="Associated Purchase Invoice",
     )
-    fecha_aplicacion = models.DateField(
-        verbose_name="Fecha de Aplicación Fiscal",
+    application_date = models.DateField(
+        verbose_name="Fiscal Application Date",
     )
-    porcentaje_retencion_iva = models.DecimalField(
+    vat_withholding_percentage = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        verbose_name="Porcentaje de Retención IVA (%)",
+        verbose_name="VAT Withholding Percentage (%)",
     )
-    numero_comprobante = models.CharField(
+    certificate_number = models.CharField(
         max_length=50,
         unique=True,
-        verbose_name="Número de Comprobante de Retención",
+        verbose_name="Withholding Certificate Number",
     )
-    monto_iva_retenido = models.DecimalField(
+    vat_withheld_amount = models.DecimalField(
         max_digits=15,
         decimal_places=2,
-        verbose_name="Monto de IVA Retenido",
+        verbose_name="VAT Withheld Amount",
     )
 
     class Meta:
         """Configuración de metadatos del modelo ComprobanteRetencionIVA."""
 
-        verbose_name = "Comprobante de Retención de IVA"
-        verbose_name_plural = "Comprobantes de Retención de IVA"
+        verbose_name = "VAT Withholding Certificate"
+        verbose_name_plural = "VAT Withholding Certificates"
 
     def __str__(self) -> str:
         """Retorna una representación legible del comprobante de IVA."""
-        return f"Comprobante IVA N° {self.numero_comprobante}"
+        return f"VAT Certificate No. {self.certificate_number}"
 
 
-class ComprobanteRetencionISLR(FiscalModuleAbstractModel):
+class IslrWithholdingCertificate(FiscalModuleAbstractModel):
     """Modelo de control para comprobantes de retención de ISLR.
 
     Asocia las retenciones del Impuesto Sobre la Renta ejecutadas sobre conceptos y
     líneas operativas específicas desglosadas en las compras del período.
     """
 
-    factura_compra = models.ForeignKey(
-        LibroComprasFactura,
+    purchase_invoice = models.ForeignKey(
+        PurchaseLedgerInvoice,
         on_delete=models.PROTECT,
-        related_name="comprobantes_islr",
-        verbose_name="Factura de Compra Relacionada",
+        related_name="islr_withholding_certificates",
+        verbose_name="Related Purchase Invoice",
     )
-    linea_origen = models.OneToOneField(
-        LineaFacturaCompra,
+    source_line = models.OneToOneField(
+        PurchaseInvoiceLine,
         on_delete=models.PROTECT,
-        related_name="comprobante_islr",
-        verbose_name="Línea de Factura de Origen",
+        related_name="islr_withholding_certificate",
+        verbose_name="Source Invoice Line",
     )
-    numero_comprobante = models.CharField(
+    certificate_number = models.CharField(
         max_length=50,
-        verbose_name="Número de Comprobante ISLR",
+        verbose_name="ISLR Certificate Number",
     )
-    dia_mes_cierre = models.CharField(
+    closing_day_month = models.CharField(
         max_length=10,
-        verbose_name="Día/Mes de Cierre",
+        verbose_name="Closing Day/Month",
     )
-    base_imponible_linea = models.DecimalField(
+    line_taxable_base = models.DecimalField(
         max_digits=15,
         decimal_places=2,
-        verbose_name="Base Imponible de la Línea",
+        verbose_name="Line Taxable Base",
     )
-    alicuota_aplicada = models.DecimalField(
+    applied_rate = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        verbose_name="Alícuota Aplicada (%)",
+        verbose_name="Applied Rate (%)",
     )
-    monto_islr_retenido = models.DecimalField(
+    islr_withheld_amount = models.DecimalField(
         max_digits=15,
         decimal_places=2,
-        verbose_name="Monto ISLR Retenido",
+        verbose_name="ISLR Withheld Amount",
     )
 
     class Meta:
         """Configuración de metadatos del modelo ComprobanteRetencionISLR."""
 
-        verbose_name = "Comprobante de Retención de ISLR"
-        verbose_name_plural = "Comprobantes de Retención de ISLR"
+        verbose_name = "ISLR Withholding Certificate"
+        verbose_name_plural = "ISLR Withholding Certificates"
 
     def __str__(self) -> str:
         """Retorna una representación legible del comprobante de ISLR."""
-        return f"Comprobante ISLR N° {self.numero_comprobante} (Línea ID: {self.linea_origen_id})"
+        return f"ISLR Certificate No. {self.certificate_number} (Line ID: {self.source_line_id})"
