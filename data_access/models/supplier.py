@@ -5,8 +5,11 @@ específicos para la región, garantizando la consistencia multitenant.
 """
 
 from decimal import Decimal
+from typing import Any
 from django.core.exceptions import ValidationError
 from django.db import models
+
+from data_access.mixins.sequence import AutomaticCodeMixin
 from data_access.models.base import FiscalModuleAbstractModel, FiscalProfile
 
 
@@ -27,11 +30,12 @@ def validate_vat_withholding_percentage(value: Decimal) -> None:
         )
 
 
-class LocalSupplier(FiscalModuleAbstractModel):
+class LocalSupplier(AutomaticCodeMixin, FiscalModuleAbstractModel):
     """Modelo para gestionar los metadatos y configuraciones fiscales de proveedores regionales.
 
     Hereda de FiscalModuleAbstractModel para heredar el aislamiento de inquilino
-    mediante el campo obligatorio 'fiscal_profile'.
+    mediante el campo obligatorio 'fiscal_profile'. Genera de manera automática
+    su código identificador a través de AutomaticCodeMixin.
     """
 
     class SupplierType(models.TextChoices):
@@ -41,17 +45,23 @@ class LocalSupplier(FiscalModuleAbstractModel):
         WITHOUT_RIF = "WITHOUT_RIF", "Without RIF"
         NON_RESIDENT = "NON_RESIDENT", "Non-Resident"
         NON_DOMICILED = "NON_DOMICILED", "Non-Domiciled"
+    
+    class VatWithholdingPercentageChoices(Decimal, models.Choices):
+        """Porcentajes permitidos de retención de IVA según la normativa del SENIAT."""
 
-    fiscal_profile = models.ForeignKey(
-        FiscalProfile,
-        on_delete=models.CASCADE,
-        related_name="local_suppliers",
-        verbose_name="Fiscal Profile",
-    )    
+        ZERO = Decimal('0.00'), "0%"
+        SEVENTY_FIVE = Decimal('75.00'), "75%"
+        ONE_HUNDRED = Decimal('100.00'), "100%"
+
+    # Configuración de propiedades para el AutomaticCodeMixin
+    PREFIX = AutomaticCodeMixin.CodePrefixes.PROVEEDORES
+    PADDING_LENGTH = 5
 
     code = models.CharField(
         max_length=50,
-        verbose_name="Supplier Code",
+        blank=True,
+        editable=False,
+        verbose_name="Automatic Sequence Code",
     )
     name = models.CharField(
         max_length=255,
@@ -75,8 +85,8 @@ class LocalSupplier(FiscalModuleAbstractModel):
     vat_withholding_percentage = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=Decimal("0.00"),
-        validators=[validate_vat_withholding_percentage],
+        choices=VatWithholdingPercentageChoices.choices,
+        default=VatWithholdingPercentageChoices.ZERO,
         verbose_name="VAT Withholding Percentage",
     )
     ari_percentage = models.DecimalField(
@@ -92,8 +102,14 @@ class LocalSupplier(FiscalModuleAbstractModel):
 
         verbose_name = "Local Supplier"
         verbose_name_plural = "Local Suppliers"
-        unique_together = ('fiscal_profile', 'rif')
+        # Se asegura tanto la unicidad del RIF como la del Código Autogenerado por inquilino
+        unique_together = (("fiscal_profile", "rif"), ("fiscal_profile", "code"))
 
     def __str__(self) -> str:
         """Retorna una representación legible del Proveedor Local."""
-        return f"{self.name} ({self.rif})"
+        return f"{self.name} ({self.rif}) - {self.code}"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Persiste el proveedor ejecutando la generación automática de códigos."""
+        self.handle_automatic_code()
+        super().save(*args, **kwargs)

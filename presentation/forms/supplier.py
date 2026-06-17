@@ -16,16 +16,7 @@ class LocalSupplierForm(forms.ModelForm):
     class Meta:
         model = LocalSupplier
         exclude = ["fiscal_profile"]
-        widgets = {
-            "code": forms.TextInput(attrs={"class": "form-control"}),
-            "name": forms.TextInput(attrs={"class": "form-control"}),
-            "rif": forms.TextInput(attrs={"class": "form-control"}),
-            "supplier_type": forms.Select(attrs={"class": "form-control"}),
-            "usual_withholding": forms.TextInput(attrs={"class": "form-control"}),
-            "vat_withholding_percentage": forms.NumberInput(attrs={"class": "form-control"}),
-            "ari_percentage": forms.NumberInput(attrs={"class": "form-control"}),
-        }
-
+        
     def clean_rif(self) -> str:
         """Valida estructuralmente el RIF mediante expresiones regulares.
 

@@ -5,17 +5,25 @@ de IVA (Impuesto al Valor Agregado) e ISLR (Impuesto Sobre la Renta) vinculadas
 al libro de compras multi-inquilino.
 """
 
+from typing import Any
 from django.db import models
+
+from data_access.mixins.sequence import TransactionalSequenceMixin
 from data_access.models.base import FiscalModuleAbstractModel
 from data_access.models.purchase_book import PurchaseLedgerInvoice, PurchaseInvoiceLine
 
 
-class VatWithholdingCertificate(FiscalModuleAbstractModel):
+class VatWithholdingCertificate(TransactionalSequenceMixin, FiscalModuleAbstractModel):
     """Modelo legal para el registro de comprobantes de retención de IVA.
 
-    Establece un vínculo unívoco e inseparabe con una factura de compra del libro
-    fiscal, resguardando la integridad de la recaudación del tributo.
+    Establece un vínculo unívoco e inseparable con una factura de compra del libro
+    fiscal, resguardando la integridad de la recaudación del tributo. Genera de
+    manera automática un número de documento transaccional periódico.
     """
+
+    # Configuración de propiedades para el TransactionalSequenceMixin
+    PREFIX = "RETENCION_IVA"
+    PADDING_LENGTH = 5
 
     purchase_invoice = models.OneToOneField(
         PurchaseLedgerInvoice,
@@ -31,10 +39,11 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
         decimal_places=2,
         verbose_name="VAT Withholding Percentage (%)",
     )
-    certificate_number = models.CharField(
+    document_number = models.CharField(
         max_length=50,
-        unique=True,
-        verbose_name="Withholding Certificate Number",
+        blank=True,
+        editable=False,
+        verbose_name="Withholding Document Number",
     )
     vat_withheld_amount = models.DecimalField(
         max_digits=15,
@@ -47,18 +56,30 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
 
         verbose_name = "VAT Withholding Certificate"
         verbose_name_plural = "VAT Withholding Certificates"
+        # Garantiza el aislamiento multi-inquilino evitando colisiones del correlativo periódico
+        unique_together = ("fiscal_profile", "document_number")
 
     def __str__(self) -> str:
         """Retorna una representación legible del comprobante de IVA."""
-        return f"VAT Certificate No. {self.certificate_number}"
+        return f"VAT Certificate No. {self.document_number}"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Persiste el comprobante ejecutando la pre-generación del número de documento."""
+        self.handle_transactional_code()
+        super().save(*args, **kwargs)
 
 
-class IslrWithholdingCertificate(FiscalModuleAbstractModel):
+class IslrWithholdingCertificate(TransactionalSequenceMixin, FiscalModuleAbstractModel):
     """Modelo de control para comprobantes de retención de ISLR.
 
     Asocia las retenciones del Impuesto Sobre la Renta ejecutadas sobre conceptos y
-    líneas operativas específicas desglosadas en las compras del período.
+    líneas operativas específicas desglosadas en las compras del período. Genera de
+    manera automática un número de documento transaccional periódico.
     """
+
+    # Configuración de propiedades para el TransactionalSequenceMixin
+    PREFIX = "RETENCION_ISLR"
+    PADDING_LENGTH = 5
 
     purchase_invoice = models.ForeignKey(
         PurchaseLedgerInvoice,
@@ -72,9 +93,11 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
         related_name="islr_withholding_certificate",
         verbose_name="Source Invoice Line",
     )
-    certificate_number = models.CharField(
+    document_number = models.CharField(
         max_length=50,
-        verbose_name="ISLR Certificate Number",
+        blank=True,
+        editable=False,
+        verbose_name="ISLR Document Number",
     )
     closing_day_month = models.CharField(
         max_length=10,
@@ -101,7 +124,14 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
 
         verbose_name = "ISLR Withholding Certificate"
         verbose_name_plural = "ISLR Withholding Certificates"
+        # Garantiza el aislamiento multi-inquilino evitando colisiones del correlativo periódico
+        unique_together = ("fiscal_profile", "document_number")
 
     def __str__(self) -> str:
         """Retorna una representación legible del comprobante de ISLR."""
-        return f"ISLR Certificate No. {self.certificate_number} (Line ID: {self.source_line_id})"
+        return f"ISLR Certificate No. {self.document_number} (Line ID: {self.source_line_id})"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Persiste el comprobante ejecutando la pre-generación del número de documento."""
+        self.handle_transactional_code()
+        super().save(*args, **kwargs)

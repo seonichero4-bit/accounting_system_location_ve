@@ -6,17 +6,20 @@ multitenant requerido.
 """
 
 from decimal import Decimal
+from typing import Any
 from django.db import models
-from data_access.models.base import FiscalModuleAbstractModel
+
+from data_access.mixins.sequence import AutomaticCodeMixin
+from data_access.models.base import FiscalModuleAbstractModel, FiscalProfile
 from data_access.models.supplier import LocalSupplier
 
 
-class PurchaseLedgerInvoice(FiscalModuleAbstractModel):
+class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
     """Modelo para la gestión del encabezado del libro de compras fiscal.
 
     Almacena los metadatos globales, identificadores de impresión obligatorios,
     fechas de aplicación impositiva y los agregados financieros de una transacción
-    de compra.
+    de compra. Genera de manera automática un código de control secuencial único.
     """
 
     class InvoiceStatus(models.TextChoices):
@@ -38,7 +41,17 @@ class PurchaseLedgerInvoice(FiscalModuleAbstractModel):
         INTERNAL = "INTERNAL", "Internal"
         IMPORT = "IMPORT", "Import"
 
-    # Identificación y Relaciones
+    # Configuración de propiedades para el AutomaticCodeMixin
+    PREFIX = "FACTURA_COMPRA"  
+    PADDING_LENGTH = 5
+
+    code = models.CharField(
+        max_length=50,
+        blank=True,
+        editable=False,
+        verbose_name="Automatic Sequence Code",
+    )
+
     document_type = models.CharField(
         max_length=20,
         choices=DocumentType.choices,
@@ -179,10 +192,16 @@ class PurchaseLedgerInvoice(FiscalModuleAbstractModel):
 
         verbose_name = "Purchase Invoice (Ledger)"
         verbose_name_plural = "Purchase Invoices (Ledger)"
+        unique_together = ("fiscal_profile", "code")
 
     def __str__(self) -> str:
         """Retorna una representación descriptiva de la factura."""
-        return f"{self.document_type} N° {self.number} - Control {self.invoice_control}"
+        return f"{self.document_type} N° {self.number} - Control {self.invoice_control} ({self.code})"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Persiste la factura ejecutando la pre-generación automática de códigos."""
+        self.handle_automatic_code()
+        super().save(*args, **kwargs)
 
 
 class PurchaseInvoiceLine(models.Model):
