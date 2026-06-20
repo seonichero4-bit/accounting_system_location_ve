@@ -136,9 +136,9 @@ class Migration(migrations.Migration):
                         decimal_places=2,
                         default=Decimal("0.00"),
                         max_digits=5,
-                        validators=[
-                            data_access.models.supplier.validate_vat_withholding_percentage
-                        ],
+                        #validators=[
+                            #data_access.models.supplier.validate_vat_withholding_percentage
+                        #],
                         verbose_name="VAT Withholding Percentage",
                     ),
                 ),

@@ -7,28 +7,27 @@ específicos para la región, garantizando la consistencia multitenant.
 from decimal import Decimal
 from typing import Any
 from django.core.exceptions import ValidationError
+from django.core.validators import MinLengthValidator
 from django.db import models
 
 from data_access.mixins.sequence import AutomaticCodeMixin
 from data_access.models.base import FiscalModuleAbstractModel, FiscalProfile
 
+# def validate_vat_withholding_percentage(value: Decimal) -> None:
+#     """Valida que el porcentaje de retención de IVA coincida con los valores legales.
 
-def validate_vat_withholding_percentage(value: Decimal) -> None:
-    """Valida que el porcentaje de retención de IVA coincida con los valores legales.
+#     Args:
+#         value: El valor decimal a validar.
 
-    Args:
-        value: El valor decimal a validar.
-
-    Raises:
-        ValidationError: Si el valor no es 0.00, 75.00 o 100.00.
-    """
-    allowed_values = [Decimal("0.00"), Decimal("75.00"), Decimal("100.00")]
-    if value not in allowed_values:
-        raise ValidationError(
-            f"The VAT withholding percentage ({value}) is not valid. "
-            f"It must be exactly one of the following values: 0.00, 75.00, or 100.00."
-        )
-
+#     Raises:
+#         ValidationError: Si el valor no es 0.00, 75.00 o 100.00.
+#     """
+#     allowed_values = [Decimal("0.00"), Decimal("75.00"), Decimal("100.00")]
+#     if value not in allowed_values:
+#         raise ValidationError(
+#             f"The VAT withholding percentage ({value}) is not valid. "
+#             f"It must be exactly one of the following values: 0.00, 75.00, or 100.00."
+#         )
 
 class LocalSupplier(AutomaticCodeMixin, FiscalModuleAbstractModel):
     """Modelo para gestionar los metadatos y configuraciones fiscales de proveedores regionales.
@@ -65,16 +64,24 @@ class LocalSupplier(AutomaticCodeMixin, FiscalModuleAbstractModel):
     )
     name = models.CharField(
         max_length=255,
-        verbose_name="Name or Corporate Name",
+        blank=False,  
+        validators=[MinLengthValidator(limit_value=1)],  
+        verbose_name="Nombre del Proveedor"
     )
+
     rif = models.CharField(
         max_length=20,
-        verbose_name="Fiscal Information Registry (RIF)",
+        blank=False,  
+        validators=[MinLengthValidator(limit_value=1)], 
+        verbose_name="Registro de Información Fiscal (RIF)"
     )
     supplier_type = models.CharField(
         max_length=20,
+        blank=False,
         choices=SupplierType.choices,
+        default=SupplierType.WITH_RIF,
         verbose_name="Supplier Type",
+        validators=[MinLengthValidator(1, message="El campo no puede estar vacío.")]
     )
     usual_withholding = models.CharField(
         max_length=50,
@@ -102,8 +109,28 @@ class LocalSupplier(AutomaticCodeMixin, FiscalModuleAbstractModel):
 
         verbose_name = "Local Supplier"
         verbose_name_plural = "Local Suppliers"
-        # Se asegura tanto la unicidad del RIF como la del Código Autogenerado por inquilino
-        unique_together = (("fiscal_profile", "rif"), ("fiscal_profile", "code"))
+        
+        constraints = [
+            # 1. Restricciones de Unicidad (Aislamiento Multitenant)
+            models.UniqueConstraint(
+                fields=["fiscal_profile", "rif"],
+                name="%(app_label)s_%(class)s_unique_profile_rif"
+            ),
+            models.UniqueConstraint(
+                fields=["fiscal_profile", "code"],
+                name="%(app_label)s_%(class)s_unique_profile_code"
+            ),
+            
+            # 2. Restricciones de Integridad de Datos
+            models.CheckConstraint(
+                condition=~models.Q(name=""),
+                name="%(app_label)s_%(class)s_name_not_empty"
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(rif=""),
+                name="%(app_label)s_%(class)s_rif_not_empty"
+            ),
+        ]
 
     def __str__(self) -> str:
         """Retorna una representación legible del Proveedor Local."""

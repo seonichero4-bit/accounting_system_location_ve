@@ -69,11 +69,11 @@ class FiscalProfile(models.Model):
         """
 
         try:
-            return self.local_suppliers.get(rif=rif)
-        except local_suppliers.DoesNotExist:
+            return self.localsupplier_models.get(rif=rif)
+        except self.localsupplier_models.model.DoesNotExist:
             return None
-
-    def create_supplier(self, **kwargs) -> "LocalSupplier":
+       
+    def create_supplier(self, name: str, rif: str, **other_fields) -> "LocalSupplier":
         """Crea y persiste un nuevo proveedor local asociado directamente a este perfil.
 
         Aprovecha la relación inversa para asegurar la asignación implícita
@@ -86,8 +86,13 @@ class FiscalProfile(models.Model):
         Returns:
             ProveedorLocal: La instancia del proveedor local recién creada.
         """
-        return self.local_suppliers.create(**kwargs)                
-
+        return self.localsupplier_models.create(
+            fiscal_profile=self, 
+            name=name,
+            rif=rif,
+            **other_fields
+        )
+                  
     class Meta:
         """Configuración de metadatos del modelo FiscalProfile."""
 
@@ -110,7 +115,7 @@ class FiscalModuleAbstractModel(models.Model):
     fiscal_profile = models.ForeignKey(
         FiscalProfile,
         on_delete=models.PROTECT,
-        related_name="%(class)s_modules",
+        related_name="%(class)s_models",
         verbose_name="Tenant / Associated Fiscal Profile",
     )
 
