@@ -5,6 +5,7 @@ en el modelo base FiscalProfile. Implementa el patrón Arrange-Act-Assert.
 """
 
 import pytest
+
 from django.db import IntegrityError
 from data_access.models.base import FiscalProfile
 from data_access.models.supplier import LocalSupplier

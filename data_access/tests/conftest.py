@@ -6,8 +6,10 @@ para ejecutar las pruebas de aislamiento multi-inquilino (tenant).
 
 from typing import Any
 import pytest
+
 from django.contrib.auth import get_user_model
 from django_ledger.models import EntityModel
+
 from data_access.models.base import FiscalProfile
 from data_access.models.supplier import LocalSupplier
 

@@ -53,5 +53,10 @@ class SupplierService:
                 return existing, False  # No fue creado, ya existía
 
         # Si no existe, lo crea usando la lógica de fábrica delegada
-        new_supplier = self.fiscal_profile.create_supplier(**supplier_data)
-        return new_supplier, True
+        if isinstance(supplier_data.get("name"), str):
+            new_supplier = self.fiscal_profile.create_supplier(**supplier_data)
+            return new_supplier, True
+        else: 
+            raise TypeError("El campo 'name' debe ser una cadena de texto.")
+        
+     
