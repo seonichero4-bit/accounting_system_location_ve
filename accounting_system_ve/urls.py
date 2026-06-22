@@ -23,7 +23,7 @@ urlpatterns = [
     # urls_supplier
     path("suppliers/", supplier.LocalSupplierListView.as_view(), name="supplier-list"),
     path("suppliers/new/", supplier.LocalSupplierCreateView.as_view(), name="supplier-create"),
-    path("suppliers/<int:pk>/", supplier.LocalSupplierDetailView.as_view(), name="supplier-detail"),
-    path("suppliers/<int:pk>/edit/", supplier.LocalSupplierUpdateView.as_view(), name="supplier-update"),
-    path("suppliers/<int:pk>/delete/", supplier.LocalSupplierDeleteView.as_view(), name="supplier-delete"),
+    path("suppliers/<str:code>/", supplier.LocalSupplierDetailView.as_view(), name="supplier-detail"),
+    path("suppliers/<str:code>/edit/", supplier.LocalSupplierUpdateView.as_view(), name="supplier-update"),
+    path("suppliers/<str:code>/delete/", supplier.LocalSupplierDeleteView.as_view(), name="supplier-delete"),
 ]

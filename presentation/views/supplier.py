@@ -1,6 +1,7 @@
 """Módulo de vistas CRUD para la gestión de proveedores locales."""
 
 from typing import Any
+
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse_lazy, reverse
@@ -40,6 +41,9 @@ class LocalSupplierDetailView(FiscalTenantMixin, DetailView):
     model = LocalSupplier
     context_object_name = "supplier"
     template_name = "localsupplier_detail.html"
+    # Configuración para buscar por código
+    slug_field = "code"
+    slug_url_kwarg = "code"
 
 
 class LocalSupplierCreateView(FiscalTenantMixin, FormView):
@@ -64,12 +68,13 @@ class LocalSupplierCreateView(FiscalTenantMixin, FormView):
         Returns:
             HttpResponse: Redirección a la vista de detalle del proveedor procesado.
         """
-       
+        
         service = SupplierService(fiscal_profile=self.get_fiscal_profile())
     
         supplier, created = service.register_or_retrieve_local(form.cleaned_data)
         
-        return redirect("supplier-detail", pk=supplier.pk)
+        # Redirección actualizada para usar 'code' en lugar de 'pk'
+        return redirect("supplier-detail", code=supplier.code)
 
 
 class LocalSupplierUpdateView(FiscalTenantMixin, UpdateView):
@@ -77,9 +82,13 @@ class LocalSupplierUpdateView(FiscalTenantMixin, UpdateView):
     model = LocalSupplier
     form_class = LocalSupplierForm
     template_name = "localsupplier_form.html"
+    # Configuración para buscar por código
+    slug_field = "code"
+    slug_url_kwarg = "code"
 
     def get_success_url(self) -> str:
-        return reverse("supplier-detail", kwargs={"pk": self.object.pk})
+        # Redirección actualizada para usar 'code' en lugar de 'pk'
+        return reverse("supplier-detail", kwargs={"code": self.object.code})
 
 
 class LocalSupplierDeleteView(FiscalTenantMixin, DeleteView):
@@ -87,3 +96,6 @@ class LocalSupplierDeleteView(FiscalTenantMixin, DeleteView):
     model = LocalSupplier
     template_name = "localsupplier_confirm_delete.html"
     success_url = reverse_lazy("supplier-list")
+    # Configuración para buscar por código
+    slug_field = "code"
+    slug_url_kwarg = "code"

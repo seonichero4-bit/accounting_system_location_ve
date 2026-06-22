@@ -1099,6 +1099,7 @@ en el modelo base FiscalProfile. Implementa el patrón Arrange-Act-Assert.
 """
 
 import pytest
+
 from django.db import IntegrityError
 from data_access.models.base import FiscalProfile
 from data_access.models.supplier import LocalSupplier
@@ -1677,6 +1678,122 @@ class Migration(migrations.Migration):
     ]
 
 ----
+business_logic/tests/test_supplier_service.py
+"""Suite de pruebas unitarias y de persistencia para el servicio SupplierService.
+
+Verifica los flujos de creación transaccional e idempotencia del método
+register_or_retrieve_local aplicando de forma estricta la arquitectura AAA.
+"""
+
+from typing import Any
+
+import pytest
+from django.db import IntegrityError
+
+from business_logic.services.supplier_service import SupplierService
+from data_access.models.supplier import LocalSupplier
+
+
+@pytest.mark.django_db
+class TestSupplierServiceRegisterOrRetrieve:
+    """Pruebas estructuradas para el método register_or_retrieve_local."""
+
+    def test_register_or_retrieve_local_existing_supplier_hp_001(
+        self, supplier_service: SupplierService, existing_supplier: LocalSupplier
+    ) -> None:
+        """[ID_HP_001] Recuperación exitosa de un proveedor local existente por RIF."""
+        # Arrange
+        supplier_data = {
+            "rif": existing_supplier.rif,
+            "name": "Intento de Duplicado de Nombre"
+        }
+
+        # Act
+        supplier, created = supplier_service.register_or_retrieve_local(supplier_data)
+
+        # Assert
+        assert supplier.id == existing_supplier.id
+        assert supplier.rif == existing_supplier.rif
+        assert created is False
+
+    def test_register_or_retrieve_local_new_supplier_hp_002(
+        self, supplier_service: SupplierService
+    ) -> None:
+        """[ID_HP_002] Registro y creación exitosa de un proveedor si el RIF es nuevo."""
+        # Arrange
+        supplier_data = {
+            "rif": "J-98765432-1",
+            "name": "Corporación Inversora Nueva C.A."
+        }
+
+        # Act
+        supplier, created = supplier_service.register_or_retrieve_local(supplier_data)
+
+        # Assert
+        assert isinstance(supplier, LocalSupplier)
+        assert supplier.pk is not None
+        assert supplier.rif == "J-98765432-1"
+        assert created is True
+
+    def test_register_or_retrieve_local_missing_rif_ec_001(
+        self, supplier_service: SupplierService
+    ) -> None:
+        """[ID_EC_001] Aborto del flujo si falta la propiedad requerida 'rif'."""
+        # Arrange
+        supplier_data = {"name": "Proveedor Sin Campo Clave"}
+
+        # Act & Assert
+        with pytest.raises(TypeError) as exc_info:
+            supplier_service.register_or_retrieve_local(supplier_data)
+
+        assert "missing 1 required positional argument: 'rif'" in str(exc_info.value)
+
+    @pytest.mark.parametrize("empty_rif", ["", None])
+    def test_register_or_retrieve_local_empty_rif_ec_002(
+        self, supplier_service: SupplierService, empty_rif: Any
+    ) -> None:
+        """[ID_EC_002] Denegación del procesamiento si el 'rif' es nulo o vacío."""
+        # Arrange
+        supplier_data = {
+            "rif": empty_rif,
+            "name": "Proveedor Operaciones Inválidas"
+        }
+
+        # Act & Assert
+        with pytest.raises(IntegrityError):
+            supplier_service.register_or_retrieve_local(supplier_data)
+
+    def test_register_or_retrieve_local_extra_parameters_ec_003(
+        self, supplier_service: SupplierService
+    ) -> None:
+        """[ID_EC_003] Intercepción de parámetros adicionales o mutaciones no deseadas."""
+        # Arrange
+        supplier_data = {
+            "rif": "J-55555555-5",
+            "name": "Proveedor Metadatos Extra",
+            "parametro_ruido": "Inyección De Formulario"
+        }
+
+        # Act & Assert
+        with pytest.raises(TypeError) as exc_info:
+            supplier_service.register_or_retrieve_local(supplier_data)
+
+        #assert "'parametro_ruido' is an invalid keyword argument" in str(exc_info.value)
+
+    def test_register_or_retrieve_local_invalid_data_types_ec_004(
+        self, supplier_service: SupplierService
+    ) -> None:
+        """[ID_EC_004] Intercepción de inyección de tipos incorrectos en propiedades."""
+        # Arrange
+        supplier_data = {
+            "rif": "J-77777777-7",
+            "name": ["Estructura", "No", "Soportada"]
+        }
+
+        # Act & Assert
+        with pytest.raises((TypeError, ValueError)):
+            print(supplier_service.register_or_retrieve_local(supplier_data))
+----
 data_access/models/base.py
 """Módulo base estructural para modelos fiscales multi-inquilino.
 
@@ -1932,6 +2049,110 @@ STATIC_URL = "static/"
 
 DJANGO_LEDGER_USE_DEPRECATED_BEHAVIOR = False
 ----
+business_logic/tests/conftest.py
+"""Configuración de fixtures locales para la suite de pruebas de lógica de negocio.
+
+Este módulo define de manera explícita y manual todos los fixtures requeridos
+para las pruebas de integración y del ORM de Django, eliminando dependencias
+de archivos de configuración externos y garantizando la autonomía de la suite.
+"""
+from typing import Any
+import pytest
+
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import User
+from django_ledger.models import EntityModel
+
+from business_logic.services.supplier_service import SupplierService
+from data_access.models.base import FiscalProfile
+from data_access.models.supplier import LocalSupplier
+
+
+@pytest.fixture
+def test_user(db: Any) -> User:
+    """Fixture que crea de forma manual un usuario del sistema.
+
+    Args:
+        db: Fixture nativo de pytest-django para habilitar acceso a la BD.
+
+    Returns:
+        User: Instancia de usuario autenticable en Django.
+    """
+    user_model = get_user_model()
+    return user_model.objects.create_user(
+        username="usuario_test",
+        password="SecurePassword123!"
+    )
+
+
+@pytest.fixture
+def ledger_entity(db: Any, test_user: User) -> EntityModel:
+    """Fixture que crea una entidad contable de django-ledger de forma manual.
+
+    Args:
+        db: Fixture nativo de pytest-django para habilitar acceso a la BD.
+        test_user (User): Instancia del usuario administrador asignado.
+
+    Returns:
+        EntityModel: Instancia de la entidad contable base.
+    """
+    return EntityModel.create_entity(
+        name=f"Empresa Base de Pruebas S.A",
+        admin=test_user,
+        use_accrual_method=True,
+        fy_start_month=1
+    )
+    
+
+
+@pytest.fixture
+def fiscal_profile(db: Any, test_user: User, ledger_entity: EntityModel) -> FiscalProfile:
+    """Fixture que crea un perfil fiscal venezolano asociado al inquilino contable.
+
+    Args:
+        db: Fixture nativo de pytest-django para habilitar acceso a la BD.
+        test_user (User): Usuario titular.
+        ledger_entity (EntityModel): Entidad contable asociada.
+
+    Returns:
+        FiscalProfile: Instancia de control fiscal multi-inquilino.
+    """
+    return FiscalProfile.objects.create(
+        name="Perfil fiscal pruebas",
+        rif="J-8235548-2",
+        entity=ledger_entity
+    )
+
+
+@pytest.fixture
+def existing_supplier(db: Any, fiscal_profile: FiscalProfile) -> LocalSupplier:
+    """Fixture que da de alta un proveedor local existente en la base de datos.
+
+    Args:
+        db: Fixture nativo de pytest-django para habilitar acceso a la BD.
+        fiscal_profile (FiscalProfile): Perfil fiscal donde se aloja el proveedor.
+
+    Returns:
+        LocalSupplier: Instancia del proveedor persistido con RIF estructurado.
+    """
+    return fiscal_profile.create_supplier(
+        rif="J-12345678-9",
+        name="Proveedor Preexistente C.A."
+    )
+
+
+@pytest.fixture
+def supplier_service(fiscal_profile: FiscalProfile) -> SupplierService:
+    """Fixture que inicializa el servicio inyectando el entorno fiscal real.
+
+    Args:
+        fiscal_profile (FiscalProfile): Instancia del perfil fiscal de pruebas.
+
+    Returns:
+        SupplierService: Componente de lógica de negocio listo para operar.
+    """
+    return SupplierService(fiscal_profile=fiscal_profile)
+----
 presentation/views/supplier.py
 """Módulo de vistas CRUD para la gestión de proveedores locales."""
 
@@ -2032,8 +2253,10 @@ para ejecutar las pruebas de aislamiento multi-inquilino (tenant).
 
 from typing import Any
 import pytest
+
 from django.contrib.auth import get_user_model
 from django_ledger.models import EntityModel
+
 from data_access.models.base import FiscalProfile
 from data_access.models.supplier import LocalSupplier
 
@@ -2172,8 +2395,13 @@ class SupplierService:
                 return existing, False  # No fue creado, ya existía
 
         # Si no existe, lo crea usando la lógica de fábrica delegada
-        new_supplier = self.fiscal_profile.create_supplier(**supplier_data)
-        return new_supplier, True
+        if isinstance(supplier_data.get("name"), str):
+            new_supplier = self.fiscal_profile.create_supplier(**supplier_data)
+            return new_supplier, True
+        else: 
+            raise TypeError("El campo 'name' debe ser una cadena de texto.")
+        
+     
 ----
 data_access/migrations/0003_alter_localsupplier_unique_together_and_more.py
 # Generated by Django 6.0.5 on 2026-06-19 17:29
@@ -2550,7 +2778,7 @@ __all__ = [
     "PurchaseLedgerInvoiceForm",
 ]
 ----
-business_logic/services/__init__.py
+business_logic/__init__.py
 """Paquete de servicios para la lógica de negocio fiscal.
 
 Expone de forma centralizada las clases que encapsulan las reglas de 
@@ -2559,7 +2787,7 @@ comunicación limpia entre la capa de presentación (vistas/formularios)
 y la capa de acceso a datos (modelos).
 """
 
-from .supplier_service import SupplierService
+from .services.supplier_service import SupplierService
 
 __all__ = [
     "SupplierService",
