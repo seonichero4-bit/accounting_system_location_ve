@@ -1,11 +1,14 @@
 <h1>Lista de Proveedores</h1>
 <a href="{% url 'supplier-create' %}">Añadir Nuevo Proveedor</a>
+
 <ul>
-    {% for proveedor in proveedores %}
+    {% for supplier in suppliers %}
         <li>
-            <a href="{% url 'supplier-detail' supplier.pk %}">{{ supplier.nombre }} ({{ supplier.rif }})</a>
+            <a href="{% url 'supplier-detail' supplier.code %}">
+                {{ supplier.name }} ({{ supplier.code }})
+            </a>
         </li>
     {% empty %}
-        <li>No hay proveedores registrados.</li>
+        <li>No hay proveedores registrados para este perfil fiscal.</li>
     {% endfor %}
 </ul>
