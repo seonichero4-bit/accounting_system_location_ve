@@ -1,0 +1,36 @@
+<h1>Perfiles Fiscales</h1>
+<a href="{% url 'fiscal-profile-create' %}">Crear Nuevo Perfil Fiscal</a>
+<br><br>
+
+<table border="1" cellpadding="5" cellspacing="0">
+    <thead>
+        <tr>
+            <th>Código</th>
+            <th>Nombre</th>
+            <th>RIF</th>
+            <th>Tipo de Contribuyente</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for profile in object_list %}
+            <tr>
+                <td>{{ profile.code }}</td>
+                <td>{{ profile.name }}</td>
+                <td>{{ profile.rif }}</td>
+                <td>{{ profile.get_taxpayer_type_display }}</td>
+                <td>
+                    <a href="{% url 'fiscal-profile-detail' profile.code %}">Ver</a> | 
+                    <a href="{% url 'fiscal-profile-update' profile.code %}">Editar</a> | 
+                    <a href="{% url 'fiscal-profile-delete' profile.code %}">Eliminar</a>
+                </td>
+            </tr>
+        {% empty %}
+            <tr>
+                <td colspan="5">No se encontraron perfiles fiscales registrados.</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<br>
+<a href="{% url 'supplier-list' %}">Volver a Proveedores</a>

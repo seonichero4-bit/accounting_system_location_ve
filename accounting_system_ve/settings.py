@@ -57,7 +57,10 @@ ROOT_URLCONF = "accounting_system_ve.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / 'presentation' / 'templates' / 'supplier',],
+        "DIRS": [
+            BASE_DIR / 'presentation' / 'templates' / 'supplier',
+            BASE_DIR / 'presentation' / 'templates' / 'fiscalprofile',
+        ],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [

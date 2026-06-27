@@ -4,9 +4,11 @@ Define el perfil fiscal asociado a las entidades de contabilidad de Django Ledge
 y proporciona un modelo abstracto para imponer un aislamiento estricto de datos
 por cada inquilino (tenant) sobre el backend de PostgreSQL.
 """
-from django.db import models
+from typing import Optional, Any
+
 from django_ledger.models import EntityModel
-from typing import Optional
+from django.db import models, transaction
+from django.contrib.auth.models import User
 
 class FiscalProfile(models.Model):
     """Modelo estructural central para la identificación fiscal.
@@ -22,12 +24,6 @@ class FiscalProfile(models.Model):
         ORDINARY = "ORDINARY", "Ordinary"
         SPECIAL = "SPECIAL", "Special"
 
-    entity = models.OneToOneField(
-        EntityModel,
-        on_delete=models.PROTECT,
-        related_name="fiscal_profile",
-        verbose_name="Django Ledger Entity",
-    )
     code = models.CharField(
         max_length=50,
         unique=True,
@@ -53,6 +49,56 @@ class FiscalProfile(models.Model):
         choices=TaxpayerType.choices,
         verbose_name="Taxpayer Type",
     )
+
+    @classmethod
+    def create_profile(
+        cls,
+        admin: 'User',
+        entity_name: str,
+        use_accrual_method: bool,
+        fy_start_month: int,
+        rif: str,
+        code: str,
+        taxpayer_type: str,
+        nit: Optional[str] = None,
+    ) -> "FiscalProfile":
+        """Crea un perfil fiscal y su entidad contable asociada de forma atómica.
+
+        Gestiona la creación del inquilino (tenant) instanciando primero el 
+        EntityModel requerido por Django Ledger utilizando obligatoriamente el nombre 
+        provisto, y posteriormente el FiscalProfile de forma atómica.
+
+        Args:
+            admin (Any): Instancia del usuario administrador (User) para la entidad de Ledger.
+            entity_name (str): Nombre explícito y legal para la entidad contable (EntityModel).
+            rif (str): Registro de Información Fiscal.
+            code (str): Código de control interno único.
+            taxpayer_type (str): Tipo de contribuyente (ej. 'ORDINARY').
+            nit (Optional[str], optional): Número de Identificación Tributaria.
+            **entity_kwargs (Any): Argumentos adicionales para EntityModel.create_entity 
+                (ej. use_accrual_method, fy_start_month).
+
+        Returns:
+            FiscalProfile: La instancia del perfil fiscal recién creada.
+        """
+        with transaction.atomic():
+           
+            entity = EntityModel.create_entity(
+                name=entity_name,
+                admin=admin,
+                use_accrual_method=use_accrual_method,
+                fy_start_month=fy_start_month
+            )
+
+            profile = cls.objects.create(
+                entity=entity,
+                code=code,
+                rif=rif,
+                nit=nit,
+                taxpayer_type=taxpayer_type
+            )
+            
+            return profile
 
     def get_supplier_by_rif(self, rif: str) -> Optional["LocalSupplier"]:
         """Obtiene un proveedor local asociado a esta instancia mediante su RIF.

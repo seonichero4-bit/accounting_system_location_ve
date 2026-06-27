@@ -1,0 +1,25 @@
+<h1>{% if is_update %}Editar{% else %}Crear{% endif %} Perfil Fiscal</h1>
+
+<form method="post">
+    {% csrf_token %}
+    
+    {% if profile_form.non_field_errors %}
+        <div style="color: red;">
+            {% for error in profile_form.non_field_errors %}
+                <p>{{ error }}</p>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <h3>Datos de la Entidad Contable (Django Ledger)</h3>
+    {{ entity_form.as_p }}
+
+    <hr>
+
+    <h3>Datos de Configuración Fiscal Regional</h3>
+    {{ profile_form.as_p }}
+
+    <br>
+    <button type="submit">Guardar Configuración</button>
+    <a href="{% url 'supplier-list' %}">Cancelar</a>
+</form>

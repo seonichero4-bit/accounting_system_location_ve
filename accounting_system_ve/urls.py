@@ -1,29 +1,20 @@
-"""
-URL configuration for accounting_system_ve project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/6.0/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
-
 from django.contrib import admin
 from django.urls import path
 from presentation.views import supplier
+from presentation.views import fiscal_profile
 
 urlpatterns = [
-    # urls_supplier
+    # URLS de Proveedores
     path("suppliers/", supplier.LocalSupplierListView.as_view(), name="supplier-list"),
     path("suppliers/new/", supplier.LocalSupplierCreateView.as_view(), name="supplier-create"),
     path("suppliers/<str:code>/", supplier.LocalSupplierDetailView.as_view(), name="supplier-detail"),
     path("suppliers/<str:code>/edit/", supplier.LocalSupplierUpdateView.as_view(), name="supplier-update"),
     path("suppliers/<str:code>/delete/", supplier.LocalSupplierDeleteView.as_view(), name="supplier-delete"),
+    
+    # URLS de Perfiles Fiscales
+    path("fiscal-profiles/", fiscal_profile.FiscalProfileListView.as_view(), name="fiscal-profile-list"),
+    path("fiscal-profiles/new/", fiscal_profile.FiscalProfileCreateView.as_view(), name="fiscal-profile-create"),
+    path("fiscal-profiles/<str:code>/", fiscal_profile.FiscalProfileDetailView.as_view(), name="fiscal-profile-detail"),
+    path("fiscal-profiles/<str:code>/edit/", fiscal_profile.FiscalProfileUpdateView.as_view(), name="fiscal-profile-update"),
+    path("fiscal-profiles/<str:code>/delete/", fiscal_profile.FiscalProfileDeleteView.as_view(), name="fiscal-profile-delete"),
 ]

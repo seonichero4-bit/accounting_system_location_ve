@@ -1,0 +1,28 @@
+<h1>Detalle del Perfil Fiscal: {{ object.name }}</h1>
+
+<h3>Información de Control Fiscal Regional</h3>
+<ul>
+    <li><strong>Código de Control Interno:</strong> {{ object.code }}</li>
+    <li><strong>Nombre o Razón Social:</strong> {{ object.name }}</li>
+    <li><strong>RIF:</strong> {{ object.rif }}</li>
+    <li><strong>NIT:</strong> {{ object.nit|default:"No registrado" }}</li>
+    <li><strong>Tipo de Contribuyente:</strong> {{ object.get_taxpayer_type_display }}</li>
+</ul>
+
+<hr>
+
+<h3>Información de la Entidad Contable (Django Ledger)</h3>
+{% if entity %}
+    <ul>
+        <li><strong>Nombre de la Entidad:</strong> {{ entity.name }}</li>
+        <li><strong>Método de Devengado (Accrual Method):</strong> {% if entity.use_accrual_method %}Sí{% else %}No{% endif %}</li>
+        <li><strong>Mes de Inicio del Año Fiscal:</strong> {{ entity.fy_start_month }}</li>
+    </ul>
+{% else %}
+    <p style="color: orange;">Este perfil fiscal no tiene una entidad contable asociada de forma directa.</p>
+{% endif %}
+
+<br>
+<a href="{% url 'fiscal-profile-update' object.code %}">Editar</a> | 
+<a href="{% url 'fiscal-profile-delete' object.code %}">Eliminar</a> | 
+<a href="{% url 'fiscal-profile-list' %}">Volver a la lista</a>
