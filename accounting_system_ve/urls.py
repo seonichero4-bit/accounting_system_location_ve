@@ -18,3 +18,5 @@ urlpatterns = [
     path("fiscal-profiles/<str:code>/edit/", fiscal_profile.FiscalProfileUpdateView.as_view(), name="fiscal-profile-update"),
     path("fiscal-profiles/<str:code>/delete/", fiscal_profile.FiscalProfileDeleteView.as_view(), name="fiscal-profile-delete"),
 ]
+
+

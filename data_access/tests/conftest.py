@@ -76,7 +76,7 @@ def tenant_b_profile(db, ledger_entity_b: EntityModel) -> FiscalProfile:
     return FiscalProfile.objects.create(
         entity=ledger_entity_b,
         code="TENANT-B",
-        name="Empresa B C.A.",
+       name="Empresa B C.A.",
         rif="J-22222222-2",
         taxpayer_type=FiscalProfile.TaxpayerType.ORDINARY,
     )

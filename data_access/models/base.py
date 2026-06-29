@@ -24,6 +24,14 @@ class FiscalProfile(models.Model):
         ORDINARY = "ORDINARY", "Ordinary"
         SPECIAL = "SPECIAL", "Special"
 
+    entity = models.OneToOneField(
+        EntityModel,
+        on_delete=models.CASCADE,
+        related_name="fiscalprofile",
+        verbose_name="entity model ledger",
+        null=True, #argumento debe ser eliminado ante de produccion 
+        blank=True, #argumento debe ser eliminado ante de produccion 
+    )
     code = models.CharField(
         max_length=50,
         unique=True,
@@ -32,6 +40,8 @@ class FiscalProfile(models.Model):
     name = models.CharField(
         max_length=35,
         verbose_name="Legal Name or Corporate Name",
+         null=True, #argumento debe ser eliminado ante de produccion 
+        blank=True, #argumento debe ser eliminado ante de produccion 
     )
     rif = models.CharField(
         max_length=20,
@@ -92,6 +102,7 @@ class FiscalProfile(models.Model):
 
             profile = cls.objects.create(
                 entity=entity,
+                name=entity_name,
                 code=code,
                 rif=rif,
                 nit=nit,

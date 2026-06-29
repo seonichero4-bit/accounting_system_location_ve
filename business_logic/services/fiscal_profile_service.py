@@ -9,9 +9,12 @@ from typing import Any, Optional
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 
 from data_access.models.base import FiscalProfile
+
+# Centinela para identificar argumentos no provistos en la actualización
+_UNSET = object()
 
 
 class FiscalProfileService:
@@ -33,25 +36,27 @@ class FiscalProfileService:
     def create_fiscal_profile(
         self,
         entity_name: str,
+        use_accrual_method: bool,
+        fy_start_month: int,
         rif: str,
         code: str,
         taxpayer_type: str,
         nit: Optional[str] = None,
-        **entity_kwargs: Any
     ) -> FiscalProfile:
         """Orquesta la creación de un perfil fiscal utilizando el usuario inyectado.
 
-        Recibe los datos procesados desde el formulario en la capa de presentación 
-        y delega la ejecución transaccional a la capa de datos, aplicando el 
-        usuario almacenado en el contexto del servicio.
+        Recibe los datos procesados de forma explícita y delega la ejecución 
+        transaccional a la capa de datos, aplicando el usuario almacenado en el 
+        contexto del servicio.
 
         Args:
             entity_name (str): Nombre explícito y legal para la entidad contable.
+            use_accrual_method (bool): Define si la entidad usa el método de devengado.
+            fy_start_month (int): Mes de inicio del año fiscal (1-12).
             rif (str): Registro de Información Fiscal.
             code (str): Código de control interno único.
             taxpayer_type (str): Tipo de contribuyente (ej. 'ORDINARY', 'SPECIAL').
             nit (Optional[str], optional): Número de Identificación Tributaria.
-            **entity_kwargs (Any): Argumentos adicionales para la entidad contable.
 
         Returns:
             FiscalProfile: La instancia del perfil fiscal recién creada.
@@ -63,11 +68,12 @@ class FiscalProfileService:
             return FiscalProfile.create_profile(
                 admin=self.admin_user,
                 entity_name=entity_name,
+                use_accrual_method=use_accrual_method,
+                fy_start_month=fy_start_month,
                 rif=rif,
                 code=code,
                 taxpayer_type=taxpayer_type,
                 nit=nit,
-                **entity_kwargs
             )
         except (IntegrityError, ValidationError) as error:
             raise ValueError(
@@ -77,17 +83,28 @@ class FiscalProfileService:
     def update_fiscal_profile(
         self,
         fiscal_profile: FiscalProfile,
-        entity: Any,
-        profile_data: dict[str, Any],
-        entity_data: dict[str, Any]
+        entity_name: str = _UNSET,
+        use_accrual_method: bool = _UNSET,
+        fy_start_month: int = _UNSET,
+        rif: str = _UNSET,
+        code: str = _UNSET,
+        taxpayer_type: str = _UNSET,
+        nit: Optional[str] = _UNSET,
     ) -> FiscalProfile:
         """Orquesta la actualización atómica del perfil fiscal y su entidad contable.
 
+        Deriva la entidad directamente desde el perfil fiscal suministrado gracias
+        a su relación OneToOneField bidireccional.
+
         Args:
             fiscal_profile (FiscalProfile): Instancia actual del perfil fiscal.
-            entity (Any): Instancia de EntityModel asociada.
-            profile_data (dict): Datos limpios del formulario del perfil fiscal.
-            entity_data (dict): Datos limpios del formulario de EntityModel.
+            entity_name (str, optional): Nuevo nombre legal para la entidad contable.
+            use_accrual_method (bool, optional): Modifica el método de devengado.
+            fy_start_month (int, optional): Modifica el mes de inicio fiscal.
+            rif (str, optional): Nuevo Registro de Información Fiscal.
+            code (str, optional): Nuevo código de control interno.
+            taxpayer_type (str, optional): Nuevo tipo de contribuyente.
+            nit (Optional[str], optional): Nuevo NIT (acepta None para removerlo).
 
         Returns:
             FiscalProfile: La instancia del perfil fiscal actualizada.
@@ -97,16 +114,31 @@ class FiscalProfileService:
         """
         try:
             with transaction.atomic():
+                # Acceso directo a la entidad a través del OneToOneField mapeado
+                entity = fiscal_profile.entity
+                
                 if entity:
-                    for key, value in entity_data.items():
-                        setattr(entity, key, value)
+                    if entity_name is not _UNSET:
+                        entity.name = entity_name
+                        fiscal_profile = entity_name
+                    if use_accrual_method is not _UNSET:
+                        entity.use_accrual_method = use_accrual_method
+                    if fy_start_month is not _UNSET:
+                        entity.fy_start_month = fy_start_month
                     entity.save()
 
-                for key, value in profile_data.items():
-                    setattr(fiscal_profile, key, value)
-                fiscal_profile.save()
+                if code is not _UNSET:
+                    fiscal_profile.code = code
+                if rif is not _UNSET:
+                    fiscal_profile.rif = rif
+                if taxpayer_type is not _UNSET:
+                    fiscal_profile.taxpayer_type = taxpayer_type
+                if nit is not _UNSET:
+                    fiscal_profile.nit = nit
 
+                fiscal_profile.save()
                 return fiscal_profile
+
         except (IntegrityError, ValidationError) as error:
             raise ValueError(
                 f"Error de negocio al actualizar el perfil fiscal: {str(error)}"

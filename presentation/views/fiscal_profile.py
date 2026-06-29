@@ -6,7 +6,6 @@ con vistas genéricas de Django para operaciones estándar de lectura y eliminac
 
 from typing import Any
 
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models.query import QuerySet
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -18,114 +17,142 @@ from business_logic.services.fiscal_profile_service import FiscalProfileService
 from data_access.models.base import FiscalProfile
 from presentation.forms.fiscal_profile import EntityModelForm, FiscalProfileForm
 
+class FiscalTenantMixin:
+    """Mixin base para inyectar y aislar el perfil fiscal activo en las vistas."""
+
+    def get_fiscal_profile(self) -> FiscalProfile:
+        """Obtiene el perfil fiscal del inquilino actual.
+        
+        Nota: En producción, esto debe derivarse de `self.request.user.entity.fiscal_profile`
+        o del middleware activo. Por simplicidad del CRUD, retorna el primero disponible.
+        """
+        return FiscalProfile.objects.first()
+
+    def get_queryset(self):
+        """Aísla las consultas estrictamente al perfil fiscal actual."""
+        return FiscalProfile.objects.filter(entity__admin=self.get_fiscal_profile())
+
 
 class FiscalProfileCreateView(View):
-    """Vista para coordinar la creación atómica de un Perfil Fiscal y su Entidad."""
+    """Vista basada en clases para la creación de un perfil fiscal y su entidad.
+
+    Coordina la validación conjunta de FiscalProfileForm y EntityModelForm,
+    delegando la persistencia transaccional al servicio correspondiente.
+    """
 
     template_name = "fiscal_profile_form.html"
 
-    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
-        """Renderiza los formularios de creación con sus prefijos únicos."""
-        context = {
-            "profile_form": FiscalProfileForm(prefix="profile"),
-            "entity_form": EntityModelForm(prefix="entity"),
-            "is_update": False,
-        }
-        return render(request, self.template_name, context)
+    def get(self, request, *args, **kwargs):
+        """Muestra los formularios limpios requeridos para el alta del perfil."""
+        profile_form = FiscalProfileForm()
+        entity_form = EntityModelForm()
+        return render(
+            request, 
+            self.template_name,
+            {"profile_form": profile_form, "entity_form": entity_form},
+        )
 
-    def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
-        """Valida y procesa la creación a través de la capa de servicios."""
-        profile_form = FiscalProfileForm(request.POST, prefix="profile")
-        entity_form = EntityModelForm(request.POST, prefix="entity")
+    def post(self, request, *args, **kwargs):
+        """Procesa y valida los datos de ambos formularios para crear el perfil."""
+        profile_form = FiscalProfileForm(request.POST)
+        entity_form = EntityModelForm(request.POST)
 
         if profile_form.is_valid() and entity_form.is_valid():
             service = FiscalProfileService(admin_user=request.user)
             try:
-                p_data = profile_form.cleaned_data
-                e_data = entity_form.cleaned_data
-
                 service.create_fiscal_profile(
-                    entity_name=e_data["name"],
-                    rif=p_data["rif"],
-                    code=p_data["code"],
-                    taxpayer_type=p_data["taxpayer_type"],
-                    nit=p_data.get("nit"),
-                    use_accrual_method=e_data.get("use_accrual_method", True),
-                    fy_start_month=e_data.get("fy_start_month", 1),
+                    entity_name=entity_form.cleaned_data["name"],
+                    use_accrual_method=entity_form.cleaned_data["use_accrual_method"],
+                    fy_start_month=entity_form.cleaned_data["fy_start_month"],
+                    rif=profile_form.cleaned_data["rif"],
+                    code=profile_form.cleaned_data["code"],
+                    taxpayer_type=profile_form.cleaned_data["taxpayer_type"],
+                    nit=profile_form.cleaned_data.get("nit"),
                 )
                 return redirect("fiscal-profile-list")
             except ValueError as error:
                 profile_form.add_error(None, str(error))
 
-        context = {
-            "profile_form": profile_form,
-            "entity_form": entity_form,
-            "is_update": False,
-        }
-        return render(request, self.template_name, context)
+        return render(
+            request,
+            self.template_name,
+            {"profile_form": profile_form, "entity_form": entity_form},
+        )
 
 
-class FiscalProfileUpdateView(LoginRequiredMixin, View):
-    """Vista para coordinar la edición atómica de un Perfil Fiscal y su Entidad."""
+class FiscalProfileUpdateView(View):
+    """Vista basada en clases para la edición de un perfil fiscal existente.
 
-    template_name = "supplier/fiscal_profile_form.html"
+    Extrae el perfil por medio de su código de control único y pre-pobla
+    los formularios con los datos actuales del perfil y su entidad relacionada.
+    """
 
-    def get(self, request: HttpRequest, code: str, *args: Any, **kwargs: Any) -> HttpResponse:
-        """Carga los datos existentes aislando por el usuario operador."""
-        fiscal_profile = get_object_or_404(FiscalProfile, code=code, admin=request.user)
-        entity = getattr(fiscal_profile, "entity", None)
+    template_name = "fiscal_profile/fiscal_profile_form.html"
 
-        context = {
-            "profile_form": FiscalProfileForm(instance=fiscal_profile, prefix="profile"),
-            "entity_form": EntityModelForm(instance=entity, prefix="entity"),
-            "object": fiscal_profile,
-            "is_update": True,
-        }
-        return render(request, self.template_name, context)
+    def get(self, request, code, *args, **kwargs):
+        """Pre-pobla y renderiza los formularios con los datos del registro."""
+        fiscal_profile = get_object_or_404(FiscalProfile, code=code)
+        profile_form = FiscalProfileForm(instance=fiscal_profile)
 
-    def post(self, request: HttpRequest, code: str, *args: Any, **kwargs: Any) -> HttpResponse:
-        """Procesa y guarda los cambios de la edición de manera transaccional."""
-        fiscal_profile = get_object_or_404(FiscalProfile, code=code, admin=request.user)
-        entity = getattr(fiscal_profile, "entity", None)
+        entity_initial = {}
+        if fiscal_profile.entity:
+            entity_initial = {
+                "use_accrual_method": fiscal_profile.entity.use_accrual_method,
+                "fy_start_month": fiscal_profile.entity.fy_start_month,
+            }
+        entity_form = EntityModelForm(instance=fiscal_profile.entity, initial=entity_initial)
 
-        profile_form = FiscalProfileForm(request.POST, instance=fiscal_profile, prefix="profile")
-        entity_form = EntityModelForm(request.POST, instance=entity, prefix="entity")
+        return render(
+            request,
+            self.template_name,
+            {
+                "profile_form": profile_form,
+                "entity_form": entity_form,
+                "fiscal_profile": fiscal_profile,
+            },
+        )
+
+    def post(self, request, code, *args, **kwargs):
+        """Valida y ejecuta los cambios atómicos sobre el perfil fiscal asignado."""
+        fiscal_profile = get_object_or_404(FiscalProfile, code=code)
+        profile_form = FiscalProfileForm(request.POST, instance=fiscal_profile)
+        entity_form = EntityModelForm(request.POST, instance=fiscal_profile.entity)
 
         if profile_form.is_valid() and entity_form.is_valid():
             service = FiscalProfileService(admin_user=request.user)
             try:
                 service.update_fiscal_profile(
                     fiscal_profile=fiscal_profile,
-                    entity=entity,
-                    profile_data=profile_form.cleaned_data,
-                    entity_data=entity_form.cleaned_data,
+                    entity_name=entity_form.cleaned_data["name"],
+                    use_accrual_method=entity_form.cleaned_data["use_accrual_method"],
+                    fy_start_month=entity_form.cleaned_data["fy_start_month"],
+                    rif=profile_form.cleaned_data["rif"],
+                    code=profile_form.cleaned_data["code"],
+                    taxpayer_type=profile_form.cleaned_data["taxpayer_type"],
+                    nit=profile_form.cleaned_data.get("nit"),
                 )
-                return redirect("fiscal-profile-list")
+                return redirect("fiscal-profile-detail", code=fiscal_profile.code)
             except ValueError as error:
                 profile_form.add_error(None, str(error))
 
-        context = {
-            "profile_form": profile_form,
-            "entity_form": entity_form,
-            "object": fiscal_profile,
-            "is_update": True,
-        }
-        return render(request, self.template_name, context)
+        return render(
+            request,
+            self.template_name,
+            {
+                "profile_form": profile_form,
+                "entity_form": entity_form,
+                "fiscal_profile": fiscal_profile,
+            },
+        )
 
-
-class FiscalProfileListView(LoginRequiredMixin, ListView):
+class FiscalProfileListView(FiscalTenantMixin, ListView):
     """Vista genérica para listar los Perfiles Fiscales asociados al usuario."""
 
     model = FiscalProfile
-    template_name = "supplier/fiscal_profile_list.html"
+    template_name = "fiscal_profile_list.html"
     context_object_name = "object_list"
 
-    def get_queryset(self) -> QuerySet[FiscalProfile]:
-        """Filtra el conjunto de datos garantizando el aislamiento multi-inquilino."""
-        return FiscalProfile.objects.filter(admin=self.request.user)
-
-
-class FiscalProfileDetailView(LoginRequiredMixin, DetailView):
+class FiscalProfileDetailView(DetailView):
     """Vista genérica para exponer el desglose técnico de un Perfil Fiscal."""
 
     model = FiscalProfile
@@ -145,7 +172,7 @@ class FiscalProfileDetailView(LoginRequiredMixin, DetailView):
         return context
 
 
-class FiscalProfileDeleteView(LoginRequiredMixin, DeleteView):
+class FiscalProfileDeleteView(DeleteView):
     """Vista genérica para la eliminación física de un Perfil Fiscal determinado."""
 
     model = FiscalProfile

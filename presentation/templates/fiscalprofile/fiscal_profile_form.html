@@ -1,25 +1,109 @@
-<h1>{% if is_update %}Editar{% else %}Crear{% endif %} Perfil Fiscal</h1>
 
-<form method="post">
-    {% csrf_token %}
-    
-    {% if profile_form.non_field_errors %}
-        <div style="color: red;">
-            {% for error in profile_form.non_field_errors %}
-                <p>{{ error }}</p>
-            {% endfor %}
+{% block title %}
+    {% if fiscal_profile %}Editar Perfil Fiscal: {{ fiscal_profile.code }}{% else %}Crear Perfil Fiscal{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h1 class="mb-4">
+                {% if fiscal_profile %}
+                    Editar Perfil Fiscal
+                {% else %}
+                    Crear Nuevo Perfil Fiscal
+                {% endif %}
+            </h1>
+
+            <form method="post" novalidate class="needs-validation">
+                {% csrf_token %}
+
+                {# Control de Errores Globales / Excepciones del Servicio #}
+                {% if profile_form.non_field_errors %}
+                    <div class="alert alert-danger shadow-sm mb-4" role="alert">
+                        {% for error in profile_form.non_field_errors %}
+                            <div class="d-flex align-items-center">
+                                <span>{{ error }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {% if entity_form.non_field_errors %}
+                    <div class="alert alert-danger shadow-sm mb-4" role="alert">
+                        {% for error in entity_form.non_field_errors %}
+                            <div class="d-flex align-items-center">
+                                <span>{{ error }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {# Sección 1: Datos de la Entidad Base de Django Ledger #}
+                <div class="card mb-4 border-light shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0 text-secondary">Configuración de Entidad Contable</h5>
+                    </div>
+                    <div class="card-body">
+                        {% for field in entity_form %}
+                            <div class="mb-3">
+                                <label for="{{ field.id_for_label }}" class="form-label fw-bold">
+                                    {{ field.label }}
+                                </label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <div class="form-text text-muted">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% if field.errors %}
+                                    <div class="invalid-feedback d-block text-danger mt-1">
+                                        {% for error in field.errors %}
+                                            <small class="d-block">{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {# Sección 2: Atributos Fiscales Obligatorios (Localización VE) #}
+                <div class="card mb-4 border-light shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0 text-secondary">Identificación y Parámetros Fiscales</h5>
+                    </div>
+                    <div class="card-body">
+                        {% for field in profile_form %}
+                            <div class="mb-3">
+                                <label for="{{ field.id_for_label }}" class="form-label fw-bold">
+                                    {{ field.label }}
+                                </label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <div class="form-text text-muted">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% if field.errors %}
+                                    <div class="invalid-feedback d-block text-danger mt-1">
+                                        {% for error in field.errors %}
+                                            <small class="d-block">{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {# Acciones del Formulario #}
+                <div class="d-flex gap-2 justify-content-end">
+                    <a href="{% if fiscal_profile %}{% url 'fiscal-profile-detail' fiscal_profile.code %}{% else %}{% url 'fiscal-profile-list' %}{% endif %}" class="btn btn-outline-secondary px-4">
+                        Cancelar
+                    </a>
+                    <button type="submit" class="btn btn-primary px-4">
+                        {% if fiscal_profile %}Guardar Cambios{% else %}Registrar Perfil{% endif %}
+                    </button>
+                </div>
+            </form>
         </div>
-    {% endif %}
-
-    <h3>Datos de la Entidad Contable (Django Ledger)</h3>
-    {{ entity_form.as_p }}
-
-    <hr>
-
-    <h3>Datos de Configuración Fiscal Regional</h3>
-    {{ profile_form.as_p }}
-
-    <br>
-    <button type="submit">Guardar Configuración</button>
-    <a href="{% url 'supplier-list' %}">Cancelar</a>
-</form>
+    </div>
+</div>
+{% endblock %}

@@ -20,10 +20,10 @@ class EntityModelForm(forms.ModelForm):
     """Formulario mapeado al modelo EntityModel de Django Ledger."""
 
     use_accrual_method = forms.BooleanField()
+    fy_start_month = forms.IntegerField()
 
     class Meta:
         """Configuraciones del modelo EntityModel exponiendo los campos solicitados."""
 
         model = EntityModel
-        #fields = ["name", "use_accrual_method", "fy_start_month"]
         fields = ["name"]
