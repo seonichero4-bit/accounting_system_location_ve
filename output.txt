@@ -1267,6 +1267,194 @@ class PurchaseInvoiceLine(models.Model):
         """Retorna una visualización rápida de la línea operativa."""
         return f"{self.description} (x{self.units})"
 ----
+presentation/views/fiscal_profile.py
+"""Módulo de vistas para el ciclo CRUD completo de Perfiles Fiscales.
+
+Combina vistas personalizadas para flujos de formularios múltiples y complejos
+con vistas genéricas de Django para operaciones estándar de lectura y eliminación.
+"""
+
+from typing import Any
+
+from django.db.models.query import QuerySet
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse_lazy
+from django.views import View
+from django.views.generic import DeleteView, DetailView, ListView
+
+from business_logic.services.fiscal_profile_service import FiscalProfileService
+from data_access.models.base import FiscalProfile
+from presentation.forms.fiscal_profile import EntityModelForm, FiscalProfileForm
+
+class FiscalTenantMixin:
+    """Mixin base para inyectar y aislar el perfil fiscal activo en las vistas."""
+
+    def get_fiscal_profile(self) -> FiscalProfile:
+        """Obtiene el perfil fiscal del inquilino actual.
+        
+        Nota: En producción, esto debe derivarse de `self.request.user.entity.fiscal_profile`
+        o del middleware activo. Por simplicidad del CRUD, retorna el primero disponible.
+        """
+        return FiscalProfile.objects.first()
+
+    def get_queryset(self):
+        """Aísla las consultas estrictamente al perfil fiscal actual."""
+        return FiscalProfile.objects.filter(entity__admin=self.get_fiscal_profile())
+
+
+class FiscalProfileCreateView(View):
+    """Vista basada en clases para la creación de un perfil fiscal y su entidad.
+
+    Coordina la validación conjunta de FiscalProfileForm y EntityModelForm,
+    delegando la persistencia transaccional al servicio correspondiente.
+    """
+
+    template_name = "fiscal_profile_form.html"
+
+    def get(self, request, *args, **kwargs):
+        """Muestra los formularios limpios requeridos para el alta del perfil."""
+        profile_form = FiscalProfileForm()
+        entity_form = EntityModelForm()
+        return render(
+            request, 
+            self.template_name,
+            {"profile_form": profile_form, "entity_form": entity_form},
+        )
+
+    def post(self, request, *args, **kwargs):
+        """Procesa y valida los datos de ambos formularios para crear el perfil."""
+        profile_form = FiscalProfileForm(request.POST)
+        entity_form = EntityModelForm(request.POST)
+
+        if profile_form.is_valid() and entity_form.is_valid():
+            service = FiscalProfileService(admin_user=request.user)
+            try:
+                service.create_fiscal_profile(
+                    entity_name=entity_form.cleaned_data["name"],
+                    use_accrual_method=entity_form.cleaned_data["use_accrual_method"],
+                    fy_start_month=entity_form.cleaned_data["fy_start_month"],
+                    rif=profile_form.cleaned_data["rif"],
+                    code=profile_form.cleaned_data["code"],
+                    taxpayer_type=profile_form.cleaned_data["taxpayer_type"],
+                    nit=profile_form.cleaned_data.get("nit"),
+                )
+                return redirect("fiscal-profile-list")
+            except ValueError as error:
+                profile_form.add_error(None, str(error))
+
+        return render(
+            request,
+            self.template_name,
+            {"profile_form": profile_form, "entity_form": entity_form},
+        )
+
+
+class FiscalProfileUpdateView(View):
+    """Vista basada en clases para la edición de un perfil fiscal existente.
+
+    Extrae el perfil por medio de su código de control único y pre-pobla
+    los formularios con los datos actuales del perfil y su entidad relacionada.
+    """
+
+    template_name = "fiscal_profile/fiscal_profile_form.html"
+
+    def get(self, request, code, *args, **kwargs):
+        """Pre-pobla y renderiza los formularios con los datos del registro."""
+        fiscal_profile = get_object_or_404(FiscalProfile, code=code)
+        profile_form = FiscalProfileForm(instance=fiscal_profile)
+
+        entity_initial = {}
+        if fiscal_profile.entity:
+            entity_initial = {
+                "use_accrual_method": fiscal_profile.entity.use_accrual_method,
+                "fy_start_month": fiscal_profile.entity.fy_start_month,
+            }
+        entity_form = EntityModelForm(instance=fiscal_profile.entity, initial=entity_initial)
+
+        return render(
+            request,
+            self.template_name,
+            {
+                "profile_form": profile_form,
+                "entity_form": entity_form,
+                "fiscal_profile": fiscal_profile,
+            },
+        )
+
+    def post(self, request, code, *args, **kwargs):
+        """Valida y ejecuta los cambios atómicos sobre el perfil fiscal asignado."""
+        fiscal_profile = get_object_or_404(FiscalProfile, code=code)
+        profile_form = FiscalProfileForm(request.POST, instance=fiscal_profile)
+        entity_form = EntityModelForm(request.POST, instance=fiscal_profile.entity)
+
+        if profile_form.is_valid() and entity_form.is_valid():
+            service = FiscalProfileService(admin_user=request.user)
+            try:
+                service.update_fiscal_profile(
+                    fiscal_profile=fiscal_profile,
+                    entity_name=entity_form.cleaned_data["name"],
+                    use_accrual_method=entity_form.cleaned_data["use_accrual_method"],
+                    fy_start_month=entity_form.cleaned_data["fy_start_month"],
+                    rif=profile_form.cleaned_data["rif"],
+                    code=profile_form.cleaned_data["code"],
+                    taxpayer_type=profile_form.cleaned_data["taxpayer_type"],
+                    nit=profile_form.cleaned_data.get("nit"),
+                )
+                return redirect("fiscal-profile-detail", code=fiscal_profile.code)
+            except ValueError as error:
+                profile_form.add_error(None, str(error))
+
+        return render(
+            request,
+            self.template_name,
+            {
+                "profile_form": profile_form,
+                "entity_form": entity_form,
+                "fiscal_profile": fiscal_profile,
+            },
+        )
+
+class FiscalProfileListView(FiscalTenantMixin, ListView):
+    """Vista genérica para listar los Perfiles Fiscales asociados al usuario."""
+
+    model = FiscalProfile
+    template_name = "fiscal_profile_list.html"
+    context_object_name = "object_list"
+
+class FiscalProfileDetailView(DetailView):
+    """Vista genérica para exponer el desglose técnico de un Perfil Fiscal."""
+
+    model = FiscalProfile
+    template_name = "supplier/fiscal_profile_detail.html"
+    context_object_name = "object"
+    slug_field = "code"
+    slug_url_kwarg = "code"
+
+    def get_queryset(self) -> QuerySet[FiscalProfile]:
+        """Asegura que el usuario solo pueda consultar el detalle de sus propios registros."""
+        return FiscalProfile.objects.filter(admin=self.request.user)
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        """Inyecta de forma segura la relación de la entidad contable al contexto."""
+        context = super().get_context_data(**kwargs)
+        context["entity"] = getattr(self.object, "entity", None)
+        return context
+
+
+class FiscalProfileDeleteView(DeleteView):
+    """Vista genérica para la eliminación física de un Perfil Fiscal determinado."""
+
+    model = FiscalProfile
+    template_name = "supplier/fiscal_profile_confirm_delete.html"
+    slug_field = "code"
+    slug_url_kwarg = "code"
+    success_url = reverse_lazy("fiscal-profile-list")
+
+    def get_queryset(self) -> QuerySet[FiscalProfile]:
+        """Previene que operadores externos eliminen perfiles ajenos."""
+        return FiscalProfile.objects.filter(admin=self.request.user)
+----
 data_access/mixins/sequence.py
 """Módulo de mixins para la gestión de secuencias numéricas y alfanuméricas.
 
@@ -1448,6 +1636,14 @@ class FiscalProfile(models.Model):
         ORDINARY = "ORDINARY", "Ordinary"
         SPECIAL = "SPECIAL", "Special"
 
+    entity = models.OneToOneField(
+        EntityModel,
+        on_delete=models.CASCADE,
+        related_name="fiscalprofile",
+        verbose_name="entity model ledger",
+        null=True, #argumento debe ser eliminado ante de produccion 
+        blank=True, #argumento debe ser eliminado ante de produccion 
+    )
     code = models.CharField(
         max_length=50,
         unique=True,
@@ -1456,6 +1652,8 @@ class FiscalProfile(models.Model):
     name = models.CharField(
         max_length=35,
         verbose_name="Legal Name or Corporate Name",
+         null=True, #argumento debe ser eliminado ante de produccion 
+        blank=True, #argumento debe ser eliminado ante de produccion 
     )
     rif = models.CharField(
         max_length=20,
@@ -1516,6 +1714,7 @@ class FiscalProfile(models.Model):
 
             profile = cls.objects.create(
                 entity=entity,
+                name=entity_name,
                 code=code,
                 rif=rif,
                 nit=nit,
@@ -1593,6 +1792,153 @@ class FiscalModuleAbstractModel(models.Model):
         """Configuración de metadatos para el modelo abstracto."""
 
         abstract = True
+----
+business_logic/services/fiscal_profile_service.py
+"""Módulo de servicios para la gestión de perfiles fiscales.
+
+Implementa la capa de servicios encargada de encapsular la lógica de negocio
+y orquestar la creación de perfiles fiscales y sus entidades contables asociadas,
+manteniendo un aislamiento estricto entre la capa de presentación y el acceso a datos.
+"""
+
+from typing import Any, Optional
+
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
+
+from data_access.models.base import FiscalProfile
+
+# Centinela para identificar argumentos no provistos en la actualización
+_UNSET = object()
+
+
+class FiscalProfileService:
+    """Servicio encargado de coordinar la lógica de negocio para los perfiles fiscales.
+
+    Actúa como intermediario orquestando la instanciación transaccional
+    del perfil fiscal y su entidad base asociada, aislando el contexto del 
+    usuario operador inyectado desde la capa de presentación.
+    """
+
+    def __init__(self, admin_user: User) -> None:
+        """Inicializa el servicio inyectando el usuario operador.
+
+        Args:
+            admin_user (User): Instancia del usuario autenticado proveniente de la vista.
+        """
+        self.admin_user = admin_user
+
+    def create_fiscal_profile(
+        self,
+        entity_name: str,
+        use_accrual_method: bool,
+        fy_start_month: int,
+        rif: str,
+        code: str,
+        taxpayer_type: str,
+        nit: Optional[str] = None,
+    ) -> FiscalProfile:
+        """Orquesta la creación de un perfil fiscal utilizando el usuario inyectado.
+
+        Recibe los datos procesados de forma explícita y delega la ejecución 
+        transaccional a la capa de datos, aplicando el usuario almacenado en el 
+        contexto del servicio.
+
+        Args:
+            entity_name (str): Nombre explícito y legal para la entidad contable.
+            use_accrual_method (bool): Define si la entidad usa el método de devengado.
+            fy_start_month (int): Mes de inicio del año fiscal (1-12).
+            rif (str): Registro de Información Fiscal.
+            code (str): Código de control interno único.
+            taxpayer_type (str): Tipo de contribuyente (ej. 'ORDINARY', 'SPECIAL').
+            nit (Optional[str], optional): Número de Identificación Tributaria.
+
+        Returns:
+            FiscalProfile: La instancia del perfil fiscal recién creada.
+
+        Raises:
+            ValueError: Si ocurre una violación de integridad de datos o validación.
+        """
+        try:
+            return FiscalProfile.create_profile(
+                admin=self.admin_user,
+                entity_name=entity_name,
+                use_accrual_method=use_accrual_method,
+                fy_start_month=fy_start_month,
+                rif=rif,
+                code=code,
+                taxpayer_type=taxpayer_type,
+                nit=nit,
+            )
+        except (IntegrityError, ValidationError) as error:
+            raise ValueError(
+                f"Error de negocio al procesar la creación del perfil fiscal: {str(error)}"
+            ) from error
+
+    def update_fiscal_profile(
+        self,
+        fiscal_profile: FiscalProfile,
+        entity_name: str = _UNSET,
+        use_accrual_method: bool = _UNSET,
+        fy_start_month: int = _UNSET,
+        rif: str = _UNSET,
+        code: str = _UNSET,
+        taxpayer_type: str = _UNSET,
+        nit: Optional[str] = _UNSET,
+    ) -> FiscalProfile:
+        """Orquesta la actualización atómica del perfil fiscal y su entidad contable.
+
+        Deriva la entidad directamente desde el perfil fiscal suministrado gracias
+        a su relación OneToOneField bidireccional.
+
+        Args:
+            fiscal_profile (FiscalProfile): Instancia actual del perfil fiscal.
+            entity_name (str, optional): Nuevo nombre legal para la entidad contable.
+            use_accrual_method (bool, optional): Modifica el método de devengado.
+            fy_start_month (int, optional): Modifica el mes de inicio fiscal.
+            rif (str, optional): Nuevo Registro de Información Fiscal.
+            code (str, optional): Nuevo código de control interno.
+            taxpayer_type (str, optional): Nuevo tipo de contribuyente.
+            nit (Optional[str], optional): Nuevo NIT (acepta None para removerlo).
+
+        Returns:
+            FiscalProfile: La instancia del perfil fiscal actualizada.
+
+        Raises:
+            ValueError: Si ocurre un error de integridad o validación.
+        """
+        try:
+            with transaction.atomic():
+                # Acceso directo a la entidad a través del OneToOneField mapeado
+                entity = fiscal_profile.entity
+                
+                if entity:
+                    if entity_name is not _UNSET:
+                        entity.name = entity_name
+                        fiscal_profile = entity_name
+                    if use_accrual_method is not _UNSET:
+                        entity.use_accrual_method = use_accrual_method
+                    if fy_start_month is not _UNSET:
+                        entity.fy_start_month = fy_start_month
+                    entity.save()
+
+                if code is not _UNSET:
+                    fiscal_profile.code = code
+                if rif is not _UNSET:
+                    fiscal_profile.rif = rif
+                if taxpayer_type is not _UNSET:
+                    fiscal_profile.taxpayer_type = taxpayer_type
+                if nit is not _UNSET:
+                    fiscal_profile.nit = nit
+
+                fiscal_profile.save()
+                return fiscal_profile
+
+        except (IntegrityError, ValidationError) as error:
+            raise ValueError(
+                f"Error de negocio al actualizar el perfil fiscal: {str(error)}"
+            ) from error
 ----
 data_access/tests/test_fiscalprofile.py
 """Suite de pruebas para los métodos de consulta y creación de proveedores.
@@ -2297,6 +2643,117 @@ class TestSupplierServiceRegisterOrRetrieve:
         with pytest.raises((TypeError, ValueError)):
             print(supplier_service.register_or_retrieve_local(supplier_data))
 ----
+presentation/templates/fiscalprofile/fiscal_profile_form.html
+
+{% block title %}
+    {% if fiscal_profile %}Editar Perfil Fiscal: {{ fiscal_profile.code }}{% else %}Crear Perfil Fiscal{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h1 class="mb-4">
+                {% if fiscal_profile %}
+                    Editar Perfil Fiscal
+                {% else %}
+                    Crear Nuevo Perfil Fiscal
+                {% endif %}
+            </h1>
+
+            <form method="post" novalidate class="needs-validation">
+                {% csrf_token %}
+
+                {# Control de Errores Globales / Excepciones del Servicio #}
+                {% if profile_form.non_field_errors %}
+                    <div class="alert alert-danger shadow-sm mb-4" role="alert">
+                        {% for error in profile_form.non_field_errors %}
+                            <div class="d-flex align-items-center">
+                                <span>{{ error }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {% if entity_form.non_field_errors %}
+                    <div class="alert alert-danger shadow-sm mb-4" role="alert">
+                        {% for error in entity_form.non_field_errors %}
+                            <div class="d-flex align-items-center">
+                                <span>{{ error }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {# Sección 1: Datos de la Entidad Base de Django Ledger #}
+                <div class="card mb-4 border-light shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0 text-secondary">Configuración de Entidad Contable</h5>
+                    </div>
+                    <div class="card-body">
+                        {% for field in entity_form %}
+                            <div class="mb-3">
+                                <label for="{{ field.id_for_label }}" class="form-label fw-bold">
+                                    {{ field.label }}
+                                </label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <div class="form-text text-muted">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% if field.errors %}
+                                    <div class="invalid-feedback d-block text-danger mt-1">
+                                        {% for error in field.errors %}
+                                            <small class="d-block">{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {# Sección 2: Atributos Fiscales Obligatorios (Localización VE) #}
+                <div class="card mb-4 border-light shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0 text-secondary">Identificación y Parámetros Fiscales</h5>
+                    </div>
+                    <div class="card-body">
+                        {% for field in profile_form %}
+                            <div class="mb-3">
+                                <label for="{{ field.id_for_label }}" class="form-label fw-bold">
+                                    {{ field.label }}
+                                </label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <div class="form-text text-muted">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% if field.errors %}
+                                    <div class="invalid-feedback d-block text-danger mt-1">
+                                        {% for error in field.errors %}
+                                            <small class="d-block">{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {# Acciones del Formulario #}
+                <div class="d-flex gap-2 justify-content-end">
+                    <a href="{% if fiscal_profile %}{% url 'fiscal-profile-detail' fiscal_profile.code %}{% else %}{% url 'fiscal-profile-list' %}{% endif %}" class="btn btn-outline-secondary px-4">
+                        Cancelar
+                    </a>
+                    <button type="submit" class="btn btn-primary px-4">
+                        {% if fiscal_profile %}Guardar Cambios{% else %}Registrar Perfil{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+----
 presentation/views/supplier.py
 """Módulo de vistas CRUD para la gestión de proveedores locales."""
 
@@ -2570,7 +3027,10 @@ ROOT_URLCONF = "accounting_system_ve.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / 'presentation' / 'templates' / 'supplier',],
+        "DIRS": [
+            BASE_DIR / 'presentation' / 'templates' / 'supplier',
+            BASE_DIR / 'presentation' / 'templates' / 'fiscalprofile',
+        ],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -2821,7 +3281,7 @@ def tenant_b_profile(db, ledger_entity_b: EntityModel) -> FiscalProfile:
     return FiscalProfile.objects.create(
         entity=ledger_entity_b,
         code="TENANT-B",
-        name="Empresa B C.A.",
+       name="Empresa B C.A.",
         rif="J-22222222-2",
         taxpayer_type=FiscalProfile.TaxpayerType.ORDINARY,
     )
@@ -2836,83 +3296,6 @@ def tenant_a_supplier(db, tenant_a_profile: FiscalProfile) -> LocalSupplier:
         rif="J-33333333-3",
         supplier_type=LocalSupplier.SupplierType.WITH_RIF,
     )
-----
-business_logic/services/fiscal_profile_service.py
-"""Módulo de servicios para la gestión de perfiles fiscales.
-
-Implementa la capa de servicios encargada de encapsular la lógica de negocio
-y orquestar la creación de perfiles fiscales y sus entidades contables asociadas,
-manteniendo un aislamiento estricto entre la capa de presentación y el acceso a datos.
-"""
-
-from typing import Any, Optional
-
-from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError
-from django.db import IntegrityError
-
-from data_access.models.base import FiscalProfile
-
-
-class FiscalProfileService:
-    """Servicio encargado de coordinar la lógica de negocio para los perfiles fiscales.
-
-    Actúa como intermediario orquestando la instanciación transaccional
-    del perfil fiscal y su entidad base asociada, aislando el contexto del 
-    usuario operador inyectado desde la capa de presentación.
-    """
-
-    def __init__(self, admin_user: User) -> None:
-        """Inicializa el servicio inyectando el usuario operador.
-
-        Args:
-            admin_user (User): Instancia del usuario autenticado proveniente de la vista.
-        """
-        self.admin_user = admin_user
-
-    def create_fiscal_profile(
-        self,
-        entity_name: str,
-        rif: str,
-        code: str,
-        taxpayer_type: str,
-        nit: Optional[str] = None,
-        **entity_kwargs: Any
-    ) -> FiscalProfile:
-        """Orquesta la creación de un perfil fiscal utilizando el usuario inyectado.
-
-        Recibe los datos procesados desde el formulario en la capa de presentación 
-        y delega la ejecución transaccional a la capa de datos, aplicando el 
-        usuario almacenado en el contexto del servicio.
-
-        Args:
-            entity_name (str): Nombre explícito y legal para la entidad contable.
-            rif (str): Registro de Información Fiscal.
-            code (str): Código de control interno único.
-            taxpayer_type (str): Tipo de contribuyente (ej. 'ORDINARY', 'SPECIAL').
-            nit (Optional[str], optional): Número de Identificación Tributaria.
-            **entity_kwargs (Any): Argumentos adicionales para la entidad contable.
-
-        Returns:
-            FiscalProfile: La instancia del perfil fiscal recién creada.
-
-        Raises:
-            ValueError: Si ocurre una violación de integridad de datos o validación.
-        """
-        try:
-            return FiscalProfile.create_profile(
-                admin=self.admin_user,
-                entity_name=entity_name,
-                rif=rif,
-                code=code,
-                taxpayer_type=taxpayer_type,
-                nit=nit,
-                **entity_kwargs
-            )
-        except (IntegrityError, ValidationError) as error:
-            raise ValueError(
-                f"Error de negocio al procesar la creación del perfil fiscal: {str(error)}"
-            ) from error
 ----
 business_logic/services/supplier_service.py
 """Módulo de servicios para la gestión de proveedores.
@@ -3111,83 +3494,98 @@ class LocalSupplierForm(forms.ModelForm):
             
         return rif
 ----
-presentation/forms/purchase_book.py
-from typing import Any
-from django import forms
-from django.forms import inlineformset_factory
+presentation/templates/fiscalprofile/fiscal_profile_detail.html
+<h1>Detalle del Perfil Fiscal: {{ object.name }}</h1>
 
-from data_access.models.purchase_book import PurchaseLedgerInvoice, PurchaseInvoiceLine
+<h3>Información de Control Fiscal Regional</h3>
+<ul>
+    <li><strong>Código de Control Interno:</strong> {{ object.code }}</li>
+    <li><strong>Nombre o Razón Social:</strong> {{ object.name }}</li>
+    <li><strong>RIF:</strong> {{ object.rif }}</li>
+    <li><strong>NIT:</strong> {{ object.nit|default:"No registrado" }}</li>
+    <li><strong>Tipo de Contribuyente:</strong> {{ object.get_taxpayer_type_display }}</li>
+</ul>
 
-class PurchaseLedgerInvoiceForm(forms.ModelForm):
-    """
-    Formulario de cabecera para el registro en el Libro de Compras.
-    
-    Mapea estrictamente los campos requeridos para la identificación del 
-    documento fiscal, excluyendo de forma implícita (al usar 'fields') 
-    cualquier campo autocalculado como totales o montos base.
-    """
-    
-    class Meta:
-        model = PurchaseLedgerInvoice
-        fields = [
-            'document_type', 
-            'number', 
-            'invoice_control', 
-            'date', 
-            'purchase_type'
-        ]
+<hr>
 
+<h3>Información de la Entidad Contable (Django Ledger)</h3>
+{% if entity %}
+    <ul>
+        <li><strong>Nombre de la Entidad:</strong> {{ entity.name }}</li>
+        <li><strong>Método de Devengado (Accrual Method):</strong> {% if entity.use_accrual_method %}Sí{% else %}No{% endif %}</li>
+        <li><strong>Mes de Inicio del Año Fiscal:</strong> {{ entity.fy_start_month }}</li>
+    </ul>
+{% else %}
+    <p style="color: orange;">Este perfil fiscal no tiene una entidad contable asociada de forma directa.</p>
+{% endif %}
 
-# Factory para inyección dinámica de múltiples filas de detalle contable y comercial.
-# Permite mantener la integridad referencial (Cabecera -> Líneas) en la interfaz.
-PurchaseInvoiceLineFormSet = inlineformset_factory(
-    parent_model=PurchaseLedgerInvoice,
-    model=PurchaseInvoiceLine,
-    fields=[
-        'description', 
-        'unit_price', 
-        'units', 
-        'discount_percentage', 
-        'vat_rate', 
-        'nature', 
-        'applies_islr_withholding', 
-        'islr_withholding_percentage', 
-        'accounting_mapping'
-    ],
-    extra=1,
-    can_delete=True
-)
+<br>
+<a href="{% url 'fiscal-profile-update' object.code %}">Editar</a> | 
+<a href="{% url 'fiscal-profile-delete' object.code %}">Eliminar</a> | 
+<a href="{% url 'fiscal-profile-list' %}">Volver a la lista</a>
+----
+presentation/templates/fiscalprofile/fiscal_profile_list.html
+<h1>Perfiles Fiscales</h1>
+<a href="{% url 'fiscal-profile-create' %}">Crear Nuevo Perfil Fiscal</a>
+<br><br>
+
+<table border="1" cellpadding="5" cellspacing="0">
+    <thead>
+        <tr>
+            <th>Código</th>
+            <th>Nombre</th>
+            <th>RIF</th>
+            <th>Tipo de Contribuyente</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for profile in object_list %}
+            <tr>
+                <td>{{ profile.code }}</td>
+                <td>{{ profile.name }}</td>
+                <td>{{ profile.rif }}</td>
+                <td>{{ profile.get_taxpayer_type_display }}</td>
+                <td>
+                    <a href="{% url 'fiscal-profile-detail' profile.code %}">Ver</a> | 
+                    <a href="{% url 'fiscal-profile-update' profile.code %}">Editar</a> | 
+                    <a href="{% url 'fiscal-profile-delete' profile.code %}">Eliminar</a>
+                </td>
+            </tr>
+        {% empty %}
+            <tr>
+                <td colspan="5">No se encontraron perfiles fiscales registrados.</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<br>
+<a href="{% url 'supplier-list' %}">Volver a Proveedores</a>
 ----
 accounting_system_ve/urls.py
-"""
-URL configuration for accounting_system_ve project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/6.0/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
-
 from django.contrib import admin
 from django.urls import path
 from presentation.views import supplier
+from presentation.views import fiscal_profile
 
 urlpatterns = [
-    # urls_supplier
+    # URLS de Proveedores
     path("suppliers/", supplier.LocalSupplierListView.as_view(), name="supplier-list"),
     path("suppliers/new/", supplier.LocalSupplierCreateView.as_view(), name="supplier-create"),
     path("suppliers/<str:code>/", supplier.LocalSupplierDetailView.as_view(), name="supplier-detail"),
     path("suppliers/<str:code>/edit/", supplier.LocalSupplierUpdateView.as_view(), name="supplier-update"),
     path("suppliers/<str:code>/delete/", supplier.LocalSupplierDeleteView.as_view(), name="supplier-delete"),
+    
+    # URLS de Perfiles Fiscales
+    path("fiscal-profiles/", fiscal_profile.FiscalProfileListView.as_view(), name="fiscal-profile-list"),
+    path("fiscal-profiles/new/", fiscal_profile.FiscalProfileCreateView.as_view(), name="fiscal-profile-create"),
+    path("fiscal-profiles/<str:code>/", fiscal_profile.FiscalProfileDetailView.as_view(), name="fiscal-profile-detail"),
+    path("fiscal-profiles/<str:code>/edit/", fiscal_profile.FiscalProfileUpdateView.as_view(), name="fiscal-profile-update"),
+    path("fiscal-profiles/<str:code>/delete/", fiscal_profile.FiscalProfileDeleteView.as_view(), name="fiscal-profile-delete"),
 ]
+
+
+
 ----
 requirements.txt
 asgiref==3.11.1
@@ -3285,6 +3683,67 @@ __all__ = [
     "IslrWithholdingCertificate",
 ]
 ----
+presentation/forms/fiscal_profile.py
+"""Módulo de formularios para la gestión de perfiles fiscales y entidades contables."""
+
+from django import forms
+
+from data_access.models.base import FiscalProfile
+from django_ledger.models import EntityModel
+
+
+class FiscalProfileForm(forms.ModelForm):
+    """Formulario mapeado al modelo FiscalProfile para el control tributario."""
+
+    class Meta:
+        """Configuraciones del modelo FiscalProfile."""
+
+        model = FiscalProfile
+        fields = ["code", "name", "rif", "nit", "taxpayer_type"]
+
+
+class EntityModelForm(forms.ModelForm):
+    """Formulario mapeado al modelo EntityModel de Django Ledger."""
+
+    use_accrual_method = forms.BooleanField()
+    fy_start_month = forms.IntegerField()
+
+    class Meta:
+        """Configuraciones del modelo EntityModel exponiendo los campos solicitados."""
+
+        model = EntityModel
+        fields = ["name"]
+----
+data_access/migrations/0005_fiscalprofile_entity.py
+# Generated by Django 6.0.5 on 2026-06-29 02:41
+
+import django.db.models.deletion
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("data_access", "0004_remove_fiscalprofile_entity"),
+        ("django_ledger", "0029_stagedtransactionmodel_matched_transaction_and_more"),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name="fiscalprofile",
+            name="entity",
+            field=models.OneToOneField(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="fiscalprofile",
+                to="django_ledger.entitymodel",
+                verbose_name="entity model ledger",
+            ),
+        ),
+    ]
+
+----
 presentation/views/__init__.py
 """Paquete de vistas para la capa de presentación fiscal.
 
@@ -3354,6 +3813,43 @@ __all__ = [
     "FiscalProfileService",
 ]
 ----
+data_access/migrations/0007_fiscalprofile_name.py
+# Generated by Django 6.0.5 on 2026-06-29 03:08
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("data_access", "0006_remove_fiscalprofile_name"),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name="fiscalprofile",
+            name="name",
+            field=models.CharField(
+                blank=True,
+                max_length=35,
+                null=True,
+                verbose_name="Legal Name or Corporate Name",
+            ),
+        ),
+    ]
+
+----
+presentation/templates/fiscalprofile/fiscal_profile_confirm_delete.html
+<h1>Eliminar Perfil Fiscal</h1>
+
+<p>¿Estás seguro de que deseas eliminar permanentemente el perfil fiscal <strong>{{ object.name }}</strong> (Código: {{ object.code }}) y todos sus registros asociados?</p>
+
+<form method="post">
+    {% csrf_token %}
+    <button type="submit" style="color: red;">Sí, confirmar eliminación</button>
+    <a href="{% url 'fiscal-profile-detail' object.code %}">Cancelar</a>
+</form>
+----
 presentation/templates/supplier/localsupplier_list.html
 <h1>Lista de Proveedores</h1>
 <a href="{% url 'supplier-create' %}">Añadir Nuevo Proveedor</a>
@@ -3377,12 +3873,11 @@ Expone de forma centralizada los formularios de Django mapeados a los modelos
 de proveedores locales y libro de compras, facilitando una interfaz limpia
 para las vistas de la aplicación.
 """
-from .purchase_book import PurchaseLedgerInvoiceForm
+#from .purchase_book import PurchaseLedgerInvoiceForm
 from .supplier import LocalSupplierForm
 
 __all__ = [
     "LocalSupplierForm",
-    "PurchaseLedgerInvoiceForm",
 ]
 ----
 data_access/mixins/__init__.py
@@ -3463,6 +3958,26 @@ class Migration(migrations.Migration):
         migrations.RemoveField(
             model_name="fiscalprofile",
             name="entity",
+        ),
+    ]
+
+----
+data_access/migrations/0006_remove_fiscalprofile_name.py
+# Generated by Django 6.0.5 on 2026-06-29 03:00
+
+from django.db import migrations
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("data_access", "0005_fiscalprofile_entity"),
+    ]
+
+    operations = [
+        migrations.RemoveField(
+            model_name="fiscalprofile",
+            name="name",
         ),
     ]
 

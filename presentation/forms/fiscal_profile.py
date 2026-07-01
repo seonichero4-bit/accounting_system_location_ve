@@ -19,7 +19,7 @@ class FiscalProfileForm(forms.ModelForm):
 class EntityModelForm(forms.ModelForm):
     """Formulario mapeado al modelo EntityModel de Django Ledger."""
 
-    use_accrual_method = forms.BooleanField()
+    use_accrual_method = forms.BooleanField(required=False)
     fy_start_month = forms.IntegerField()
 
     class Meta:

@@ -120,7 +120,7 @@ class FiscalProfileService:
                 if entity:
                     if entity_name is not _UNSET:
                         entity.name = entity_name
-                        fiscal_profile = entity_name
+                        fiscal_profile.name = entity_name
                     if use_accrual_method is not _UNSET:
                         entity.use_accrual_method = use_accrual_method
                     if fy_start_month is not _UNSET:

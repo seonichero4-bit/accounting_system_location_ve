@@ -12,9 +12,8 @@ from django.test import Client
 from data_access.models.base import FiscalProfile
 from data_access.models.supplier import LocalSupplier
 
-
-@pytest.mark.django_db
 @pytest.mark.integration
+@pytest.mark.django_db
 class TestLocalSupplierIntegration:
     """Pruebas de integración estructuradas para presentation/views/supplier.py.
     

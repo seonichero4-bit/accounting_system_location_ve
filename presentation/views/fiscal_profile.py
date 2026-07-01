@@ -87,7 +87,7 @@ class FiscalProfileUpdateView(View):
     los formularios con los datos actuales del perfil y su entidad relacionada.
     """
 
-    template_name = "fiscal_profile/fiscal_profile_form.html"
+    template_name = "fiscal_profile_form.html"
 
     def get(self, request, code, *args, **kwargs):
         """Pre-pobla y renderiza los formularios con los datos del registro."""
@@ -122,15 +122,16 @@ class FiscalProfileUpdateView(View):
             service = FiscalProfileService(admin_user=request.user)
             try:
                 service.update_fiscal_profile(
-                    fiscal_profile=fiscal_profile,
-                    entity_name=entity_form.cleaned_data["name"],
-                    use_accrual_method=entity_form.cleaned_data["use_accrual_method"],
-                    fy_start_month=entity_form.cleaned_data["fy_start_month"],
-                    rif=profile_form.cleaned_data["rif"],
-                    code=profile_form.cleaned_data["code"],
-                    taxpayer_type=profile_form.cleaned_data["taxpayer_type"],
-                    nit=profile_form.cleaned_data.get("nit"),
+                        fiscal_profile=fiscal_profile,
+                        entity_name=entity_form.cleaned_data["name"],
+                        use_accrual_method=entity_form.cleaned_data["use_accrual_method"],
+                        fy_start_month=entity_form.cleaned_data["fy_start_month"],
+                        rif=profile_form.cleaned_data["rif"],
+                        code=profile_form.cleaned_data["code"],
+                        taxpayer_type=profile_form.cleaned_data["taxpayer_type"],
+                        nit=profile_form.cleaned_data.get("nit"),
                 )
+    
                 return redirect("fiscal-profile-detail", code=fiscal_profile.code)
             except ValueError as error:
                 profile_form.add_error(None, str(error))

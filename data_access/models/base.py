@@ -156,6 +156,22 @@ class FiscalProfile(models.Model):
         verbose_name = "Fiscal Profile"
         verbose_name_plural = "Fiscal Profiles"
 
+        constraints = [
+            # 1. Restricciones de Integridad de Datos
+            models.CheckConstraint(
+                condition=~models.Q(name=""),
+                name="%(app_label)s_%(class)s_name_not_empty"
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(rif=""),
+                name="%(app_label)s_%(class)s_rif_not_empty"
+            ),
+             models.CheckConstraint(
+                condition=~models.Q(code=""),
+                name="%(app_label)s_%(class)s_code_not_empty"
+            ),
+        ]
+
     def __str__(self) -> str:
         """Retorna una representación legible del Perfil Fiscal."""
         return f"{self.name} ({self.rif})"
