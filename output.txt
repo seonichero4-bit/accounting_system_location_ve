@@ -639,7 +639,336 @@ class Migration(migrations.Migration):
     ]
 
 ----
-presentation/tests/test_supplier.py
+presentation/tests/tests_integration_fiscalprofile/test_fiscal_profile.py
+"""Suite de pruebas de integración para el ciclo de vistas de Perfiles Fiscales.
+
+Valida los flujos de renderizado, creación, actualización y aislamiento bajo
+los escenarios Happy Path y Edge Cases definidos en el plan de pruebas.
+"""
+
+from typing import Any, Callable
+import pytest
+from django.test import Client
+from django.urls import reverse
+from django.core.exceptions import FieldError
+from data_access.models.base import FiscalProfile
+from django_ledger.models import EntityModel
+from business_logic.services.fiscal_profile_service import FiscalProfileService
+
+@pytest.mark.integration
+@pytest.mark.django_db
+class TestFiscalProfileViews:
+    """Contenedor de pruebas de integración enfocadas en presentation.views.fiscal_profile."""
+
+    # =========================================================================
+    # HAPPY PATHS
+    # =========================================================================
+
+    def test_create_fiscal_profile_success_hp_001(self, auth_client: Client) -> None:
+        """[ID_HP_001] - Creación Exitosa de Perfil Fiscal y Entidad Contable Relacionada.
+
+        Args:
+            auth_client (Client): Cliente HTTP autenticado.
+        """
+        # Arrange
+        url = reverse("fiscal-profile-create")
+        payload = {
+            "name": "Corporación Alfa",
+            "use_accrual_method": True,
+            "fy_start_month": 1,
+            "code": "FP-999",
+            "rif": "J-12345678-0",
+            "nit": "987654321",
+            "taxpayer_type": "ORDINARY"
+        }
+
+        # Act
+        response = auth_client.post(url, data=payload)
+
+        # Assert
+        assert response.status_code == 302
+        assert response.url == reverse("fiscal-profile-list")
+        
+        assert FiscalProfile.objects.filter(code="FP-999").exists()
+        assert EntityModel.objects.filter(name="Corporación Alfa").exists()
+        
+        profile = FiscalProfile.objects.get(code="FP-999")
+        assert profile.rif == "J-12345678-0"
+        assert profile.entity.name == "Corporación Alfa"
+
+    # def test_render_empty_form_hp_002(self, auth_client: Client) -> None:
+    #     """[ID_HP_002] - Renderizado de Formularios Vacíos de Alta de Perfil Fiscal.
+
+    #     Args:
+    #         auth_client (Client): Cliente HTTP autenticado.
+    #     """
+    #     # Arrange
+    #     url = reverse("fiscal-profile-create")
+
+    #     # Act
+    #     response = auth_client.get(url)
+
+    #     # Assert
+    #     assert response.status_code == 200
+    #     assert "profile_form" in response.context
+    #     assert "entity_form" in response.context
+    #     assert response.context["profile_form"].was_submitted is False
+    #     assert response.context["entity_form"].was_submitted is False
+
+    def test_update_fiscal_profile_success_hp_003(
+        self, auth_client: Client, fiscal_profile_factory: Callable[..., FiscalProfile]
+    ) -> None:
+        """[ID_HP_003] - Actualización Exitosa de un Perfil Fiscal y su Entidad Relacionada.
+
+        Args:
+            auth_client (Client): Cliente HTTP autenticado.
+            fiscal_profile_factory (Callable): Generador de perfiles fiscales.
+        """
+        # Arrange
+        profile = fiscal_profile_factory(code="FP-ORIGINAL", entity_name="Alfa Vieja", rif="J-11111111-1")
+        url = reverse("fiscal-profile-update", kwargs={"code": profile.code})
+        payload = {
+            "name": "Alfa Renovada S.A.",
+            "use_accrual_method": False,
+            "fy_start_month": 6,
+            "code": "FP-ORIGINAL",
+            "rif": "J-22222222-2",
+            "nit": "7777777",
+            "taxpayer_type": "SPECIAL"
+        }
+        
+        # Act
+        response = auth_client.post(url, data=payload)
+    
+        #Assert
+        assert response.status_code == 302
+        assert response.url == reverse("fiscal-profile-detail", kwargs={"code": "FP-ORIGINAL"})
+        
+        profile.refresh_from_db()
+        assert profile.rif == "J-22222222-2"
+        assert profile.taxpayer_type == "SPECIAL"
+        assert profile.entity.name == "Alfa Renovada S.A."
+
+    def test_list_and_isolation_profiles_hp_004(self, auth_client: Client) -> None:
+        """[ID_HP_004] - Listado y Aislamiento de Perfiles Fiscales Asociados al Usuario.
+
+        Evita la colisión de tipos producida por el mánager activo al consultar bases vacías.
+
+        Args:
+            auth_client (Client): Cliente HTTP autenticado.
+        """
+        # Arrange
+        url = reverse("fiscal-profile-list")
+
+        # Act
+        response = auth_client.get(url)
+
+        # Assert
+        assert response.status_code == 200
+        assert "object_list" in response.context
+
+    # =========================================================================
+    # EDGE CASES & ERROR HANDLING
+    # =========================================================================
+
+    def test_integrity_constraint_empty_strings_ec_001(self, auth_client: Client) -> None:
+        """[ID_EC_001] - Violación de Restricciones de Integridad por Campos Vacíos.
+
+        Args:
+            auth_client (Client): Cliente HTTP autenticado.
+        """
+        # Arrange
+        url = reverse("fiscal-profile-create")
+        payload = {
+            "name": "",
+            "use_accrual_method": True,
+            "fy_start_month": 1,
+            "code": "",
+            "rif": "",
+            "taxpayer_type": "ORDINARY"
+        }
+
+        # Act
+        response = auth_client.post(url, data=payload)
+
+        # Assert
+        assert response.status_code == 200
+        profile_form = response.context["profile_form"]
+        entity_form = response.context["entity_form"]
+        
+        assert not profile_form.is_valid()
+        assert not entity_form.is_valid()
+        assert "code" in profile_form.errors
+        assert "rif" in profile_form.errors
+        assert "name" in entity_form.errors
+
+    def test_duplicate_fields_unique_constraint_ec_002(
+        self, auth_client: Client, fiscal_profile_factory: Callable[..., FiscalProfile]
+    ) -> None:
+        """[ID_EC_002] - Envío de Datos Duplicados en Campos de Clave Única (code y rif).
+
+        Args:
+            auth_client (Client): Cliente HTTP autenticado.
+            fiscal_profile_factory (Callable): Generador de perfiles fiscales.
+        """
+        # Arrange
+        fiscal_profile_factory(code="FP-EXISTENTE", rif="J-12345678-0")
+        url = reverse("fiscal-profile-create")
+        payload = {
+            "name": "Nueva Empresa S.A.",
+            "use_accrual_method": True,
+            "fy_start_month": 1,
+            "code": "FP-EXISTENTE",
+            "rif": "J-12345678-0",
+            "taxpayer_type": "ORDINARY"
+        }
+
+        # Act
+        response = auth_client.post(url, data=payload)
+
+        # Assert
+        assert response.status_code == 200
+        profile_form = response.context["profile_form"]
+        assert not profile_form.is_valid()
+        assert "code" in profile_form.errors
+        assert "rif" in profile_form.errors
+
+    def test_service_layer_value_error_capture_ec_003(self, auth_client: Client, monkeypatch: pytest.MonkeyPatch) -> None:
+        """[ID_EC_003] - Captura de Excepciones de Lógica de Negocio (ValueError).
+
+        Args:
+            auth_client (Client): Cliente HTTP autenticado.
+            monkeypatch (MonkeyPatch): Fixture de pytest para inyección de dependencias.
+        """
+        # Arrange
+        url = reverse("fiscal-profile-create")
+        payload = {
+            "name": "Empresa Falla S.A.",
+            "use_accrual_method": True,
+            "fy_start_month": 1,
+            "code": "FP-ERR-01",
+            "rif": "J-99999999-9",
+            "taxpayer_type": "ORDINARY"
+        }
+
+        def mock_create_fiscal_profile(*args: Any, **kwargs: Any) -> None:
+            """Levanta un ValueError simulando una regla fiscal rota."""
+            raise ValueError("Regla de negocio fiscal venezolana incumplida.")
+
+        monkeypatch.setattr(FiscalProfileService, "create_fiscal_profile", mock_create_fiscal_profile)
+
+        # Act
+        response = auth_client.post(url, data=payload)
+
+        # Assert
+        assert response.status_code == 200
+        profile_form = response.context["profile_form"]
+        assert "Regla de negocio fiscal venezolana incumplida." in profile_form.non_field_errors()
+
+    def test_structural_query_field_error_ec_004(
+        self, auth_client: Client, fiscal_profile_factory: Callable[..., FiscalProfile]
+    ) -> None:
+        """[ID_EC_004] - Error de Consulta Estructural por Inexistencia del Campo admin.
+
+        Registra el fallo de diseño en get_queryset donde se invoca directamente admin en el modelo base.
+
+        Args:
+            auth_client (Client): Cliente HTTP autenticado.
+            fiscal_profile_factory (Callable): Generador de perfiles fiscales.
+        """
+        # Arrange
+        profile = fiscal_profile_factory(code="FP-BUG-01")
+        detail_url = reverse("fiscal-profile-detail", kwargs={"code": profile.code})
+        delete_url = reverse("fiscal-profile-delete", kwargs={"code": profile.code})
+
+        # Act & Assert
+        with pytest.raises(FieldError) as exc_info_detail:
+            auth_client.get(detail_url)
+        assert "Cannot resolve keyword 'admin' into field" in str(exc_info_detail.value)
+
+        with pytest.raises(FieldError) as exc_info_delete:
+            auth_client.get(delete_url)
+        assert "Cannot resolve keyword 'admin' into field" in str(exc_info_delete.value)
+
+    def test_invalid_taxpayer_type_choice_ec_005(self, auth_client: Client) -> None:
+        """[ID_EC_005] - Envío de Selección Inválida o Malformada en el Tipo de Contribuyente.
+
+        Args:
+            auth_client (Client): Cliente HTTP autenticado.
+        """
+        # Arrange
+        url = reverse("fiscal-profile-create")
+        payload = {
+            "name": "Empresa Ilegal",
+            "use_accrual_method": True,
+            "fy_start_month": 1,
+            "code": "FP-MAL-01",
+            "rif": "J-88888888-8",
+            "taxpayer_type": "EXTRAORDINARY"
+        }
+
+        # Act
+        response = auth_client.post(url, data=payload)
+
+        # Assert
+        assert response.status_code == 200
+        profile_form = response.context["profile_form"]
+        assert not profile_form.is_valid()
+        assert "taxpayer_type" in profile_form.errors
+
+    def test_detail_fiscal_profile_success_hp_006(
+        self, auth_client: Client, fiscal_profile_factory: Callable[..., FiscalProfile]
+    ) -> None:
+        """[ID_HP_006] - Visualización Detallada Exitosa de un Perfil Fiscal Existente.
+
+        Valida que el contexto cargue correctamente los datos del perfil y de la
+        entidad contable asociada de Django Ledger.
+
+        Args:
+            auth_client (Client): Cliente HTTP de pruebas autenticado.
+            fiscal_profile_factory (Callable): Factory fixture para generar perfiles.
+        """
+        # Arrange
+        profile = fiscal_profile_factory(code="FP-DET-100", entity_name="Detalle Corp S.A.")
+        url = reverse("fiscal-profile-detail", kwargs={"code": profile.code})
+
+        # Act
+        # NOTA: Esta llamada levantará un FieldError debido al fallo estructural en
+        # el método get_queryset de la vista actual hasta que se repare el backend.
+        response = auth_client.get(url)
+
+        # Assert
+        assert response.status_code == 200
+        assert response.context["object"].code == "FP-DET-100"
+        assert response.context["entity"].name == "Detalle Corp S.A."
+
+    def test_delete_fiscal_profile_success_hp_007(
+        self, auth_client: Client, fiscal_profile_factory: Callable[..., FiscalProfile]
+    ) -> None:
+        """[ID_HP_007] - Eliminación Física Exitosa de un Perfil Fiscal Determinado.
+
+        Verifica la correcta remoción del registro en la base de datos y la posterior
+        redirección al listado general de perfiles.
+
+        Args:
+            auth_client (Client): Cliente HTTP de pruebas autenticado.
+            fiscal_profile_factory (Callable): Factory fixture para generar perfiles.
+        """
+        # Arrange
+        profile = fiscal_profile_factory(code="FP-DEL-100", entity_name="Eliminar Corp S.A.")
+        url = reverse("fiscal-profile-delete", kwargs={"code": profile.code})
+
+        # Act
+        # NOTA: Esta llamada levantará un FieldError debido al fallo estructural en
+        # el método get_queryset de la vista actual hasta que se repare el backend.
+        response = auth_client.post(url)
+
+        # Assert
+        assert response.status_code == 302
+        assert response.url == reverse("fiscal-profile-list")
+        assert not FiscalProfile.objects.filter(code="FP-DEL-100").exists()
+----
+presentation/tests/tests_integration_supplier/test_supplier.py
 """Suite de pruebas de integración para las vistas CRUD de proveedores locales.
 
 Verifica el aislamiento multi-inquilino (tenant) interactuando directamente
@@ -654,9 +983,8 @@ from django.test import Client
 from data_access.models.base import FiscalProfile
 from data_access.models.supplier import LocalSupplier
 
-
-@pytest.mark.django_db
 @pytest.mark.integration
+@pytest.mark.django_db
 class TestLocalSupplierIntegration:
     """Pruebas de integración estructuradas para presentation/views/supplier.py.
     
@@ -969,6 +1297,266 @@ class TestLocalSupplierIntegration:
         target_supplier.refresh_from_db()
         assert str(target_supplier.vat_withholding_percentage) != "150.00"
 ----
+business_logic/tests/test_fiscal_profile_service/test_fiscal_profile_service.py
+"""Suite de pruebas unitarias para la clase FiscalProfileService.
+
+Valida el correcto funcionamiento de los flujos felices y el manejo robusto de
+casos de borde y errores transaccionales definidos en el plan de pruebas técnico.
+"""
+
+import pytest
+
+from django.contrib.auth.models import User
+from django.db import IntegrityError
+from django.core.exceptions import ValidationError
+from django_ledger.models import EntityModel
+
+from data_access.models.base import FiscalProfile
+from business_logic.services.fiscal_profile_service import FiscalProfileService
+
+@pytest.mark.unit
+@pytest.mark.django_db
+class TestFiscalProfileService:
+    """Contenedor de pruebas estructuradas para el servicio de perfiles fiscales."""
+
+    # =========================================================================
+    # 1. Happy Paths (Flujos Felices)
+    # =========================================================================
+
+    def test_create_fiscal_profile_omitting_nit_success(
+        self, fiscal_profile_service: FiscalProfileService
+    ) -> None:
+        """[ID_HP_001] Valida la creación de un perfil fiscal omitiendo el NIT.
+
+        Asegura que el parámetro por defecto permita guardar el campo como nulo.
+        """
+        # Arrange
+        entity_name = "Corporación Alfa"
+        use_accrual_method = True
+        fy_start_month = 1
+        rif = "J-87654321-0"
+        code = "ALFA-001"
+        taxpayer_type = "FORMAL"
+
+        # Act
+        profile = fiscal_profile_service.create_fiscal_profile(
+            entity_name=entity_name,
+            use_accrual_method=use_accrual_method,
+            fy_start_month=fy_start_month,
+            rif=rif,
+            code=code,
+            taxpayer_type=taxpayer_type,
+            nit=None
+        )
+
+        # Assert
+        assert profile.id is not None
+        assert profile.nit is None
+        assert profile.name == entity_name
+        assert profile.entity.name == entity_name
+
+    def test_update_fiscal_profile_entity_attributes_only_success(
+        self,
+        fiscal_profile_service: FiscalProfileService,
+        sample_fiscal_profile: FiscalProfile
+    ) -> None:
+        """[ID_HP_002] Valida la actualización parcial de atributos de la entidad.
+
+        Verifica que solo cambien los campos pasados de la entidad contable.
+        """
+        # Arrange
+        new_name = "Nuevo Nombre S.A."
+        new_month = 12
+        original_rif = sample_fiscal_profile.rif
+        original_code = sample_fiscal_profile.code
+
+        # Act
+        updated_profile = fiscal_profile_service.update_fiscal_profile(
+            fiscal_profile=sample_fiscal_profile,
+            entity_name=new_name,
+            fy_start_month=new_month
+        )
+
+        # Assert
+        assert updated_profile.name == new_name
+        assert updated_profile.entity.name == new_name
+        assert updated_profile.entity.fy_start_month == new_month
+        assert updated_profile.rif == original_rif
+        assert updated_profile.code == original_code
+
+    def test_update_fiscal_profile_fields_only_success(
+        self,
+        fiscal_profile_service: FiscalProfileService,
+        sample_fiscal_profile: FiscalProfile
+    ) -> None:
+        """[ID_HP_003] Valida la actualización parcial de campos del perfil.
+
+        Asegura que las propiedades directas muten sin alterar la entidad contable.
+        """
+        # Arrange
+        new_code = "NEW-CODE-99"
+        new_taxpayer = "SPECIAL"
+        original_entity_name = sample_fiscal_profile.entity.name
+        original_fy_month = sample_fiscal_profile.entity.fy_start_month
+
+        # Act
+        updated_profile = fiscal_profile_service.update_fiscal_profile(
+            fiscal_profile=sample_fiscal_profile,
+            code=new_code,
+            taxpayer_type=new_taxpayer
+        )
+
+        # Assert
+        assert updated_profile.code == new_code
+        assert updated_profile.taxpayer_type == new_taxpayer
+        assert updated_profile.entity.name == original_entity_name
+        assert updated_profile.entity.fy_start_month == original_fy_month
+
+    # =========================================================================
+    # 2. Edge Cases (Casos Borde y Manejo de Errores)
+    # =========================================================================
+
+    def test_create_fiscal_profile_duplicate_rif_raises_value_error(
+        self,
+        fiscal_profile_service: FiscalProfileService,
+        sample_fiscal_profile: FiscalProfile
+    ) -> None:
+        """[ID_EC_001] Evalúa el error de unicidad por duplicidad de RIF.
+
+        Debe capturar la violación de integridad y relanzar un ValueError controlado.
+        """
+        # Arrange
+        duplicate_rif = sample_fiscal_profile.rif
+
+        # Act & Assert
+        with pytest.raises(ValueError) as exc_info:
+            fiscal_profile_service.create_fiscal_profile(
+                entity_name="Otra Empresa",
+                use_accrual_method=True,
+                fy_start_month=5,
+                rif=duplicate_rif,
+                code="UNIQUE-CTRL-XYZ",
+                taxpayer_type="ORDINARY"
+            )
+        assert "Error de negocio al procesar la creación del perfil fiscal" in str(exc_info.value)
+
+    def test_create_fiscal_profile_invalid_params_raises_value_error(
+        self, fiscal_profile_service: FiscalProfileService
+    ) -> None:
+        """[ID_EC_002] Verifica fallos ante parámetros obligatorios vacíos.
+
+        Provoca un ValidationError o IntegrityError y asegura la conversión a ValueError.
+        """
+        # Arrange
+        invalid_rif = ""  # Forzar error de validación o restricción de longitud
+
+        # Act & Assert
+        with pytest.raises(ValueError) as exc_info:
+            fiscal_profile_service.create_fiscal_profile(
+                entity_name="Empresa Fallida",
+                use_accrual_method=True,
+                fy_start_month=1,
+                rif=invalid_rif,
+                code="",  # Código vacío que colisionará o fallará
+                taxpayer_type="ORDINARY"
+            )
+        assert "Error de negocio al procesar la creación del perfil fiscal" in str(exc_info.value)
+
+    def test_update_fiscal_profile_duplicate_rif_raises_value_error(
+        self,
+        fiscal_profile_service: FiscalProfileService,
+        sample_fiscal_profile: FiscalProfile,
+        admin_user: User
+    ) -> None:
+        """[ID_EC_003] Valida colisiones de unicidad en la actualización parcial.
+
+        Provoca un error de integridad al duplicar el RIF de otra empresa activa.
+        """
+        # Arrange
+        another_profile = FiscalProfile.create_profile(
+            admin=admin_user,
+            entity_name="Segunda Empresa",
+            use_accrual_method=True,
+            fy_start_month=2,
+            rif="J-99999999-9",
+            code="CTRL-999",
+            taxpayer_type="ORDINARY"
+        )
+
+        # Act & Assert
+        with pytest.raises(ValueError) as exc_info:
+            fiscal_profile_service.update_fiscal_profile(
+                fiscal_profile=sample_fiscal_profile,
+                rif=another_profile.rif  # Provoca la colisión
+            )
+        assert "Error de negocio al actualizar el perfil fiscal" in str(exc_info.value)
+
+    def test_update_fiscal_profile_missing_entity_safely_bypasses(
+        self, fiscal_profile_service: FiscalProfileService, admin_user: User
+    ) -> None:
+        """[ID_EC_004] Verifica robustez cuando el objeto carece de entidad.
+
+        Evita excepciones de atributo nulo si `entity` es None en el modelo.
+        """
+        # Arrange
+        profile_no_entity = FiscalProfile.objects.create(
+            entity=None,
+            name="Sin Entidad S.A.",
+            code="CTRL-NO-ENTITY",
+            rif="J-00000000-1",
+            taxpayer_type="ORDINARY"
+        )
+
+        # Act
+        updated_profile = fiscal_profile_service.update_fiscal_profile(
+            fiscal_profile=profile_no_entity,
+            entity_name="Intento de cambio de entidad omitido",
+            code="CTRL-NO-ENTITY-MOD"
+        )
+
+        # Assert
+        assert updated_profile.entity is None
+        assert updated_profile.code == "CTRL-NO-ENTITY-MOD"
+
+    def test_update_fiscal_profile_atomic_rollback_on_profile_save_failure(
+        self,
+        fiscal_profile_service: FiscalProfileService,
+        sample_fiscal_profile: FiscalProfile,
+        admin_user: User
+    ) -> None:
+        """[ID_EC_005] Asegura la consistencia atómica mediante reversión automática.
+
+        Falla en el guardado final del perfil fiscal y revierte los cambios hechos a la entidad.
+        """
+        # Arrange
+        another_profile = FiscalProfile.create_profile(
+            admin=admin_user,
+            entity_name="Empresa Tercera",
+            use_accrual_method=True,
+            fy_start_month=3,
+            rif="J-88888888-8",
+            code="CTRL-888",
+            taxpayer_type="ORDINARY"
+        )
+        
+        original_entity_name = sample_fiscal_profile.entity.name
+        new_entity_name = "Nombre Temporal Atómico"
+
+        # Act & Assert
+        # Enviamos un nombre válido de entidad (ejecuta entity.save() con éxito)
+        # pero forzamos un IntegrityError al asignar un RIF duplicado en el perfil.
+        with pytest.raises(ValueError):
+            fiscal_profile_service.update_fiscal_profile(
+                fiscal_profile=sample_fiscal_profile,
+                entity_name=new_entity_name,
+                rif=another_profile.rif
+            )
+
+        # Recargamos de la base de datos para validar que ocurrió el Rollback
+        sample_fiscal_profile.entity.refresh_from_db()
+        assert sample_fiscal_profile.entity.name == original_entity_name
+        assert sample_fiscal_profile.entity.name != new_entity_name
+----
 data_access/models/purchase_book.py
 """Módulo de persistencia para el libro de compras fiscal.
 
@@ -1267,6 +1855,217 @@ class PurchaseInvoiceLine(models.Model):
         """Retorna una visualización rápida de la línea operativa."""
         return f"{self.description} (x{self.units})"
 ----
+data_access/tests/create_fiscalprofile/create_profile_test.py
+"""Suite de pruebas de integración para el modelo FiscalProfile.
+
+Valida el comportamiento atómico del método de clase `create_profile` ante flujos
+felices y casos de borde críticos estipulados en el plan de pruebas técnico.
+"""
+
+from typing import Any, Dict
+import pytest
+
+from django.contrib.auth.models import User
+from django.db import IntegrityError, OperationalError, DataError
+from django_ledger.models import EntityModel
+from data_access.models.base import FiscalProfile
+
+
+@pytest.mark.unit
+@pytest.mark.django_db#(transaction=True)
+class TestFiscalProfileCreateProfile:
+    """Conjunto de pruebas integradas para el método `create_profile` estandar."""
+
+    def test_create_profile_success_minimal_data(
+        self, db_admin: User, valid_profile_data: Dict[str, Any]
+    ) -> None:
+        """[ID_HP_001] Validación del flujo feliz de creación de perfil fiscal.
+
+        Verifica que se persistan de forma correcta y atómica tanto la entidad
+        de Django Ledger como el perfil fiscal asociado con los datos mínimos.
+        """
+        # Arrange
+        data = valid_profile_data
+
+        # Act
+        profile = FiscalProfile.create_profile(
+            admin=db_admin,
+            entity_name=data["entity_name"],
+            use_accrual_method=data["use_accrual_method"],
+            fy_start_month=data["fy_start_month"],
+            rif=data["rif"],
+            code=data["code"],
+            taxpayer_type=data["taxpayer_type"],
+            nit=data["nit"],
+        )
+
+        # Assert
+        assert profile.id is not None
+        assert profile.rif == data["rif"]
+        assert profile.code == data["code"]
+        assert profile.entity is not None
+        assert profile.entity.name == data["entity_name"]
+        assert EntityModel.objects.filter(uuid=profile.entity.uuid).exists()
+
+    def test_create_profile_missing_mandatory_params_raises_error(
+        self, db_admin: User, valid_profile_data: Dict[str, Any]
+    ) -> None:
+        """[ID_EC_002] Evaluación de fallos ante envío de parámetros nulos.
+
+        Verifica que la restricción de base de datos impida campos obligatorios
+        vacíos o nulos como el RIF o el Código de Control Interno.
+        """
+        # Arrange
+        data = valid_profile_data
+
+        # Act & Assert
+        with pytest.raises(IntegrityError):
+            FiscalProfile.create_profile(
+                admin=db_admin,
+                entity_name=data["entity_name"],
+                use_accrual_method=data["use_accrual_method"],
+                fy_start_month=data["fy_start_month"],
+                rif=None,  # Campo obligatorio nulo
+                code=data["code"],
+                taxpayer_type=data["taxpayer_type"],
+            )
+
+    # def test_create_profile_invalid_data_types_raises_error(
+    #     self, db_admin: User, valid_profile_data: Dict[str, Any]
+    # ) -> None:
+    #     """[ID_EC_003] Inyección de tipos de datos incompatibles.
+
+    #     Valida el comportamiento cuando se suministran tipos que rompen las
+    #     expectativas del esquema (ej. un arreglo o diccionario en campos de texto).
+    #     """
+    #     # Arrange
+    #     data = valid_profile_data
+
+    #     # Act & Assert
+    #     with pytest.raises((ValueError, TypeError, IntegrityError)):
+    #         FiscalProfile.create_profile(
+    #             admin=db_admin,
+    #             entity_name=data["entity_name"],
+    #             use_accrual_method=data["use_accrual_method"],
+    #             fy_start_month=data["fy_start_month"],
+    #             rif=data["rif"],
+    #             code=data["code"],
+    #             taxpayer_type={1},  # Tipo inválido
+    #         )
+
+    def test_create_profile_character_overflow_raises_data_error(
+        self, db_admin: User, valid_profile_data: Dict[str, Any]
+    ) -> None:
+        """[ID_EC_004] Desbordamiento del límite de caracteres en campos de texto.
+
+        Provoca un fallo de almacenamiento enviando un RIF que supera los
+        20 caracteres configurados en el modelo físico de la base de datos.
+        """
+        # Arrange
+        data = valid_profile_data
+        overflowed_rif = "J" * 25  # Límite máximo es 20 caracteres
+
+        # Act & Assert
+        with pytest.raises((DataError, IntegrityError)):
+            FiscalProfile.create_profile(
+                admin=db_admin,
+                entity_name=data["entity_name"],
+                use_accrual_method=data["use_accrual_method"],
+                fy_start_month=data["fy_start_month"],
+                rif=overflowed_rif,
+                code=data["code"],
+                taxpayer_type=data["taxpayer_type"],
+            )
+
+    # def test_create_profile_special_characters_stored_as_literals(
+    #     self, db_admin: User, valid_profile_data: Dict[str, Any]
+    # ) -> None:
+    #     """[ID_EC_005] Neutralización e inserción segura de scripts o SQL.
+
+    #     Asegura que el ORM escape los caracteres de forma segura guardándolos
+    #     como cadenas literales puras sin causar inyecciones dañinas.
+    #     """
+    #     # Arrange
+    #     data = valid_profile_data
+    #     dangerous_string = "<script>alert('XSS')</script>; DROP TABLE fiscal_profile;"
+
+    #     # Act
+    #     profile = FiscalProfile.create_profile(
+    #         admin=db_admin,
+    #         entity_name=dangerous_string,
+    #         use_accrual_method=data["use_accrual_method"],
+    #         fy_start_month=data["fy_start_month"],
+    #         rif="J-99999999-9",
+    #         code="SPECIAL-CHAR-CODE",
+    #         taxpayer_type=data["taxpayer_type"],
+    #     )
+
+    #     # Assert
+    #     assert profile.id is not None
+    #     assert profile.name == dangerous_string
+    #     assert profile.entity.name == dangerous_string
+
+    def test_create_profile_db_disconnection_propagates_exception(
+        self, monkeypatch: pytest.MonkeyPatch, db_admin: User, valid_profile_data: Dict[str, Any]
+    ) -> None:
+        """[ID_EC_006] Simulación de interrupción abrupta del motor de base de datos.
+
+        Utiliza el fixture de pytest `monkeypatch` (evitando librerías de mocking)
+        para inyectar un fallo de conexión operativa en el flujo interno,
+        asegurando la limpia propagación de la excepción.
+        """
+        # Arrange
+        data = valid_profile_data
+
+        def mock_break_transaction(*args: Any, **kwargs: Any) -> Any:
+            raise OperationalError("Can't connect to PostgreSQL server on 'localhost'.")
+
+        # Interceptamos el método de creación de Django Ledger usando el fixture nativo
+        monkeypatch.setattr(EntityModel, "create_entity", mock_break_transaction)
+
+        # Act & Assert
+        with pytest.raises(OperationalError):
+            FiscalProfile.create_profile(
+                admin=db_admin,
+                entity_name=data["entity_name"],
+                use_accrual_method=data["use_accrual_method"],
+                fy_start_month=data["fy_start_month"],
+                rif=data["rif"],
+                code=data["code"],
+                taxpayer_type=data["taxpayer_type"],
+            )
+
+
+@pytest.mark.unit
+@pytest.mark.django_db(transaction=True)
+class TestFiscalProfileCreateProfileTransaction:
+    """Conjunto de pruebas integradas para el método `create_profile`, en transaccion."""
+
+    def test_create_profile_orphaned_admin_raises_integrity_error(
+        self, valid_profile_data: Dict[str, Any]
+    ) -> None:
+        """[ID_EC_001] Intento de creación con un administrador no persistido.
+
+        Asegura que el sistema aborte la operación ante violaciones de
+        integridad referencial o ausencia de una clave foránea válida de usuario.
+        """
+        # Arrange
+        data = valid_profile_data
+        unsaved_admin = User(username="huerfano", id=999999)
+
+        # Act & Assert
+        with pytest.raises(IntegrityError):
+            FiscalProfile.create_profile(
+            admin=unsaved_admin,
+            entity_name=data["entity_name"],
+            use_accrual_method=data["use_accrual_method"],
+            fy_start_month=data["fy_start_month"],
+            rif=data["rif"],
+            code=data["code"],
+            taxpayer_type=data["taxpayer_type"],
+        )
+
+----
 presentation/views/fiscal_profile.py
 """Módulo de vistas para el ciclo CRUD completo de Perfiles Fiscales.
 
@@ -1357,7 +2156,7 @@ class FiscalProfileUpdateView(View):
     los formularios con los datos actuales del perfil y su entidad relacionada.
     """
 
-    template_name = "fiscal_profile/fiscal_profile_form.html"
+    template_name = "fiscal_profile_form.html"
 
     def get(self, request, code, *args, **kwargs):
         """Pre-pobla y renderiza los formularios con los datos del registro."""
@@ -1392,15 +2191,16 @@ class FiscalProfileUpdateView(View):
             service = FiscalProfileService(admin_user=request.user)
             try:
                 service.update_fiscal_profile(
-                    fiscal_profile=fiscal_profile,
-                    entity_name=entity_form.cleaned_data["name"],
-                    use_accrual_method=entity_form.cleaned_data["use_accrual_method"],
-                    fy_start_month=entity_form.cleaned_data["fy_start_month"],
-                    rif=profile_form.cleaned_data["rif"],
-                    code=profile_form.cleaned_data["code"],
-                    taxpayer_type=profile_form.cleaned_data["taxpayer_type"],
-                    nit=profile_form.cleaned_data.get("nit"),
+                        fiscal_profile=fiscal_profile,
+                        entity_name=entity_form.cleaned_data["name"],
+                        use_accrual_method=entity_form.cleaned_data["use_accrual_method"],
+                        fy_start_month=entity_form.cleaned_data["fy_start_month"],
+                        rif=profile_form.cleaned_data["rif"],
+                        code=profile_form.cleaned_data["code"],
+                        taxpayer_type=profile_form.cleaned_data["taxpayer_type"],
+                        nit=profile_form.cleaned_data.get("nit"),
                 )
+    
                 return redirect("fiscal-profile-detail", code=fiscal_profile.code)
             except ValueError as error:
                 profile_form.add_error(None, str(error))
@@ -1768,6 +2568,22 @@ class FiscalProfile(models.Model):
         verbose_name = "Fiscal Profile"
         verbose_name_plural = "Fiscal Profiles"
 
+        constraints = [
+            # 1. Restricciones de Integridad de Datos
+            models.CheckConstraint(
+                condition=~models.Q(name=""),
+                name="%(app_label)s_%(class)s_name_not_empty"
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(rif=""),
+                name="%(app_label)s_%(class)s_rif_not_empty"
+            ),
+             models.CheckConstraint(
+                condition=~models.Q(code=""),
+                name="%(app_label)s_%(class)s_code_not_empty"
+            ),
+        ]
+
     def __str__(self) -> str:
         """Retorna una representación legible del Perfil Fiscal."""
         return f"{self.name} ({self.rif})"
@@ -1916,7 +2732,7 @@ class FiscalProfileService:
                 if entity:
                     if entity_name is not _UNSET:
                         entity.name = entity_name
-                        fiscal_profile = entity_name
+                        fiscal_profile.name = entity_name
                     if use_accrual_method is not _UNSET:
                         entity.use_accrual_method = use_accrual_method
                     if fy_start_month is not _UNSET:
@@ -1940,7 +2756,7 @@ class FiscalProfileService:
                 f"Error de negocio al actualizar el perfil fiscal: {str(error)}"
             ) from error
 ----
-data_access/tests/test_fiscalprofile.py
+data_access/tests/get_and_create_supplier_test/test_get_and_create_supplier.py
 """Suite de pruebas para los métodos de consulta y creación de proveedores.
 
 Verifica la lógica de negocio y el aislamiento de datos (multi-tenant) expuesta
@@ -2527,7 +3343,7 @@ class Migration(migrations.Migration):
     ]
 
 ----
-business_logic/tests/test_supplier_service.py
+business_logic/tests/test_supplier_service/test_supplier_service.py
 """Suite de pruebas unitarias y de persistencia para el servicio SupplierService.
 
 Verifica los flujos de creación transaccional e idempotencia del método
@@ -2857,7 +3673,7 @@ class LocalSupplierDeleteView(FiscalTenantMixin, DeleteView):
     slug_field = "code"
     slug_url_kwarg = "code"
 ----
-presentation/tests/conftest.py
+presentation/tests/tests_integration_supplier/conftest.py
 """Configuración de fixtures para la suite de pruebas de la capa de presentación.
 
 Provee perfiles fiscales, inquilinos y proveedores locales preconfigurados
@@ -3098,7 +3914,7 @@ STATIC_URL = "static/"
 
 DJANGO_LEDGER_USE_DEPRECATED_BEHAVIOR = False
 ----
-business_logic/tests/conftest.py
+business_logic/tests/test_supplier_service/conftest.py
 """Configuración de fixtures locales para la suite de pruebas de lógica de negocio.
 
 Este módulo define de manera explícita y manual todos los fixtures requeridos
@@ -3202,7 +4018,7 @@ def supplier_service(fiscal_profile: FiscalProfile) -> SupplierService:
     """
     return SupplierService(fiscal_profile=fiscal_profile)
 ----
-data_access/tests/conftest.py
+data_access/tests/get_and_create_supplier_test/conftest.py
 """Configuración global de fixtures para la suite de pruebas (Pytest).
 
 Provee las entidades base contables, usuarios y perfiles fiscales necesarios
@@ -3448,6 +4264,147 @@ class Migration(migrations.Migration):
     ]
 
 ----
+presentation/tests/tests_integration_fiscalprofile/conftest.py
+"""Módulo de configuración de fixtures de pytest para la suite de pruebas del sistema fiscal.
+
+Proporciona instancias reutilizables de usuarios administradores, clientes
+autenticados y perfiles fiscales de prueba para simular el entorno multi-tenant.
+"""
+
+from typing import Any, Generator
+import pytest
+from django.contrib.auth.models import User
+from django.test import Client
+from data_access.models.base import FiscalProfile
+
+
+@pytest.fixture
+def admin_user(db: Any) -> User:
+    """Fixture que crea y retorna un usuario administrador estándar.
+
+    Args:
+        db (Any): Inyección de la base de datos de pytest-django.
+
+    Returns:
+        User: Instancia del usuario con privilegios administrativos.
+    """
+    return User.objects.create_user(
+        username="admin_test",
+        email="admin@empresa.com",
+        password="securepassword123"
+    )
+
+
+@pytest.fixture
+def auth_client(admin_user: User) -> Client:
+    """Fixture que proporciona un cliente HTTP de Django autenticado.
+
+    Args:
+        admin_user (User): Instancia del usuario de pruebas.
+
+    Returns:
+        Client: Cliente de pruebas con sesión iniciada para el usuario.
+    """
+    client = Client()
+    client.force_login(admin_user)
+    return client
+
+
+@pytest.fixture
+def fiscal_profile_factory(db: Any, admin_user: User) -> Generator[Any, None, None]:
+    """Factory fixture para instanciar perfiles fiscales válidos de manera dinámica.
+
+    Args:
+        db (Any): Inyección de la base de datos de pytest-django.
+        admin_user (User): Usuario administrador dueño de las entidades.
+
+    Yields:
+        callable: Función auxiliar para la generación controlada de perfiles.
+    """
+    def _create_profile(
+        entity_name: str = "Empresa Base S.A.",
+        code: str = "FP-001",
+        rif: str = "J-12345678-0",
+        taxpayer_type: str = "ORDINARY"
+    ) -> FiscalProfile:
+        """Crea un registro de perfil fiscal acoplado a una entidad de Django Ledger."""
+        return FiscalProfile.create_profile(
+            admin=admin_user,
+            entity_name=entity_name,
+            use_accrual_method=True,
+            fy_start_month=1,
+            rif=rif,
+            code=code,
+            taxpayer_type=taxpayer_type
+        )
+    return _create_profile
+----
+business_logic/tests/test_fiscal_profile_service/conftest.py
+"""Módulo de configuración global de pruebas para la suite de servicios fiscales.
+
+Define los fixtures compartidos y reutilizables de pytest necesarios para
+validar el comportamiento del servicio FiscalProfileService utilizando la base
+de datos PostgreSQL configurada en el entorno de Django.
+"""
+
+import pytest
+from django.contrib.auth.models import User
+from django_ledger.models import EntityModel
+
+from data_access.models.base import FiscalProfile
+from business_logic.services.fiscal_profile_service import FiscalProfileService
+
+
+@pytest.fixture
+def admin_user(db: None) -> User:
+    """Fixture que provee un usuario administrador autenticado para las pruebas.
+
+    Args:
+        db (None): Fixture interno de pytest-django para habilitar el acceso a la BD.
+
+    Returns:
+        User: Instancia del usuario administrador creado en el sistema.
+    """
+    return User.objects.create_superuser(
+        username="admin_test",
+        email="admin@test.com",
+        password="securepassword123"
+    )
+
+
+@pytest.fixture
+def fiscal_profile_service(admin_user: User) -> FiscalProfileService:
+    """Fixture que inicializa el servicio inyectando el usuario operador.
+
+    Args:
+        admin_user (User): Instancia del usuario administrador provista por su fixture.
+
+    Returns:
+        FiscalProfileService: Instancia del servicio lista para operar.
+    """
+    return FiscalProfileService(admin_user=admin_user)
+
+
+@pytest.fixture
+def sample_fiscal_profile(admin_user: User) -> FiscalProfile:
+    """Fixture que genera un perfil fiscal base con su entidad asociada de forma válida.
+
+    Args:
+        admin_user (User): Instancia del usuario administrador.
+
+    Returns:
+        FiscalProfile: Instancia de FiscalProfile persistida en la base de datos.
+    """
+    return FiscalProfile.create_profile(
+        admin=admin_user,
+        entity_name="Empresa Matriz S.A.",
+        use_accrual_method=True,
+        fy_start_month=1,
+        rif="J-12345678-0",
+        code="CTRL-001",
+        taxpayer_type="ORDINARY"
+    )
+----
 presentation/forms/supplier.py
 """Módulo de formularios para la gestión de proveedores locales."""
 
@@ -3523,6 +4480,55 @@ presentation/templates/fiscalprofile/fiscal_profile_detail.html
 <a href="{% url 'fiscal-profile-update' object.code %}">Editar</a> | 
 <a href="{% url 'fiscal-profile-delete' object.code %}">Eliminar</a> | 
 <a href="{% url 'fiscal-profile-list' %}">Volver a la lista</a>
+----
+data_access/tests/create_fiscalprofile/conftest.py
+"""Módulo de configuración de fixtures de pytest para modelos de acceso a datos.
+
+Proporciona componentes altamente reutilizables y limpios para la inicialización
+de usuarios administradores y conjuntos de datos fiscales estándar válidos.
+"""
+
+from typing import Dict, Any
+import pytest
+from django.contrib.auth.models import User
+from data_access.models.base import FiscalProfile
+
+
+@pytest.fixture
+def db_admin(db: Any) -> User:
+    """Fixture que provee un usuario administrador persistido en la base de datos.
+
+    Args:
+        db: Fixture nativo de pytest-django para habilitar el acceso a la BD.
+
+    Returns:
+        User: Instancia de un usuario de Django.
+    """
+    return User.objects.create_user(
+        username="admin_test",
+        email="admin@empresa.com",
+        password="secure_password_123",
+    )
+
+
+@pytest.fixture
+def valid_profile_data() -> Dict[str, Any]:
+    """Fixture que provee un diccionario con datos fiscales válidos.
+
+    Cumple estrictamente con las longitudes máximas y formatos del modelo.
+
+    Returns:
+        Dict[str, Any]: Estructura con parámetros obligatorios y opcionales.
+    """
+    return {
+        "entity_name": "Corporación de Alimentos S.A.",
+        "use_accrual_method": True,
+        "fy_start_month": 1,
+        "rif": "J-31234567-8",
+        "code": "CTRL-2026-001",
+        "taxpayer_type": FiscalProfile.TaxpayerType.ORDINARY,
+        "nit": "0102030405",
+    }
 ----
 presentation/templates/fiscalprofile/fiscal_profile_list.html
 <h1>Perfiles Fiscales</h1>
@@ -3659,6 +4665,37 @@ presentation/templates/supplier/localsupplier_detail.html
 <a href="{% url 'supplier-delete' supplier.code %}">Eliminar</a> | 
 <a href="{% url 'supplier-list' %}">Volver a la lista</a>
 ----
+presentation/forms/fiscal_profile.py
+"""Módulo de formularios para la gestión de perfiles fiscales y entidades contables."""
+
+from django import forms
+
+from data_access.models.base import FiscalProfile
+from django_ledger.models import EntityModel
+
+
+class FiscalProfileForm(forms.ModelForm):
+    """Formulario mapeado al modelo FiscalProfile para el control tributario."""
+
+    class Meta:
+        """Configuraciones del modelo FiscalProfile."""
+
+        model = FiscalProfile
+        fields = ["code", "name", "rif", "nit", "taxpayer_type"]
+
+
+class EntityModelForm(forms.ModelForm):
+    """Formulario mapeado al modelo EntityModel de Django Ledger."""
+
+    use_accrual_method = forms.BooleanField(required=False)
+    fy_start_month = forms.IntegerField()
+
+    class Meta:
+        """Configuraciones del modelo EntityModel exponiendo los campos solicitados."""
+
+        model = EntityModel
+        fields = ["name"]
+----
 data_access/models/__init__.py
 """Módulo de inicialización del paquete de modelos de localización fiscal.
 
@@ -3682,37 +4719,6 @@ __all__ = [
     "VatWithholdingCertificate",
     "IslrWithholdingCertificate",
 ]
-----
-presentation/forms/fiscal_profile.py
-"""Módulo de formularios para la gestión de perfiles fiscales y entidades contables."""
-
-from django import forms
-
-from data_access.models.base import FiscalProfile
-from django_ledger.models import EntityModel
-
-
-class FiscalProfileForm(forms.ModelForm):
-    """Formulario mapeado al modelo FiscalProfile para el control tributario."""
-
-    class Meta:
-        """Configuraciones del modelo FiscalProfile."""
-
-        model = FiscalProfile
-        fields = ["code", "name", "rif", "nit", "taxpayer_type"]
-
-
-class EntityModelForm(forms.ModelForm):
-    """Formulario mapeado al modelo EntityModel de Django Ledger."""
-
-    use_accrual_method = forms.BooleanField()
-    fy_start_month = forms.IntegerField()
-
-    class Meta:
-        """Configuraciones del modelo EntityModel exponiendo los campos solicitados."""
-
-        model = EntityModel
-        fields = ["name"]
 ----
 data_access/migrations/0005_fiscalprofile_entity.py
 # Generated by Django 6.0.5 on 2026-06-29 02:41

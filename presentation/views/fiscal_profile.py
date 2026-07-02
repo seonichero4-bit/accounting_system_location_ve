@@ -30,7 +30,12 @@ class FiscalTenantMixin:
 
     def get_queryset(self):
         """Aísla las consultas estrictamente al perfil fiscal actual."""
-        return FiscalProfile.objects.filter(entity__admin=self.get_fiscal_profile())
+        current_fiscalprofile = self.get_fiscal_profile()
+
+        if current_fiscalprofile is None:
+            return FiscalProfile.objects.none()
+
+        return FiscalProfile.objects.filter(code=current_fiscalprofile.code)
 
 
 class FiscalProfileCreateView(View):
@@ -153,35 +158,24 @@ class FiscalProfileListView(FiscalTenantMixin, ListView):
     template_name = "fiscal_profile_list.html"
     context_object_name = "object_list"
 
-class FiscalProfileDetailView(DetailView):
+class FiscalProfileDetailView(FiscalTenantMixin, DetailView):
     """Vista genérica para exponer el desglose técnico de un Perfil Fiscal."""
 
     model = FiscalProfile
-    template_name = "supplier/fiscal_profile_detail.html"
+    template_name = "fiscal_profile_detail.html"
     context_object_name = "object"
     slug_field = "code"
     slug_url_kwarg = "code"
 
-    def get_queryset(self) -> QuerySet[FiscalProfile]:
-        """Asegura que el usuario solo pueda consultar el detalle de sus propios registros."""
-        return FiscalProfile.objects.filter(admin=self.request.user)
-
-    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
-        """Inyecta de forma segura la relación de la entidad contable al contexto."""
-        context = super().get_context_data(**kwargs)
-        context["entity"] = getattr(self.object, "entity", None)
-        return context
 
 
-class FiscalProfileDeleteView(DeleteView):
+class FiscalProfileDeleteView(FiscalTenantMixin, DeleteView):
     """Vista genérica para la eliminación física de un Perfil Fiscal determinado."""
 
     model = FiscalProfile
-    template_name = "supplier/fiscal_profile_confirm_delete.html"
+    template_name = "fiscal_profile_confirm_delete.html"
     slug_field = "code"
     slug_url_kwarg = "code"
     success_url = reverse_lazy("fiscal-profile-list")
 
-    def get_queryset(self) -> QuerySet[FiscalProfile]:
-        """Previene que operadores externos eliminen perfiles ajenos."""
-        return FiscalProfile.objects.filter(admin=self.request.user)
+   

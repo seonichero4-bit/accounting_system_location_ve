@@ -6,6 +6,7 @@ los escenarios Happy Path y Edge Cases definidos en el plan de pruebas.
 
 from typing import Any, Callable
 import pytest
+
 from django.test import Client
 from django.urls import reverse
 from django.core.exceptions import FieldError
@@ -125,6 +126,53 @@ class TestFiscalProfileViews:
         assert response.status_code == 200
         assert "object_list" in response.context
 
+    def test_detail_fiscal_profile_success_hp_005(
+        self, auth_client: Client, fiscal_profile_factory: Callable[..., FiscalProfile]
+    ) -> None:
+        """[ID_HP_005] - Visualización Detallada Exitosa de un Perfil Fiscal Existente.
+
+        Valida que el contexto cargue correctamente los datos del perfil y de la
+        entidad contable asociada de Django Ledger.
+
+        Args:
+            auth_client (Client): Cliente HTTP de pruebas autenticado.
+            fiscal_profile_factory (Callable): Factory fixture para generar perfiles.
+        """
+        # Arrange
+        profile = fiscal_profile_factory(code="FP-DET-100", entity_name="Detalle Corp S.A.")
+        url = reverse("fiscal-profile-detail", kwargs={"code": profile.code})
+
+        # Act
+        response = auth_client.get(url)
+       
+        # Assert
+        assert response.status_code == 200
+        assert response.context["object"].code == "FP-DET-100"
+        assert response.context["object"].entity.name == "Detalle Corp S.A."
+
+    def test_delete_fiscal_profile_success_hp_006(
+        self, auth_client: Client, fiscal_profile_factory: Callable[..., FiscalProfile]
+    ) -> None:
+        """[ID_HP_006] - Eliminación Física Exitosa de un Perfil Fiscal Determinado.
+
+        Verifica la correcta remoción del registro en la base de datos y la posterior
+        redirección al listado general de perfiles.
+
+        Args:
+            auth_client (Client): Cliente HTTP de pruebas autenticado.
+            fiscal_profile_factory (Callable): Factory fixture para generar perfiles.
+        """
+        # Arrange
+        profile = fiscal_profile_factory(code="FP-DEL-100", entity_name="Eliminar Corp S.A.")
+        url = reverse("fiscal-profile-delete", kwargs={"code": profile.code})
+        # Act
+        response = auth_client.post(url)
+
+        # Assert
+        assert response.status_code == 302
+        assert response.url == reverse("fiscal-profile-list")
+        assert not FiscalProfile.objects.filter(code="FP-DEL-100").exists()
+
     # =========================================================================
     # EDGE CASES & ERROR HANDLING
     # =========================================================================
@@ -223,30 +271,30 @@ class TestFiscalProfileViews:
         profile_form = response.context["profile_form"]
         assert "Regla de negocio fiscal venezolana incumplida." in profile_form.non_field_errors()
 
-    def test_structural_query_field_error_ec_004(
-        self, auth_client: Client, fiscal_profile_factory: Callable[..., FiscalProfile]
-    ) -> None:
-        """[ID_EC_004] - Error de Consulta Estructural por Inexistencia del Campo admin.
+    # def test_structural_query_field_error_ec_004(
+    #     self, auth_client: Client, fiscal_profile_factory: Callable[..., FiscalProfile]
+    # ) -> None:
+    #     """[ID_EC_004] - Error de Consulta Estructural por Inexistencia del Campo admin.
 
-        Registra el fallo de diseño en get_queryset donde se invoca directamente admin en el modelo base.
+    #     Registra el fallo de diseño en get_queryset donde se invoca directamente admin en el modelo base.
 
-        Args:
-            auth_client (Client): Cliente HTTP autenticado.
-            fiscal_profile_factory (Callable): Generador de perfiles fiscales.
-        """
-        # Arrange
-        profile = fiscal_profile_factory(code="FP-BUG-01")
-        detail_url = reverse("fiscal-profile-detail", kwargs={"code": profile.code})
-        delete_url = reverse("fiscal-profile-delete", kwargs={"code": profile.code})
+    #     Args:
+    #         auth_client (Client): Cliente HTTP autenticado.
+    #         fiscal_profile_factory (Callable): Generador de perfiles fiscales.
+    #     """
+    #     # Arrange
+    #     profile = fiscal_profile_factory(code="FP-BUG-01")
+    #     detail_url = reverse("fiscal-profile-detail", kwargs={"code": profile.code})
+    #     delete_url = reverse("fiscal-profile-delete", kwargs={"code": profile.code})
 
-        # Act & Assert
-        with pytest.raises(FieldError) as exc_info_detail:
-            auth_client.get(detail_url)
-        assert "Cannot resolve keyword 'admin' into field" in str(exc_info_detail.value)
+    #     # Act & Assert
+    #     with pytest.raises(FieldError) as exc_info_detail:
+    #         auth_client.get(detail_url)
+    #     assert "Cannot resolve keyword 'admin' into field" in str(exc_info_detail.value)
 
-        with pytest.raises(FieldError) as exc_info_delete:
-            auth_client.get(delete_url)
-        assert "Cannot resolve keyword 'admin' into field" in str(exc_info_delete.value)
+    #     with pytest.raises(FieldError) as exc_info_delete:
+    #         auth_client.get(delete_url)
+    #     assert "Cannot resolve keyword 'admin' into field" in str(exc_info_delete.value)
 
     def test_invalid_taxpayer_type_choice_ec_005(self, auth_client: Client) -> None:
         """[ID_EC_005] - Envío de Selección Inválida o Malformada en el Tipo de Contribuyente.
@@ -274,54 +322,4 @@ class TestFiscalProfileViews:
         assert not profile_form.is_valid()
         assert "taxpayer_type" in profile_form.errors
 
-    def test_detail_fiscal_profile_success_hp_006(
-        self, auth_client: Client, fiscal_profile_factory: Callable[..., FiscalProfile]
-    ) -> None:
-        """[ID_HP_006] - Visualización Detallada Exitosa de un Perfil Fiscal Existente.
-
-        Valida que el contexto cargue correctamente los datos del perfil y de la
-        entidad contable asociada de Django Ledger.
-
-        Args:
-            auth_client (Client): Cliente HTTP de pruebas autenticado.
-            fiscal_profile_factory (Callable): Factory fixture para generar perfiles.
-        """
-        # Arrange
-        profile = fiscal_profile_factory(code="FP-DET-100", entity_name="Detalle Corp S.A.")
-        url = reverse("fiscal-profile-detail", kwargs={"code": profile.code})
-
-        # Act
-        # NOTA: Esta llamada levantará un FieldError debido al fallo estructural en
-        # el método get_queryset de la vista actual hasta que se repare el backend.
-        response = auth_client.get(url)
-
-        # Assert
-        assert response.status_code == 200
-        assert response.context["object"].code == "FP-DET-100"
-        assert response.context["entity"].name == "Detalle Corp S.A."
-
-    def test_delete_fiscal_profile_success_hp_007(
-        self, auth_client: Client, fiscal_profile_factory: Callable[..., FiscalProfile]
-    ) -> None:
-        """[ID_HP_007] - Eliminación Física Exitosa de un Perfil Fiscal Determinado.
-
-        Verifica la correcta remoción del registro en la base de datos y la posterior
-        redirección al listado general de perfiles.
-
-        Args:
-            auth_client (Client): Cliente HTTP de pruebas autenticado.
-            fiscal_profile_factory (Callable): Factory fixture para generar perfiles.
-        """
-        # Arrange
-        profile = fiscal_profile_factory(code="FP-DEL-100", entity_name="Eliminar Corp S.A.")
-        url = reverse("fiscal-profile-delete", kwargs={"code": profile.code})
-
-        # Act
-        # NOTA: Esta llamada levantará un FieldError debido al fallo estructural en
-        # el método get_queryset de la vista actual hasta que se repare el backend.
-        response = auth_client.post(url)
-
-        # Assert
-        assert response.status_code == 302
-        assert response.url == reverse("fiscal-profile-list")
-        assert not FiscalProfile.objects.filter(code="FP-DEL-100").exists()
+   
