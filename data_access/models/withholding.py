@@ -10,7 +10,7 @@ from django.db import models
 
 from data_access.mixins.sequence import TransactionalSequenceMixin
 from data_access.models.base import FiscalModuleAbstractModel
-from data_access.models.purchase_book import PurchaseLedgerInvoice, PurchaseInvoiceLine
+from data_access.models.purchase_book import PurchaseLedgerInvoice#, PurchaseInvoiceLine
 
 
 class VatWithholdingCertificate(TransactionalSequenceMixin, FiscalModuleAbstractModel):
@@ -87,12 +87,12 @@ class IslrWithholdingCertificate(TransactionalSequenceMixin, FiscalModuleAbstrac
         related_name="islr_withholding_certificates",
         verbose_name="Related Purchase Invoice",
     )
-    source_line = models.OneToOneField(
-        PurchaseInvoiceLine,
-        on_delete=models.PROTECT,
-        related_name="islr_withholding_certificate",
-        verbose_name="Source Invoice Line",
-    )
+    # source_line = models.OneToOneField(
+    #     PurchaseInvoiceLine,
+    #     on_delete=models.PROTECT,
+    #     related_name="islr_withholding_certificate",
+    #     verbose_name="Source Invoice Line",
+    # )
     document_number = models.CharField(
         max_length=50,
         blank=True,
