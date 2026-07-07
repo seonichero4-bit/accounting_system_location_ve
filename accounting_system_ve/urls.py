@@ -3,6 +3,7 @@ from django.urls import path
 from presentation.views import supplier
 from presentation.views import fiscal_profile
 from presentation.views import purchase_book
+from presentation.views import vat_withholding
 
 urlpatterns = [
     # URLS de Proveedores
@@ -25,6 +26,22 @@ urlpatterns = [
     path("purchase-invoices/<int:pk>/", purchase_book.PurchaseLedgerInvoiceDetailView.as_view(), name="purchase-invoice-detail"),
     path("purchase-invoices/<int:pk>/edit/", purchase_book.PurchaseLedgerInvoiceUpdateView.as_view(), name="purchase-invoice-update"),
     path("purchase-invoices/<int:pk>/delete/", purchase_book.PurchaseLedgerInvoiceDeleteView.as_view(), name="purchase-invoice-delete"),
+
+    # ==========================================
+    # URLS de Comprobantes de Retención de IVA
+    # ==========================================
+    
+    # --- URLS Aisladas / Globales ---
+    path("vat-withholdings/", vat_withholding.VatWithholdingCertificateListView.as_view(), name="vat-withholding-list"),
+    path("vat-withholdings/<int:pk>/", vat_withholding.VatWithholdingCertificateDetailView.as_view(), name="vat-withholding-detail"),
+    path("vat-withholdings/<int:pk>/delete/", vat_withholding.VatWithholdingCertificateDeleteView.as_view(), name="vat-withholding-delete"),
+
+    # --- URLS Contextuales (Desde Factura Específica) ---
+    path("purchase-invoices/<int:invoice_pk>/vat-withholding/new/", vat_withholding.VatWithholdingCertificateCreateView.as_view(), name="vat-withholding-create"),
+    path("purchase-invoices/<int:invoice_pk>/vat-withholding/<int:pk>/edit/", vat_withholding.VatWithholdingCertificateUpdateView.as_view(), name="vat-withholding-update"),
+    path("purchase-invoices/<int:invoice_pk>/vat-withholdings/", vat_withholding.VatWithholdingCertificateListView.as_view(), name="invoice-vat-withholding-list"),
+    path("purchase-invoices/<int:invoice_pk>/vat-withholding/<int:pk>/", vat_withholding.VatWithholdingCertificateDetailView.as_view(), name="invoice-vat-withholding-detail"),
+    path("purchase-invoices/<int:invoice_pk>/vat-withholding/<int:pk>/delete/", vat_withholding.VatWithholdingCertificateDeleteView.as_view(), name="invoice-vat-withholding-delete"),
 ]
 
 

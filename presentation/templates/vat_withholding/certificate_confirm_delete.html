@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Confirmar Eliminación</title>
+</head>
+<body>
+    <h1>Confirmar Eliminación de Comprobante</h1>
+    
+    <p>¿Está seguro de que desea eliminar permanentemente el comprobante de retención de IVA ID: <strong>{{ object.id }}</strong>?</p>
+    <p>Esta operación no se puede deshacer y liberará los bloqueos sobre la factura correspondiente.</p>
+
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" style="color: red; font-weight: bold;">Sí, eliminar permanentemente</button>
+        <a href="{% url 'vat-withholding-detail' object.pk %}">No, cancelar y volver al detalle</a>
+    </form>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Comprobantes de Retención de IVA</title>
+</head>
+<body>
+    <h1>Comprobantes de Retención de IVA</h1>
+    
+    {% if purchase_invoice %}
+        <h3>Filtrado por Factura de Compra: {{ purchase_invoice.document_number }}</h3>
+        <p><a href="{% url 'vat-withholding-create' purchase_invoice.pk %}">+ Crear Nuevo Comprobante para esta Factura</a></p>
+    {% endif %}
+    
+    <p><a href="{% url 'vat-withholding-list' %}">Ver Todos los Comprobantes (Sin Filtro)</a></p>
+
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Número de Documento</th>
+                <th>Factura Asociada</th>
+                <th>Porcentaje</th>
+                <th>Monto Retenido</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for certificate in certificates %}
+                <tr>
+                    <td>{{ certificate.id }}</td>
+                    <td>{{ certificate.document_number|default:"N/A (Preliminar)" }}</td>
+                    <td>{{ certificate.purchase_invoice.id }}</td>
+                    <td>{{ certificate.vat_withholding_percentage }}%</td>
+                    <td>{{ certificate.vat_withheld_amount }}</td>
+                    <td>{{ certificate.get_status_display }}</td>
+                    <td>
+                        <a href="{% url 'vat-withholding-detail' certificate.pk %}">Ver Detalle</a> |
+                        {% if certificate.purchase_invoice %}
+                            <a href="{% url 'vat-withholding-update' certificate.purchase_invoice.pk certificate.pk %}">Editar</a>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="7">No se encontraron comprobantes de retención de IVA.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

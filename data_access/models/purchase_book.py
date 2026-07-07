@@ -195,6 +195,47 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
         verbose_name="Invoice Status",
     )
     
+    class Meta:
+        """Configuración de metadatos y restricciones a nivel de base de datos."""
+
+        verbose_name = "Purchase Ledger Invoice"
+        verbose_name_plural = "Purchase Ledger Invoices"
+
+        constraints = [
+            # Unicidad de Facturas por Proveedor
+            models.UniqueConstraint(
+                fields=["supplier", "number", "document_type"],
+                name="unique_supplier_invoice_document",
+            ),
+            # Unicidad de Control por Proveedor
+            models.UniqueConstraint(
+                fields=["supplier", "invoice_control", "document_type"],
+                name="unique_supplier_control_document",
+            ),
+            # Migración de unique_together anterior a UniqueConstraint moderna
+            models.UniqueConstraint(
+                fields=["fiscal_profile", "code"],
+                name="unique_purchase_invoice_profile_code"
+            ),
+            # Validación de Valores No Negativos en Campos Financieros
+            models.CheckConstraint(
+                condition=models.Q(exempt_amount__gte=0),
+                name="purchase_invoice_exempt_amount_not_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(taxable_base__gte=0),
+                name="purchase_invoice_taxable_base_not_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(vat_amount__gte=0),
+                name="purchase_invoice_vat_amount_not_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(igtf_amount__gte=0),
+                name="purchase_invoice_igtf_amount_not_negative",
+            ),
+        ]
+
 
     def clean(self) -> None:
         """Realiza las validaciones cruzadas y de temporalidad fiscal del documento.
@@ -300,47 +341,7 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
             )
         return super().delete(*args, **kwargs)
 
-    class Meta:
-        """Configuración de metadatos y restricciones a nivel de base de datos."""
-
-        verbose_name = "Purchase Ledger Invoice"
-        verbose_name_plural = "Purchase Ledger Invoices"
-
-        constraints = [
-            # Unicidad de Facturas por Proveedor
-            models.UniqueConstraint(
-                fields=["supplier", "number", "document_type"],
-                name="unique_supplier_invoice_document",
-            ),
-            # Unicidad de Control por Proveedor
-            models.UniqueConstraint(
-                fields=["supplier", "invoice_control", "document_type"],
-                name="unique_supplier_control_document",
-            ),
-            # Migración de unique_together anterior a UniqueConstraint moderna
-            models.UniqueConstraint(
-                fields=["fiscal_profile", "code"],
-                name="unique_purchase_invoice_profile_code"
-            ),
-            # Validación de Valores No Negativos en Campos Financieros
-            models.CheckConstraint(
-                condition=models.Q(exempt_amount__gte=0),
-                name="purchase_invoice_exempt_amount_not_negative",
-            ),
-            models.CheckConstraint(
-                condition=models.Q(taxable_base__gte=0),
-                name="purchase_invoice_taxable_base_not_negative",
-            ),
-            models.CheckConstraint(
-                condition=models.Q(vat_amount__gte=0),
-                name="purchase_invoice_vat_amount_not_negative",
-            ),
-            models.CheckConstraint(
-                condition=models.Q(igtf_amount__gte=0),
-                name="purchase_invoice_igtf_amount_not_negative",
-            ),
-        ]
-
+    
 
 # class PurchaseInvoiceLine(models.Model):
 #     """Modelo operativo para el desglose detallado de los ítems de una compra.

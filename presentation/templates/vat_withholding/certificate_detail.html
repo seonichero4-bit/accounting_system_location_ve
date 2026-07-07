@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Detalle del Comprobante</title>
+</head>
+<body>
+    <h1>Detalle del Comprobante de Retención de IVA</h1>
+    
+    <ul>
+        <li><strong>ID:</strong> {{ certificate.id }}</li>
+        <li><strong>Número de Documento:</strong> {{ certificate.document_number|default:"Asignado al procesar" }}</li>
+        <li><strong>Factura de Compra Relacionada:</strong> ID {{ certificate.purchase_invoice.id }}</li>
+        <li><strong>Fecha de Aplicación:</strong> {{ certificate.application_date }}</li>
+        <li><strong>Porcentaje de Retención:</strong> {{ certificate.vat_withholding_percentage }}%</li>
+        <li><strong>Monto de IVA Retenido:</strong> {{ certificate.vat_withheld_amount }}</li>
+        <li><strong>Estado actual:</strong> {{ certificate.get_status_display }}</li>
+        <li><strong>Perfil Fiscal (Tenant):</strong> {{ certificate.fiscal_profile }}</li>
+    </ul>
+
+    <hr>
+    <p>
+        <a href="{% url 'vat-withholding-list' %}">Volver a la Lista General</a>
+        {% if certificate.purchase_invoice %}
+            | <a href="{% url 'vat-withholding-update' certificate.purchase_invoice.pk certificate.pk %}">Modificar Registro</a>
+            | <a href="{% url 'invoice-vat-withholding-list' certificate.purchase_invoice.pk %}">Ver todos de esta factura</a>
+        {% endif %}
+        | <a href="{% url 'vat-withholding-delete' certificate.pk %}">Eliminar Comprobante</a>
+    </p>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{% if object %}Editar{% else %}Crear{% endif %} Comprobante de Retención</title>
+</head>
+<body>
+    <h1>{% if object %}Modificar{% else %}Registrar Nuevo{% endif %} Comprobante de Retención de IVA</h1>
+    
+    {% if purchase_invoice or object.purchase_invoice %}
+        <h3>Factura Objetivo: {{ purchase_invoice.id|default:object.purchase_invoice.id }}</h3>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        
+        <button type="submit">Guardar Comprobante</button>
+        
+        {% if object %}
+            <a href="{% url 'vat-withholding-detail' object.pk %}">Cancelar</a>
+        {% else %}
+            <a href="{% url 'vat-withholding-list' %}">Cancelar</a>
+        {% endif %}
+    </form>
+</body>
+</html>
