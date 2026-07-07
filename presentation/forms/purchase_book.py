@@ -42,7 +42,6 @@ class PurchaseLedgerInvoiceForm(forms.ModelForm):
             "invoice_control",
             "document_type",
             "purchase_type",
-            "status",
             "date",
             "application_month_year",
             "affected_invoice",
@@ -108,17 +107,17 @@ class PurchaseLedgerInvoiceForm(forms.ModelForm):
         application_month_year = cleaned_data.get("application_month_year")
 
         # 1. Lógica de Notas de Crédito / Débito vs Facturas
-        if document_type in [InvoiceDocumentType.CREDIT_NOTE, InvoiceDocumentType.DEBIT_NOTE]:
+        if document_type in [PurchaseLedgerInvoice.DocumentType.CREDIT_NOTE, PurchaseLedgerInvoice.DocumentType.DEBIT_NOTE]:
             if not cleaned_data.get("affected_invoice"):
                 self.add_error(
                     "affected_invoice",
                     "Este campo es estrictamente obligatorio para registrar Notas de Crédito o Débito.",
                 )
-        elif document_type == InvoiceDocumentType.INVOICE:
+        elif document_type == PurchaseLedgerInvoice.DocumentType.INVOICE:
             cleaned_data["affected_invoice"] = None
 
         # 2. Regla de Importaciones
-        if purchase_type == PurchaseType.IMPORT:
+        if purchase_type == PurchaseLedgerInvoice.PurchaseType.IMPORT:
             if not cleaned_data.get("import_form_number") or not cleaned_data.get("import_file_number"):
                 raise forms.ValidationError(
                     "Para compras de Importación, los campos de número de formulario y expediente son obligatorios."
@@ -192,10 +191,6 @@ class PurchaseLedgerInvoiceForm(forms.ModelForm):
         # Validación del Cuadre General Obligatorio
         expected_total = exempt_amount + taxable_base + vat_amount + igtf_amount
         if total_purchase != expected_total:
-            discrepancy = (total_purchase - expected_total).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            raise forms.ValidationError(
-                f"Error de Cuadre Fiscal: El Gran Total ingresado ({total_purchase}) no coincide con la sumatoria exacta "
-                f"de sus componentes ({expected_total}). Descuadre registrado: {discrepancy}."
-            )
-
+            self.add_error('total_purchase', "El total de la compra no coincide con la suma de sus componentes.")
+        
         return cleaned_data

@@ -1,0 +1,9 @@
+{% block content %}
+<div class="container mt-4">
+    <h2>Detalle de Factura de Compra</h2>
+    <p><strong>Código de Control:</strong> {{ object.control_code }}</p>
+    <p><strong>Proveedor:</strong> {{ object.supplier.name }}</p>
+    <p><strong>Total Compra:</strong> {{ object.total_purchase }}</p>
+    <!-- Agregar el resto de campos requeridos para la visualización -->
+</div>
+{% endblock %}

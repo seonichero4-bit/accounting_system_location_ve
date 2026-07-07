@@ -7,11 +7,11 @@ multitenant requerido.
 
 import re
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
 
 from django.core.exceptions import ValidationError
-from django.core.validators import RegexValidator
+from django.core.validators import RegexValidator, MinValueValidator
 from django.db import models
 
 from data_access.mixins.sequence import AutomaticCodeMixin
@@ -115,10 +115,12 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
         max_length=50,
         verbose_name="Transaction Type",
     )
-    affected_invoice = models.CharField(
-        max_length=50,
+    affected_invoice = models.ForeignKey(
+        'self',
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
+        related_name="credit_debit_notes",
         verbose_name="Affected Invoice (Credit/Debit Notes)",
     )
     tax_credit_type = models.CharField(
@@ -133,15 +135,16 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
         blank=True,
         verbose_name="VAT Withholding Accounting Mapping",
     )
-
     # Totales y Financieros Globales
     exempt_amount = models.DecimalField(
+        validators=[MinValueValidator(Decimal('0.00'))],
         max_digits=15,
         decimal_places=2,
         default=Decimal("0.00"),
         verbose_name="Exempt Amount",
     )
     taxable_base = models.DecimalField(
+        validators=[MinValueValidator(Decimal('0.00'))],
         max_digits=15,
         decimal_places=2,
         default=Decimal("0.00"),
@@ -191,6 +194,7 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
         default=InvoiceStatus.PRELIMINARY,
         verbose_name="Invoice Status",
     )
+    
 
     def clean(self) -> None:
         """Realiza las validaciones cruzadas y de temporalidad fiscal del documento.
@@ -203,16 +207,16 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
         errors: dict[str, str] = {}
 
         # 1. Condicional de Notas de Crédito/Débito
-        if self.document_type in [InvoiceDocumentType.CREDIT_NOTE, InvoiceDocumentType.DEBIT_NOTE]:
+        if self.document_type in [PurchaseLedgerInvoice.DocumentType.CREDIT_NOTE, PurchaseLedgerInvoice.DocumentType.DEBIT_NOTE]:
             if not self.affected_invoice:
                 errors["affected_invoice"] = (
                     "El campo de factura afectada es estrictamente obligatorio para notas de crédito o débito."
                 )
-        elif self.document_type == InvoiceDocumentType.INVOICE:
+        elif self.document_type == PurchaseLedgerInvoice.DocumentType.INVOICE:
             self.affected_invoice = None
 
         # 2. Condicional de Compras de Importación
-        if self.purchase_type == PurchaseType.IMPORT:
+        if self.purchase_type == PurchaseLedgerInvoice.PurchaseType.IMPORT:
             if not self.import_form_number:
                 errors["import_form_number"] = (
                     "El número de formulario de importación es obligatorio para compras externas."
@@ -221,7 +225,7 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
                 errors["import_file_number"] = (
                     "El número de expediente de importación es obligatorio para compras externas."
                 )
-        elif self.purchase_type == PurchaseType.INTERNAL:
+        elif self.purchase_type == PurchaseLedgerInvoice.PurchaseType.INTERNAL:
             self.import_form_number = None
             self.import_file_number = None
 
@@ -264,7 +268,7 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
         """
         if self.pk:
             original = PurchaseLedgerInvoice.objects.get(pk=self.pk)
-            if original.status == InvoiceStatus.PROCESSED:
+            if original.status == PurchaseLedgerInvoice.InvoiceStatus.PROCESSED:
                 raise ValidationError(
                     "Bloqueo de Modificación Fiscal: Un documento en estado PROCESSED es estrictamente de solo lectura."
                 )
@@ -290,7 +294,7 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
         Raises:
             ValidationError: Si el estado actual es PROCESSED.
         """
-        if self.status == InvoiceStatus.PROCESSED:
+        if self.status == PurchaseLedgerInvoice.InvoiceStatus.PROCESSED:
             raise ValidationError(
                 "Bloqueo de Eliminación Fiscal: No es posible eliminar un documento en estado PROCESSED."
             )

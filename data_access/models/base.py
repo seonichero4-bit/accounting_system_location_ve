@@ -185,7 +185,7 @@ class FiscalModuleAbstractModel(models.Model):
     información entre inquilinos en la base de datos PostgreSQL.
     """
 
-    fiscal_profile = models.OneToOneField(
+    fiscal_profile = models.ForeignKey(
         FiscalProfile,
         on_delete=models.PROTECT,
         related_name="%(class)s_models",

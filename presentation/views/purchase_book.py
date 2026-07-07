@@ -19,7 +19,28 @@ from django.views.generic import (
 
 from data_access.models.purchase_book import PurchaseLedgerInvoice
 from presentation.forms.purchase_book import PurchaseLedgerInvoiceForm
-from ..mixins.fiscaltenantmixin import FiscalTenantMixin
+from data_access.models.base import FiscalProfile
+#from ..mixins.fiscaltenantmixin import FiscalTenantMixin
+
+class FiscalTenantMixin:
+    """Mixin base para inyectar y aislar el perfil fiscal activo en las vistas."""
+
+    def get_fiscal_profile(self) -> FiscalProfile:
+        """Obtiene el perfil fiscal del inquilino actual.
+        
+        Nota: En producción, esto debe derivarse de `self.request.user.entity.fiscal_profile`
+        o del middleware activo. Por simplicidad del CRUD, retorna el primero disponible.
+        """
+        return FiscalProfile.objects.first()
+
+    def get_queryset(self):
+        """Aísla las consultas estrictamente al perfil fiscal actual."""
+        current_fiscalprofile = self.get_fiscal_profile()
+
+        if current_fiscalprofile is None:
+            return FiscalProfile.objects.none()
+
+        return PurchaseLedgerInvoice.objects.filter(fiscal_profile=current_fiscalprofile)
 
 class PurchaseLedgerInvoiceListView(FiscalTenantMixin, ListView):
     """Vista genérica para listar las facturas del Libro de Compras."""
@@ -44,6 +65,13 @@ class PurchaseLedgerInvoiceCreateView(FiscalTenantMixin, CreateView):
     form_class = PurchaseLedgerInvoiceForm
     template_name = "invoice_form.html"
     success_url = reverse_lazy("purchase-invoice-list")
+
+    def form_valid(self, form): # Modificar en produccion, para extraer fiscalprofile
+    # desde el request
+        current_fiscalprofile = self.get_fiscal_profile()
+        form.instance.fiscal_profile = current_fiscalprofile
+        
+        return super().form_valid(form)
 
 
 class PurchaseLedgerInvoiceUpdateView(FiscalTenantMixin, UpdateView):
