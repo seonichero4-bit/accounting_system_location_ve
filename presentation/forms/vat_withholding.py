@@ -1,7 +1,7 @@
 """Módulo de formularios para la gestión de retenciones fiscales de IVA."""
 
 from django import forms
-from data_access.models.withholding import VatWithholdingCertificate
+from data_access.models.vat_withholding import VatWithholdingCertificate
 
 
 class VatWithholdingCertificateForm(forms.ModelForm):

@@ -11,7 +11,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
 
-from data_access.mixins.sequence import TransactionalSequenceMixin
+#from data_access.mixins.sequence import TransactionalSequenceMixin
 from data_access.models.base import FiscalModuleAbstractModel
 from data_access.models.purchase_book import PurchaseLedgerInvoice#, PurchaseInvoiceLine
 
@@ -23,6 +23,13 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
     fiscal, resguardando la integridad de la recaudación del tributo. Genera de
     manera automática un número de documento transaccional periódico.
     """
+
+    class  VatWithholdingPercentage(models.DecimalField):
+        """Opciones de porcentaje de IVA según la legislación venezolana."""
+        
+        SETENTA_Y_CINCO = 75, "75 %"
+        CIEN = 100, "100 %"
+        
     class CertificateStatus(models.TextChoices):
         """Estados operativos y fiscales de la factura."""
 
@@ -42,7 +49,9 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
     application_date = models.DateField(
         verbose_name="Fiscal Application Date",
     )
-    vat_withholding_percentage = models.DecimalField( 
+    vat_withholding_percentage = models.DecimalField(
+        choices=VatWithholdingPercentage.choices,
+        default=VatWithholdingPercentage.SETENTA_Y_CINCO,
         max_digits=5,
         decimal_places=2,
         verbose_name="VAT Withholding Percentage (%)",
@@ -74,7 +83,7 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
         verbose_name_plural = "VAT Withholding Certificates"
         constraints = [
             models.UniqueConstraint(
-                fields=["fiscal_profile", "document_number"],
+                fields=["fiscal_profile", "document_number",],
                 name="unique_withholding_per_fiscal_profile",
             ),
             models.CheckConstraint(
@@ -109,12 +118,12 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
         if hasattr(self, "purchase_invoice") and self.purchase_invoice:
             # Validación de estado de la factura (Procesado, Registrado o Posted)
             invoice_status = getattr(self.purchase_invoice, "status", None)
-            if invoice_status not in ["PROCESSED", "REGISTERED", "posted"]:
+            if invoice_status is not "PRELIMINARY":
                 errors["purchase_invoice"] = (
-                    "La factura asociada debe estar en estado 'Procesado' o 'Registrado'."
+                    "La factura asociada ya fue procesada."
                 )
 
-            # Validación de monto de IVA mayor a cero
+        # Validación de monto de IVA mayor a cero
             vat_amount = getattr(self.purchase_invoice, "vat_amount", Decimal("0.00"))
             if vat_amount <= Decimal("0.00"):
                 errors["purchase_invoice"] = (
@@ -122,26 +131,24 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
                 )
 
             # 2. Validación de application_date vs fecha de emisión de la factura de compra
-            invoice_date = getattr(self.purchase_invoice, "invoice_date", None) or getattr(
-                self.purchase_invoice, "issue_date", None
-            )
+            invoice_date = getattr(self.purchase_invoice, "date", None)
             if invoice_date and self.application_date < invoice_date:
                 errors["application_date"] = (
                     "La fecha de aplicación no puede ser menor a la fecha de emisión de la factura asociada."
                 )
 
         # Validación de período fiscal activo controlado por el sistema
-        if self.application_date and hasattr(self, "fiscal_profile") and self.fiscal_profile:
+        if self.application_month_year and hasattr(self, "fiscal_profile") and self.fiscal_profile:
             if hasattr(self.fiscal_profile, "is_period_active") and not self.fiscal_profile.is_period_active(
-                self.application_date
+                self.application_month_year
             ):
-                errors["application_date"] = (
+                errors["application_month_year"] = (
                     "La fecha seleccionada no pertenece a un período fiscal activo en el sistema."
                 )
 
         # 3. Validación de consistencia de document_number con application_date (YYYYMM)
-        if self.document_number and self.application_date:
-            expected_prefix = self.application_date.strftime("%Y%m")
+        if self.document_number and self.application_month_year:
+            expected_prefix = self.application_month_year.strftime("%Y%m")
             if self.document_number[:6] != expected_prefix:
                 errors["document_number"] = (
                     f"Inconsistencia fiscal: Los primeros 6 caracteres del número de comprobante "
@@ -191,81 +198,3 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
     #     super().save(*args, **kwargs)
 
 
-class IslrWithholdingCertificate(TransactionalSequenceMixin, FiscalModuleAbstractModel):
-    """Modelo de control para comprobantes de retención de ISLR.
-
-    Asocia las retenciones del Impuesto Sobre la Renta ejecutadas sobre conceptos y
-    líneas operativas específicas desglosadas en las compras del período. Genera de
-    manera automática un número de documento transaccional periódico.
-    """
-    class CertificateStatus(models.TextChoices):
-        """Estados operativos y fiscales de la factura."""
-
-        PRELIMINARY = "PRELIMINARY", "Preliminary"
-        PROCESSED = "PROCESSED", "Processed"
-
-    # Configuración de propiedades para el TransactionalSequenceMixin
-    PREFIX = "RETENCION_ISLR"
-    PADDING_LENGTH = 5
-
-    purchase_invoice = models.ForeignKey(
-        PurchaseLedgerInvoice,
-        on_delete=models.PROTECT,
-        related_name="islr_withholding_certificates",
-        verbose_name="Related Purchase Invoice",
-    )
-    # source_line = models.OneToOneField(
-    #     PurchaseInvoiceLine,
-    #     on_delete=models.PROTECT,
-    #     related_name="islr_withholding_certificate",
-    #     verbose_name="Source Invoice Line",
-    # )
-    document_number = models.CharField(
-        max_length=50,
-        blank=True,
-        editable=False,
-        verbose_name="ISLR Document Number",
-    )
-    closing_day_month = models.CharField(
-        max_length=10,
-        verbose_name="Closing Day/Month",
-    )
-    line_taxable_base = models.DecimalField(
-        max_digits=15,
-        decimal_places=2,
-        verbose_name="Line Taxable Base",
-    )
-    applied_rate = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        verbose_name="Applied Rate (%)",
-    )
-    islr_withheld_amount = models.DecimalField(
-        max_digits=15,
-        decimal_places=2,
-        verbose_name="ISLR Withheld Amount",
-    )
-    # Control de Flujo del Ciclo de Vida
-    status = models.CharField(
-        max_length=15,
-        choices=CertificateStatus.choices,
-        default=CertificateStatus.PRELIMINARY,
-        verbose_name="Invoice Status",
-    )
-
-    class Meta:
-        """Configuración de metadatos del modelo ComprobanteRetencionISLR."""
-
-        verbose_name = "ISLR Withholding Certificate"
-        verbose_name_plural = "ISLR Withholding Certificates"
-        # Garantiza el aislamiento multi-inquilino evitando colisiones del correlativo periódico
-        unique_together = ("fiscal_profile", "document_number")
-
-    def __str__(self) -> str:
-        """Retorna una representación legible del comprobante de ISLR."""
-        return f"ISLR Certificate No. {self.document_number}"
-
-    def save(self, *args: Any, **kwargs: Any) -> None:
-        """Persiste el comprobante ejecutando la pre-generación del número de documento."""
-        self.handle_transactional_code()
-        super().save(*args, **kwargs)

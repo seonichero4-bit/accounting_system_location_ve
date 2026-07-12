@@ -26,7 +26,14 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
     fechas de aplicación impositiva y los agregados financieros de una transacción
     de compra. Genera de manera automática un código de control secuencial único.
     """
-
+    class  VatPercentage(models.DecimalField):
+        """Opciones de porcentaje de IVA según la legislación venezolana."""
+        
+        ALICUOTA_GENERAL = 16, "Alicuota general"
+        ALICUOTA_REDUCIDA = 8, "Alicuota reducida"
+        ALICUOTA_ADICIONAL_BIENES_SERVICIOS_SUNTUARIOS = 31, "Alicuota adicional para bienes y servicios suntuarios"
+    
+    
     class InvoiceStatus(models.TextChoices):
         """Estados operativos y fiscales de la factura."""
 
@@ -123,18 +130,18 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
         related_name="credit_debit_notes",
         verbose_name="Affected Invoice (Credit/Debit Notes)",
     )
-    tax_credit_type = models.CharField(
-        max_length=50,
-        verbose_name="Tax Credit Type",
-    )
+    # tax_credit_type = models.CharField(
+    #     max_length=50,
+    #     verbose_name="Tax Credit Type",
+    # )
 
     # Integración Contable
-    vat_withholding_accounting_mapping = models.CharField(
-        max_length=255,
-        null=True,
-        blank=True,
-        verbose_name="VAT Withholding Accounting Mapping",
-    )
+    # vat_withholding_accounting_mapping = models.CharField(
+    #     max_length=255,
+    #     null=True,
+    #     blank=True,
+    #     verbose_name="VAT Withholding Accounting Mapping",
+    # )
     # Totales y Financieros Globales
     exempt_amount = models.DecimalField(
         validators=[MinValueValidator(Decimal('0.00'))],
@@ -151,36 +158,43 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
         verbose_name="Taxable Base",
     )
     subtotal = models.DecimalField(
+        validators=[MinValueValidator(Decimal('0.00'))],
         max_digits=15,
         decimal_places=2,
         default=Decimal("0.00"),
         verbose_name="Sub Total",
     )
-    general_rate = models.DecimalField(
+    vat_percentage = models.DecimalField(
+        choices=VatPercentage.choices,
+        default=VatPercentage.ALICUOTA_GENERAL,
         max_digits=5,
         decimal_places=2,
         default=Decimal("16.00"),
         verbose_name="General Tax Rate (%)",
     )
     vat_amount = models.DecimalField(
+        validators=[MinValueValidator(Decimal('0.00'))],
         max_digits=15,
         decimal_places=2,
         default=Decimal("0.00"),
         verbose_name="VAT Amount",
     )
     igtf_base = models.DecimalField(
+        validators=[MinValueValidator(Decimal('0.00'))],
         max_digits=15,
         decimal_places=2,
         default=Decimal("0.00"),
         verbose_name="IGTF Base",
     )
     igtf_amount = models.DecimalField(
+        validators=[MinValueValidator(Decimal('0.00'))],
         max_digits=15,
         decimal_places=2,
         default=Decimal("0.00"),
         verbose_name="IGTF Amount",
     )
     total_purchase = models.DecimalField(
+        validators=[MinValueValidator(Decimal('0.00'))],
         max_digits=15,
         decimal_places=2,
         default=Decimal("0.00"),
@@ -204,12 +218,12 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
         constraints = [
             # Unicidad de Facturas por Proveedor
             models.UniqueConstraint(
-                fields=["supplier", "number", "document_type"],
+                fields=["supplier", "number", "document_type", "fiscal_profile"],
                 name="unique_supplier_invoice_document",
             ),
             # Unicidad de Control por Proveedor
             models.UniqueConstraint(
-                fields=["supplier", "invoice_control", "document_type"],
+                fields=["supplier", "invoice_control", "document_type", "fiscal_profile"],
                 name="unique_supplier_control_document",
             ),
             # Migración de unique_together anterior a UniqueConstraint moderna
@@ -235,6 +249,26 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
                 name="purchase_invoice_igtf_amount_not_negative",
             ),
         ]
+
+
+    def clean_invoice_control(self) -> str:
+        """Sanea y valida el formato del número de control de imprenta nacional.
+
+        Returns:
+            str: El número de control limpio sin espacios fantasmas.
+
+        Raises:
+            ValidationError: Si contiene caracteres especiales o espacios prohibidos.
+        """
+        invoice_control = self.cleaned_data.get("invoice_control", "")
+        if invoice_control:
+            invoice_control = invoice_control.strip()
+            # Permitir únicamente caracteres alfanuméricos y guiones
+            if not re.match(r"^[0-9A-Za-z\-]+$", invoice_control):
+                raise ValidationError(
+                    "El número de control introducido contiene caracteres especiales o espacios inválidos."
+                )
+        return invoice_control
 
 
     def clean(self) -> None:
@@ -316,7 +350,7 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
 
         # Cálculos Financieros Automatizados con Decimal
         t_base = Decimal(str(self.taxable_base))
-        g_rate = Decimal(str(self.general_rate))
+        g_rate = Decimal(str(self.vat_percentage))
         e_amount = Decimal(str(self.exempt_amount))
         i_amount = Decimal(str(self.igtf_amount))
 

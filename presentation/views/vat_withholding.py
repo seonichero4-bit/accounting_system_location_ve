@@ -7,7 +7,7 @@ from django.urls import reverse_lazy, reverse
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 
 from data_access.models.purchase_book import PurchaseLedgerInvoice
-from data_access.models.withholding import VatWithholdingCertificate
+from data_access.models.vat_withholding import VatWithholdingCertificate
 from data_access.models.base import FiscalProfile 
 from presentation.forms.vat_withholding import VatWithholdingCertificateForm
 
