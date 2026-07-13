@@ -9,6 +9,16 @@ from typing import Optional, Any
 from django_ledger.models import EntityModel
 from django.db import models, transaction
 from django.contrib.auth.models import User
+from django.core.validators import RegexValidator
+from django.core.exceptions import ValidationError
+
+from data_access.models.supplier import LocalSupplier
+
+# Validador de formato oficial para el RIF venezolano (Capa de Aplicación)
+rif_format_validator = RegexValidator(
+    regex=r'^[VEJGPC]\d{8,9}$',
+    message="El RIF debe cumplir con el formato oficial venezolano (una letra [V, E, J, G, P, C] seguida de 8 a 9 dígitos numéricos sin guiones ni espacios).",
+    code="invalid_rif_format"
 
 class FiscalProfile(models.Model):
     """Modelo estructural central para la identificación fiscal.
@@ -32,13 +42,8 @@ class FiscalProfile(models.Model):
         null=True, #argumento debe ser eliminado ante de produccion 
         blank=True, #argumento debe ser eliminado ante de produccion 
     )
-    code = models.CharField(
-        max_length=50,
-        unique=True,
-        verbose_name="Internal Control Code",
-    )
     name = models.CharField(
-        max_length=35,
+        max_length=250,
         verbose_name="Legal Name or Corporate Name",
          null=True, #argumento debe ser eliminado ante de produccion 
         blank=True, #argumento debe ser eliminado ante de produccion 
@@ -47,12 +52,6 @@ class FiscalProfile(models.Model):
         max_length=20,
         unique=True,
         verbose_name="Fiscal Information Registry (RIF)",
-    )
-    nit = models.CharField(
-        max_length=20,
-        null=True,
-        blank=True,
-        verbose_name="Tax Identification Number (NIT)",
     )
     taxpayer_type = models.CharField(
         max_length=15,
@@ -150,6 +149,39 @@ class FiscalProfile(models.Model):
             **other_fields
         )
                   
+    def clean(self) -> None:
+        """Realiza el saneamiento, normalización activa y validaciones del modelo.
+
+        Limpia las cadenas de texto, elimina variaciones estéticas de formato en el RIF
+        para mitigar duplicados colaterales y garantiza la existencia legal de la entidad base.
+
+        Raises:
+            ValidationError: Si alguna restricción lógica o relacional del negocio es violada.
+        """
+        super().clean()
+        errors: dict[str, str] = {}
+
+        # 1. Saneamiento y Normalización Activa del RIF
+        if self.rif:
+            self.rif = self.rif.replace("-", "").replace(" ", "").upper()
+            # Forzamos la ejecución del validador tras la limpieza interna en clean()
+            try:
+                rif_format_validator(self.rif)
+            except ValidationError as e:
+                errors["rif"] = e.messages
+
+        # 2. Saneamiento del campo Name
+        if self.name:
+            self.name = self.name.strip()
+
+        # 3. Validación de Existencia Formal de la Relación de Entidad
+        if self.entity_id:
+            if not EntityModel.objects.filter(pk=self.entity_id).exists():
+                errors["entity"] = "La instancia seleccionada de EntityModel no existe formalmente en el sistema."
+
+        if errors:
+            raise ValidationError(errors)
+                  
     class Meta:
         """Configuración de metadatos del modelo FiscalProfile."""
 
@@ -157,7 +189,13 @@ class FiscalProfile(models.Model):
         verbose_name_plural = "Fiscal Profiles"
 
         constraints = [
-            # 1. Restricciones de Integridad de Datos
+            # Capa de Base de Datos: Restricción de Unicidad Absoluta del RIF
+            models.UniqueConstraint(
+                fields=["rif"],
+                name="%(app_label)s_%(class)s_unique_rif"
+            ),
+            
+            # Restricciones de Integridad de Datos Existentes
             models.CheckConstraint(
                 condition=~models.Q(name=""),
                 name="%(app_label)s_%(class)s_name_not_empty"
@@ -166,7 +204,7 @@ class FiscalProfile(models.Model):
                 condition=~models.Q(rif=""),
                 name="%(app_label)s_%(class)s_rif_not_empty"
             ),
-             models.CheckConstraint(
+            models.CheckConstraint(
                 condition=~models.Q(code=""),
                 name="%(app_label)s_%(class)s_code_not_empty"
             ),

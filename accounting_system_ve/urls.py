@@ -4,6 +4,7 @@ from presentation.views import supplier
 from presentation.views import fiscal_profile
 from presentation.views import purchase_book
 from presentation.views import vat_withholding
+from presentation.views import islr_withholding
 
 urlpatterns = [
     # URLS de Proveedores
@@ -42,6 +43,22 @@ urlpatterns = [
     path("purchase-invoices/<int:invoice_pk>/vat-withholdings/", vat_withholding.VatWithholdingCertificateListView.as_view(), name="invoice-vat-withholding-list"),
     path("purchase-invoices/<int:invoice_pk>/vat-withholding/<int:pk>/", vat_withholding.VatWithholdingCertificateDetailView.as_view(), name="invoice-vat-withholding-detail"),
     path("purchase-invoices/<int:invoice_pk>/vat-withholding/<int:pk>/delete/", vat_withholding.VatWithholdingCertificateDeleteView.as_view(), name="invoice-vat-withholding-delete"),
+
+    # ==========================================
+    # URLS de Comprobantes de Retención de ISLR
+    # ==========================================
+    
+    # --- URLS Aisladas / Globales ---
+    path("islr-withholdings/", islr_withholding.IslrWithholdingCertificateListView.as_view(), name="islr-withholding-list"),
+    path("islr-withholdings/<int:pk>/", islr_withholding.IslrWithholdingCertificateDetailView.as_view(), name="islr-withholding-detail"),
+    path("islr-withholdings/<int:pk>/delete/", islr_withholding.IslrWithholdingCertificateDeleteView.as_view(), name="islr-withholding-delete"),
+
+    # --- URLS Contextuales (Desde Factura Específica) ---
+    path("purchase-invoices/<int:invoice_pk>/islr-withholding/new/", islr_withholding.IslrWithholdingCertificateCreateView.as_view(), name="islr-withholding-create"),
+    path("purchase-invoices/<int:invoice_pk>/islr-withholding/<int:pk>/edit/", islr_withholding.IslrWithholdingCertificateUpdateView.as_view(), name="islr-withholding-update"),
+    path("purchase-invoices/<int:invoice_pk>/islr-withholdings/", islr_withholding.IslrWithholdingCertificateListView.as_view(), name="invoice-islr-withholding-list"),
+    path("purchase-invoices/<int:invoice_pk>/islr-withholding/<int:pk>/", islr_withholding.IslrWithholdingCertificateDetailView.as_view(), name="invoice-islr-withholding-detail"),
+    path("purchase-invoices/<int:invoice_pk>/islr-withholding/<int:pk>/delete/", islr_withholding.IslrWithholdingCertificateDeleteView.as_view(), name="invoice-islr-withholding-delete"),
 ]
 
 

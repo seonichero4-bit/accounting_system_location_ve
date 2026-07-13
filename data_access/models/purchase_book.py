@@ -26,19 +26,28 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
     fechas de aplicación impositiva y los agregados financieros de una transacción
     de compra. Genera de manera automática un código de control secuencial único.
     """
-    class  VatPercentage(models.DecimalField):
+    class VatPercentageChoices(models.IntegerChoices):
         """Opciones de porcentaje de IVA según la legislación venezolana."""
-        
-        ALICUOTA_GENERAL = 16, "Alicuota general"
-        ALICUOTA_REDUCIDA = 8, "Alicuota reducida"
-        ALICUOTA_ADICIONAL_BIENES_SERVICIOS_SUNTUARIOS = 31, "Alicuota adicional para bienes y servicios suntuarios"
-    
-    
+        GENERAL = 1, "Alícuota General (16%)"
+        REDUCIDA = 2, "Alícuota Reducida (8%)"
+        ADICIONAL = 3, "Alícuota Adicional (31%)"
+
+        @property
+        def as_decimal(self) -> Decimal:
+            """Retorna el porcentaje en formato Decimal para cálculos."""
+            _mapping = {
+                1: Decimal("16.00"),
+                2: Decimal("8.00"),
+                3: Decimal("31.00"),
+            }
+            return _mapping[self.value]
+            
     class InvoiceStatus(models.TextChoices):
         """Estados operativos y fiscales de la factura."""
 
         PRELIMINARY = "PRELIMINARY", "Preliminary"
         PROCESSED = "PROCESSED", "Processed"
+        ANULLED = "ANULLED", "ANULLED"
 
     class DocumentType(models.TextChoices):
         """Tipos de documentos fiscales soportados en el libro de compras."""
@@ -130,19 +139,6 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
         related_name="credit_debit_notes",
         verbose_name="Affected Invoice (Credit/Debit Notes)",
     )
-    # tax_credit_type = models.CharField(
-    #     max_length=50,
-    #     verbose_name="Tax Credit Type",
-    # )
-
-    # Integración Contable
-    # vat_withholding_accounting_mapping = models.CharField(
-    #     max_length=255,
-    #     null=True,
-    #     blank=True,
-    #     verbose_name="VAT Withholding Accounting Mapping",
-    # )
-    # Totales y Financieros Globales
     exempt_amount = models.DecimalField(
         validators=[MinValueValidator(Decimal('0.00'))],
         max_digits=15,
@@ -164,12 +160,9 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
         default=Decimal("0.00"),
         verbose_name="Sub Total",
     )
-    vat_percentage = models.DecimalField(
-        choices=VatPercentage.choices,
-        default=VatPercentage.ALICUOTA_GENERAL,
-        max_digits=5,
-        decimal_places=2,
-        default=Decimal("16.00"),
+    vat_percentage = models.PositiveSmallIntegerField(
+        choices=VatPercentageChoices.choices,
+        default=VatPercentageChoices.GENERAL,
         verbose_name="General Tax Rate (%)",
     )
     vat_amount = models.DecimalField(
@@ -249,28 +242,7 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
                 name="purchase_invoice_igtf_amount_not_negative",
             ),
         ]
-
-
-    def clean_invoice_control(self) -> str:
-        """Sanea y valida el formato del número de control de imprenta nacional.
-
-        Returns:
-            str: El número de control limpio sin espacios fantasmas.
-
-        Raises:
-            ValidationError: Si contiene caracteres especiales o espacios prohibidos.
-        """
-        invoice_control = self.cleaned_data.get("invoice_control", "")
-        if invoice_control:
-            invoice_control = invoice_control.strip()
-            # Permitir únicamente caracteres alfanuméricos y guiones
-            if not re.match(r"^[0-9A-Za-z\-]+$", invoice_control):
-                raise ValidationError(
-                    "El número de control introducido contiene caracteres especiales o espacios inválidos."
-                )
-        return invoice_control
-
-
+        
     def clean(self) -> None:
         """Realiza las validaciones cruzadas y de temporalidad fiscal del documento.
 
@@ -334,7 +306,21 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
 
         if errors:
             raise ValidationError(errors)
+            
+        # 5. Sanea y valida el formato del número de control de imprenta nacional
+        if self.invoice_control:
+            # Saneamiento (Normalización de espacios en los extremos)
+            self.invoice_control = self.invoice_control.strip()
+            
+            # Validación de caracteres permitidos (Alfanuméricos y guiones)
+            if not re.match(r"^[0-9A-Za-z\-]+$", self.invoice_control):
+                errors["invoice_control"] = (
+                    "El número de control introducido contiene caracteres especiales o espacios inválidos."
+                )
 
+        if errors:
+            raise ValidationError(errors)
+        
     def save(self, *args: Any, **kwargs: Any) -> None:
         """Guarda la instancia automatizando cálculos financieros y protegiendo registros procesados.
 
@@ -350,7 +336,7 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
 
         # Cálculos Financieros Automatizados con Decimal
         t_base = Decimal(str(self.taxable_base))
-        g_rate = Decimal(str(self.vat_percentage))
+        g_rate = Decimal(str(self.vat_percentage.as_decimal))
         e_amount = Decimal(str(self.exempt_amount))
         i_amount = Decimal(str(self.igtf_amount))
 

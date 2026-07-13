@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Confirmar Eliminación de Comprobante</title>
+</head>
+<body>
+    <h1>¿Está seguro de que desea eliminar este comprobante?</h1>
+    <hr>
+    
+    <p>Se procederá a eliminar de forma permanente el Comprobante de Retención de ISLR con ID <strong>#{{ object.id }}</strong>.</p>
+    
+    <div style="background-color: #fff3cd; padding: 10px; border: 1px solid #ffeba0; display: inline-block;">
+        <strong>Advertencia:</strong> Esta acción no se puede deshacer y está sujeta a controles de auditoría interna.
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <p>
+            <button type="submit" style="background-color: red; color: white;">Sí, Confirmar Eliminación</button>
+            || <a href="{% url 'islr-withholding-detail' pk=object.pk %}">Cancelar y Volver</a>
+        </p>
+    </form>
+</body>
+</html>

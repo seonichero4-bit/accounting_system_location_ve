@@ -58,6 +58,7 @@ TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [
+            BASE_DIR / 'presentation' / 'templates' / 'islr_withholding',
             BASE_DIR / 'presentation' / 'templates' / 'vat_withholding',
             BASE_DIR / 'presentation' / 'templates' / 'purchase_book',
             BASE_DIR / 'presentation' / 'templates' / 'supplier',
@@ -83,10 +84,10 @@ WSGI_APPLICATION = "accounting_system_ve.wsgi.application"
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'contable_yo84',        
-        'USER': 'contable_yo84_user',              
-        'PASSWORD': 'WO3m3BSFDzPewzMHqLezyqXAQtWO4W0p',       
-        'HOST': 'dpg-d8l233jtqb8s73an6dfg-a.oregon-postgres.render.com',   
+        'NAME': 'account_jf8q',        
+        'USER': 'account_jf8q_user',              
+        'PASSWORD': 'BmYJITriFJyuGQM3Sl5sBcNL1DY1B7J2',       
+        'HOST': 'dpg-d9a0dhok1i2s73eu6pbg-a.virginia-postgres.render.com',   
         'PORT': '5432',
     }
 }

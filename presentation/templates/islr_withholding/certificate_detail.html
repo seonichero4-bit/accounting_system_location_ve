@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Detalle del Comprobante #{{ certificate.id }}</title>
+</head>
+<body>
+    <h1>Comprobante de Retención de ISLR #{{ certificate.id }}</h1>
+    <hr>
+
+    <ul>
+        <li><strong>Estado:</strong> {{ certificate.get_status_display }}</li>
+        <li><strong>Perfil Fiscal (Tenant):</strong> {{ certificate.fiscal_profile }}</li>
+        <li><strong>Factura de Compra Asociada:</strong> ID #{{ certificate.purchase_invoice_id }}</li>
+        <li><strong>Sustraendo Aplicado:</strong> {{ certificate.subtracting }}</li>
+        <li><strong>Monto Total Retenido:</strong> {{ certificate.islr_withheld_amount }}</li>
+    </ul>
+
+    <hr>
+    <a href="{% url 'islr-withholding-list' %}">Volver al Listado</a> | 
+    <a href="{% url 'islr-withholding-update' invoice_pk=certificate.purchase_invoice_id pk=certificate.pk %}">Editar Comprobante</a> | 
+    <a href="{% url 'islr-withholding-delete' pk=certificate.pk %}">Eliminar Comprobante</a>
+</body>
+</html>

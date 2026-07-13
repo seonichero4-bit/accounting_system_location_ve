@@ -53,21 +53,6 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
     application_date = models.DateField(
         verbose_name="Fiscal Application Date",
     )
-    # closing_day_month = models.CharField(
-    #     max_length=10,
-    #     verbose_name="Closing Day/Month",
-    #)
-    # taxable_base = models.DecimalField(
-    #      max_digits=15,
-    #      decimal_places=2,
-    #      verbose_name="Line Taxable Base",
-    # )
-    # applied_rate = models.DecimalField(
-    #     max_digits=5,
-    #     choices=IslrRetentionType.choices,
-    #     decimal_places=2,
-    #     verbose_name="Applied Rate (%)",
-    # )
     islr_withheld_amount = models.DecimalField(
         max_digits=15,
         decimal_places=2,
@@ -104,14 +89,14 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
         verbose_name="Concepto de Pago - Persona Natural Residente (PNR)",
         help_text="Concepto de retención aplicable a personas naturales residentes.",
     )
-    concepts_payment_pjnr = models.PositiveSmallIntegerField(
+    concepts_payment_pjnd = models.PositiveSmallIntegerField(
         choices=IslrPjndChoices.choices,  # Mapeado a No Domiciliadas
         blank=True,
         null=True,
         verbose_name="Concepto de Pago - Persona Jurídica No Residente (PJNR)",
         help_text="Concepto de retención aplicable a personas jurídicas no domiciliadas.",
     )
-    concepts_payment_pjr = models.PositiveSmallIntegerField(
+    concepts_payment_pjd = models.PositiveSmallIntegerField(
         choices=IslrPjdChoices.choices,   # Mapeado a Domiciliadas
         blank=True,
         null=True,
@@ -131,32 +116,10 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
         por el factor de la base imponible y la alícuota de retención correspondientes al concepto 
         configurado. El resultado final se redondea de forma simétrica a dos decimales (ROUND_HALF_UP) 
         y se asigna al atributo 'islr_withheld_amount'.
-
-        Raises:
-            ValidationError: Si el concepto de pago PNNR no está definido, si es inválido 
-                            o si no se encuentra la factura de compra asociada.
         """
-        if self.concepts_payment_pnnr is None:
-            raise ValidationError(
-                "No se puede ejecutar el cálculo de retención PNNR sin un concepto de pago asignado.",
-                code="missing_pnnr_concept"
-            )
-
-        if not hasattr(self, "purchase_invoice") or not self.purchase_invoice:
-            raise ValidationError(
-                "No se puede calcular la retención ISLR porque no existe una factura de compra asociada.",
-                code="missing_purchase_invoice"
-            )
-
-        try:
-            concept_choice = IslrPnnrChoices(self.concepts_payment_pnnr)
-        except ValueError:
-            raise ValidationError(
-                "El concepto de pago seleccionado no es un miembro válido de IslrPnnrChoices.",
-                code="invalid_pnnr_concept"
-            )
 
         # Extracción de variables financieras basándose en el marco legal del enumerador
+        concept_choice = IslrPnnrChoices(self.concepts_payment_pnnr)
         subtotal: Decimal = getattr(self.purchase_invoice, "subtotal", Decimal("0.00"))
         factor_base: Decimal = concept_choice.base_imponible
         alicuota: Decimal = concept_choice.percentage
@@ -178,22 +141,7 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
         Sigue estrictamente los flujos de control basados en el umbral mínimo de
         Unidades Tributarias (fixed_factor) y el derecho de deducción (application_subtrahend),
         mutando en memoria los atributos 'subtracting' e 'islr_withheld_amount'.
-
-        Raises:
-            ValidationError: Si el concepto PNR no está asignado, si no existe la factura,
-                            si falta el perfil fiscal o si el valor de la UT es inválido.
         """
-        if self.concepts_payment_pnr is None:
-            raise ValidationError(
-                "No se puede ejecutar el cálculo de retención PNR sin un concepto de pago asignado.",
-                code="missing_pnr_concept"
-            )
-
-        if not hasattr(self, "purchase_invoice") or not self.purchase_invoice:
-            raise ValidationError(
-                "No se puede calcular la retención ISLR porque no existe una factura de compra asociada.",
-                code="missing_purchase_invoice"
-            )
 
         invoice = self.purchase_invoice
         fiscal_profile = getattr(invoice, "fiscal_profile", None)
@@ -210,15 +158,8 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
                 code="invalid_ut_value"
             )
 
-        try:
-            concept_choice = IslrPnrChoices(self.concepts_payment_pnr)
-        except ValueError:
-            raise ValidationError(
-                "El concepto de pago seleccionado no es un miembro válido de IslrPnrChoices.",
-                code="invalid_pnr_concept"
-            )
-
         # Variables de entrada base
+        concept_choice = IslrPnrChoices(self.concepts_payment_pnr)
         subtotal: Decimal = getattr(invoice, "subtotal", Decimal("0.00"))
         ut: Decimal = Decimal(str(ut_value))
 
@@ -263,23 +204,8 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
         Realiza la conversión dinámica a Unidades Tributarias (U.T.) para determinar 
         el tramo impositivo y el sustraendo aplicable cuando el concepto normativo 
         lo requiera, garantizando consistencia decimal y persistencia segura.
-
-        Raises:
-            ValidationError: Si el concepto PJNR/PJND no está asignado, si falta la factura,
-                            si no posee un perfil fiscal o si el valor de la UT es inválido.
         """
-        if self.concepts_payment_pjnr is None:
-            raise ValidationError(
-                "No se puede ejecutar el cálculo de retención PJND sin un concepto de pago asignado.",
-                code="missing_pjnd_concept"
-            )
-
-        if not hasattr(self, "purchase_invoice") or not self.purchase_invoice:
-            raise ValidationError(
-                "No se puede calcular la retención ISLR porque no existe una factura de compra asociada.",
-                code="missing_purchase_invoice"
-            )
-
+        
         invoice = self.purchase_invoice
         fiscal_profile = getattr(invoice, "fiscal_profile", None)
         if not fiscal_profile:
@@ -294,16 +220,9 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
                 "El perfil fiscal no tiene definido un valor válido para la Unidad Tributaria (ut).",
                 code="invalid_ut_value"
             )
-
-        try:
-            concept_choice = IslrPjndChoices(self.concepts_payment_pjnr)
-        except ValueError:
-            raise ValidationError(
-                "El concepto de pago seleccionado no es un miembro válido de IslrPjndChoices.",
-                code="invalid_pjnd_concept"
-            )
-
+    
         # Variables base para el cálculo financiero
+        concept_choice = IslrPjndChoices(self.concepts_payment_pjnd)
         subtotal: Decimal = getattr(invoice, "subtotal", Decimal("0.00"))
         ut: Decimal = Decimal(str(ut_value))
         
@@ -352,40 +271,31 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
         mediante una ecuación lineal directa utilizando el subtotal de la factura y 
         las propiedades del enumerador IslrPjdChoices, aplicando redondeo financiero estricto.
         """
-        # 1. Validación del Estado del Documento (Inmutabilidad Fiscal)
-        if getattr(self, "status", None) == self.CertificateStatus.PROCESSED:
-            return
-
-        # 2. Exclusividad de Categoría (PJD)
-        if self.concepts_payment_pjd is None:
-            return
-
-        # 3. Existencia de Factura Relacionada
-        if not hasattr(self, "purchase_invoice") or not self.purchase_invoice:
-            self.islr_withheld_amount = Decimal("0.00")
-            return
-
-        # Resolución segura del miembro del enumerador
-        try:
-            concept_choice = IslrPjdChoices(self.concepts_payment_pjd)
-        except ValueError:
-            raise ValidationError(
-                "El concepto de pago seleccionado no es un miembro válido de IslrPjdChoices.",
-                code="invalid_pjd_concept"
-            )
-
-        # 4. Variables y Origen de Datos
+        
+        # 1. Variables y Origen de Datos
+        concept_choice = IslrPjdChoices(self.concepts_payment_pjd)
         subtotal: Decimal = getattr(self.purchase_invoice, "subtotal", Decimal("0.00"))
         base_imponible: Decimal = concept_choice.base_imponible
         percentage: Decimal = concept_choice.percentage
 
-        # 5. Algoritmo Operativo y Modelo Matemático
+        # 2. Algoritmo Operativo y Modelo Matemático
         # islr_withheld_amount = subtotal * base_imponible * percentage
         raw_withheld_amount = subtotal * base_imponible * percentage
 
-        # 6. Redondeo y Precisión Fiscal (ROUND_HALF_UP a dos posiciones decimales)
+        # 3. Redondeo y Precisión Fiscal (ROUND_HALF_UP a dos posiciones decimales)
         precision = Decimal("0.01")
         self.islr_withheld_amount = raw_withheld_amount.quantize(precision, rounding=ROUND_HALF_UP)
+    
+    def execute_withholding_routing(self) -> None:
+        """Enrutador centralizado para identificar el concepto asignado y disparar su cálculo."""
+        if self.concepts_payment_pnnr is not None:
+            self.calculate_pnnr_withholding()
+        elif self.concepts_payment_pnr is not None:
+            self.calculate_pnr_withholding()
+        elif self.concepts_payment_pjnd is not None:
+            self.calculate_pjnd_withholding()
+        elif self.concepts_payment_pjd is not None:
+            self.calculate_pjd_withholding()
     
     class Meta:
         """Configuración de metadatos del modelo ComprobanteRetencionISLR."""
@@ -513,15 +423,16 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
         """
         if self.pk:
             original = IslrWithholdingCertificate.objects.get(pk=self.pk)
-            if original.status == self.Status.PROCESSED:
+            if original.status == self.CertificateStatus.PROCESSED:
                 raise ValidationError(
                     ("Bloqueo de Modificación: Este comprobante ya ha sido procesado "
                       "y su ciclo fiscal se encuentra cerrado."),
                     code='immutable_record_processed'
                 )
 
-        # Garantiza que las reglas de negocio de clean() se validen antes del commit
-        self.full_clean()
+        # Calculo automatico del atributo "islr_withheld_amount" y "subtracting"
+        self.execute_withholding_routing()
+
         super().save(*args, **kwargs)
 
     def delete(self, *args: Any, **kwargs: Any) -> Tuple[int, Dict[str, int]]:

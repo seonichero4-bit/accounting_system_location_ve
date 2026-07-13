@@ -24,12 +24,20 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
     manera automática un número de documento transaccional periódico.
     """
 
-    class  VatWithholdingPercentage(models.DecimalField):
-        """Opciones de porcentaje de IVA según la legislación venezolana."""
-        
-        SETENTA_Y_CINCO = 75, "75 %"
-        CIEN = 100, "100 %"
-        
+    class VatWithholdingChoices(models.IntegerChoices):
+        """Opciones de porcentaje de retención de IVA (SENIAT)."""
+        SETENTA_Y_CINCO = 1, "75 %"
+        CIEN = 2, "100 %"
+
+        @property
+        def as_decimal(self) -> Decimal:
+            """Retorna el porcentaje de retención en formato Decimal."""
+            _mapping = {
+                1: Decimal("75.00"),
+                2: Decimal("100.00"),
+            }
+            return _mapping[self.value]
+            
     class CertificateStatus(models.TextChoices):
         """Estados operativos y fiscales de la factura."""
 
@@ -49,11 +57,9 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
     application_date = models.DateField(
         verbose_name="Fiscal Application Date",
     )
-    vat_withholding_percentage = models.DecimalField(
-        choices=VatWithholdingPercentage.choices,
-        default=VatWithholdingPercentage.SETENTA_Y_CINCO,
-        max_digits=5,
-        decimal_places=2,
+    vat_withholding_percentage = models.PositiveSmallIntegerField(
+        choices=VatWithholdingChoices.choices,
+        default=VatWithholdingChoices.SETENTA_Y_CINCO,
         verbose_name="VAT Withholding Percentage (%)",
     )
     document_number = models.CharField(
@@ -118,7 +124,7 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
         if hasattr(self, "purchase_invoice") and self.purchase_invoice:
             # Validación de estado de la factura (Procesado, Registrado o Posted)
             invoice_status = getattr(self.purchase_invoice, "status", None)
-            if invoice_status is not "PRELIMINARY":
+            if invoice_status != "PRELIMINARY":
                 errors["purchase_invoice"] = (
                     "La factura asociada ya fue procesada."
                 )
@@ -174,7 +180,7 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
         # Cálculo automático del monto retenido resguardando tipos Decimal
         if self.status != self.CertificateStatus.PROCESSED or self.pk is None:
             vat_amount = Decimal(str(self.purchase_invoice.vat_amount))
-            percentage = Decimal(str(self.vat_withholding_percentage))
+            percentage = Decimal(str(self.vat_withholding_percentage.as_decimal))
             self.vat_withheld_amount = round(vat_amount * (percentage / Decimal("100.00")), 2)
 
         super().save(*args, **kwargs)

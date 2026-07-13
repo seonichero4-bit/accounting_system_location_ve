@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{% if form.instance.pk %}Editar{% else %}Nuevo{% endif %} Comprobante de ISLR</title>
+</head>
+<body>
+    <h1>{% if form.instance.pk %}Editar Comprobante de ISLR #{{ form.instance.pk }}{% else %}Generar Nuevo Comprobante de ISLR{% endif %}</h1>
+    <hr>
+
+    {% if view.kwargs.invoice_pk %}
+        <p><strong>Factura Contextual ID:</strong> {{ view.kwargs.invoice_pk }}</p>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        
+        {% if form.non_field_errors %}
+            <div style="color: red; font-weight: bold;">
+                {% for error in form.non_field_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {{ form.as_p }}
+
+        <hr>
+        <button type="submit">Guardar Registro</button>
+        
+        {% if form.instance.pk %}
+            <a href="{% url 'islr-withholding-detail' pk=form.instance.pk %}">Cancelar</a>
+        {% else %}
+            <a href="{% url 'islr-withholding-list' %}">Cancelar</a>
+        {% endif %}
+    </form>
+</body>
+</html>

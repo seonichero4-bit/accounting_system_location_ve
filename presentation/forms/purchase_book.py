@@ -49,7 +49,6 @@ class PurchaseLedgerInvoiceForm(forms.ModelForm):
             "import_file_number",
             "exempt_amount",
             "taxable_base",
-            "general_rate",
             "vat_amount",
             "igtf_amount",
             "total_purchase",

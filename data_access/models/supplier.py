@@ -7,27 +7,11 @@ específicos para la región, garantizando la consistencia multitenant.
 from decimal import Decimal
 from typing import Any
 from django.core.exceptions import ValidationError
-from django.core.validators import MinLengthValidator
+from django.core.validators import MinLengthValidator, RegexValidator, MinValueValidator, MaxValueValidator
 from django.db import models
 
 from data_access.mixins.sequence import AutomaticCodeMixin
-from data_access.models.base import FiscalModuleAbstractModel, FiscalProfile
-
-# def validate_vat_withholding_percentage(value: Decimal) -> None:
-#     """Valida que el porcentaje de retención de IVA coincida con los valores legales.
-
-#     Args:
-#         value: El valor decimal a validar.
-
-#     Raises:
-#         ValidationError: Si el valor no es 0.00, 75.00 o 100.00.
-#     """
-#     allowed_values = [Decimal("0.00"), Decimal("75.00"), Decimal("100.00")]
-#     if value not in allowed_values:
-#         raise ValidationError(
-#             f"The VAT withholding percentage ({value}) is not valid. "
-#             f"It must be exactly one of the following values: 0.00, 75.00, or 100.00."
-#         )
+from data_access.models.base import FiscalModuleAbstractModel, FiscalProfileJ
 
 class LocalSupplier(AutomaticCodeMixin, FiscalModuleAbstractModel):
     """Modelo para gestionar los metadatos y configuraciones fiscales de proveedores regionales.
