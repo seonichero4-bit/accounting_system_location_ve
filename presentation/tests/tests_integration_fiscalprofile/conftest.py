@@ -56,8 +56,7 @@ def fiscal_profile_factory(db: Any, admin_user: User) -> Generator[Any, None, No
     """
     def _create_profile(
         entity_name: str = "Empresa Base S.A.",
-        code: str = "FP-001",
-        rif: str = "J-12345678-0",
+        rif: str = "J123456780",
         taxpayer_type: str = "ORDINARY"
     ) -> FiscalProfile:
         """Crea un registro de perfil fiscal acoplado a una entidad de Django Ledger."""
@@ -67,7 +66,6 @@ def fiscal_profile_factory(db: Any, admin_user: User) -> Generator[Any, None, No
             use_accrual_method=True,
             fy_start_month=1,
             rif=rif,
-            code=code,
             taxpayer_type=taxpayer_type
         )
     return _create_profile

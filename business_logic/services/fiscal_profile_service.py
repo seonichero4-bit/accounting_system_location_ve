@@ -39,9 +39,7 @@ class FiscalProfileService:
         use_accrual_method: bool,
         fy_start_month: int,
         rif: str,
-        code: str,
         taxpayer_type: str,
-        nit: Optional[str] = None,
     ) -> FiscalProfile:
         """Orquesta la creación de un perfil fiscal utilizando el usuario inyectado.
 
@@ -54,9 +52,7 @@ class FiscalProfileService:
             use_accrual_method (bool): Define si la entidad usa el método de devengado.
             fy_start_month (int): Mes de inicio del año fiscal (1-12).
             rif (str): Registro de Información Fiscal.
-            code (str): Código de control interno único.
             taxpayer_type (str): Tipo de contribuyente (ej. 'ORDINARY', 'SPECIAL').
-            nit (Optional[str], optional): Número de Identificación Tributaria.
 
         Returns:
             FiscalProfile: La instancia del perfil fiscal recién creada.
@@ -71,9 +67,7 @@ class FiscalProfileService:
                 use_accrual_method=use_accrual_method,
                 fy_start_month=fy_start_month,
                 rif=rif,
-                code=code,
                 taxpayer_type=taxpayer_type,
-                nit=nit,
             )
         except (IntegrityError, ValidationError) as error:
             raise ValueError(
@@ -87,9 +81,7 @@ class FiscalProfileService:
         use_accrual_method: bool = _UNSET,
         fy_start_month: int = _UNSET,
         rif: str = _UNSET,
-        code: str = _UNSET,
         taxpayer_type: str = _UNSET,
-        nit: Optional[str] = _UNSET,
     ) -> FiscalProfile:
         """Orquesta la actualización atómica del perfil fiscal y su entidad contable.
 
@@ -102,9 +94,7 @@ class FiscalProfileService:
             use_accrual_method (bool, optional): Modifica el método de devengado.
             fy_start_month (int, optional): Modifica el mes de inicio fiscal.
             rif (str, optional): Nuevo Registro de Información Fiscal.
-            code (str, optional): Nuevo código de control interno.
             taxpayer_type (str, optional): Nuevo tipo de contribuyente.
-            nit (Optional[str], optional): Nuevo NIT (acepta None para removerlo).
 
         Returns:
             FiscalProfile: La instancia del perfil fiscal actualizada.
@@ -127,15 +117,12 @@ class FiscalProfileService:
                         entity.fy_start_month = fy_start_month
                     entity.save()
 
-                if code is not _UNSET:
-                    fiscal_profile.code = code
+               
                 if rif is not _UNSET:
                     fiscal_profile.rif = rif
                 if taxpayer_type is not _UNSET:
                     fiscal_profile.taxpayer_type = taxpayer_type
-                if nit is not _UNSET:
-                    fiscal_profile.nit = nit
-
+              
                 fiscal_profile.save()
                 return fiscal_profile
 

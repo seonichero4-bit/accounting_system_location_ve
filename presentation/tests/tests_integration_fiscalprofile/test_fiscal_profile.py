@@ -35,9 +35,7 @@ class TestFiscalProfileViews:
             "name": "Corporación Alfa",
             "use_accrual_method": True,
             "fy_start_month": 1,
-            "code": "FP-999",
-            "rif": "J-12345678-0",
-            "nit": "987654321",
+            "rif": "J123456780",
             "taxpayer_type": "ORDINARY"
         }
 
@@ -48,11 +46,9 @@ class TestFiscalProfileViews:
         assert response.status_code == 302
         assert response.url == reverse("fiscal-profile-list")
         
-        assert FiscalProfile.objects.filter(code="FP-999").exists()
         assert EntityModel.objects.filter(name="Corporación Alfa").exists()
         
-        profile = FiscalProfile.objects.get(code="FP-999")
-        assert profile.rif == "J-12345678-0"
+        profile = FiscalProfile.objects.get(rif="J123456780")
         assert profile.entity.name == "Corporación Alfa"
 
     # def test_render_empty_form_hp_002(self, auth_client: Client) -> None:
@@ -84,27 +80,25 @@ class TestFiscalProfileViews:
             fiscal_profile_factory (Callable): Generador de perfiles fiscales.
         """
         # Arrange
-        profile = fiscal_profile_factory(code="FP-ORIGINAL", entity_name="Alfa Vieja", rif="J-11111111-1")
-        url = reverse("fiscal-profile-update", kwargs={"code": profile.code})
+        profile = fiscal_profile_factory(entity_name="Alfa Vieja", rif="J-11111111-1")
+        url = reverse("fiscal-profile-update", kwargs={"pk": profile.pk})
         payload = {
             "name": "Alfa Renovada S.A.",
             "use_accrual_method": False,
             "fy_start_month": 6,
-            "code": "FP-ORIGINAL",
-            "rif": "J-22222222-2",
-            "nit": "7777777",
+            "rif": "J222222222",
             "taxpayer_type": "SPECIAL"
         }
         
         # Act
         response = auth_client.post(url, data=payload)
     
-        #Assert
+        # Assert
         assert response.status_code == 302
-        assert response.url == reverse("fiscal-profile-detail", kwargs={"code": "FP-ORIGINAL"})
+        assert response.url == reverse("fiscal-profile-detail", kwargs={"pk": profile.pk})
         
         profile.refresh_from_db()
-        assert profile.rif == "J-22222222-2"
+        assert profile.rif == "J222222222"
         assert profile.taxpayer_type == "SPECIAL"
         assert profile.entity.name == "Alfa Renovada S.A."
 
@@ -139,15 +133,15 @@ class TestFiscalProfileViews:
             fiscal_profile_factory (Callable): Factory fixture para generar perfiles.
         """
         # Arrange
-        profile = fiscal_profile_factory(code="FP-DET-100", entity_name="Detalle Corp S.A.")
-        url = reverse("fiscal-profile-detail", kwargs={"code": profile.code})
+        profile = fiscal_profile_factory(entity_name="Detalle Corp S.A.")
+        url = reverse("fiscal-profile-detail", kwargs={"pk": profile.pk})
 
         # Act
         response = auth_client.get(url)
        
         # Assert
         assert response.status_code == 200
-        assert response.context["object"].code == "FP-DET-100"
+        assert response.context["object"].pk == profile.pk
         assert response.context["object"].entity.name == "Detalle Corp S.A."
 
     def test_delete_fiscal_profile_success_hp_006(
@@ -163,15 +157,16 @@ class TestFiscalProfileViews:
             fiscal_profile_factory (Callable): Factory fixture para generar perfiles.
         """
         # Arrange
-        profile = fiscal_profile_factory(code="FP-DEL-100", entity_name="Eliminar Corp S.A.")
-        url = reverse("fiscal-profile-delete", kwargs={"code": profile.code})
+        profile = fiscal_profile_factory(entity_name="Eliminar Corp S.A.")
+        url = reverse("fiscal-profile-delete", kwargs={"pk": profile.pk})
+        
         # Act
         response = auth_client.post(url)
 
         # Assert
         assert response.status_code == 302
         assert response.url == reverse("fiscal-profile-list")
-        assert not FiscalProfile.objects.filter(code="FP-DEL-100").exists()
+        assert not FiscalProfile.objects.filter(pk=profile.pk).exists()
 
     # =========================================================================
     # EDGE CASES & ERROR HANDLING
@@ -189,7 +184,6 @@ class TestFiscalProfileViews:
             "name": "",
             "use_accrual_method": True,
             "fy_start_month": 1,
-            "code": "",
             "rif": "",
             "taxpayer_type": "ORDINARY"
         }
@@ -204,27 +198,25 @@ class TestFiscalProfileViews:
         
         assert not profile_form.is_valid()
         assert not entity_form.is_valid()
-        assert "code" in profile_form.errors
         assert "rif" in profile_form.errors
         assert "name" in entity_form.errors
 
     def test_duplicate_fields_unique_constraint_ec_002(
         self, auth_client: Client, fiscal_profile_factory: Callable[..., FiscalProfile]
     ) -> None:
-        """[ID_EC_002] - Envío de Datos Duplicados en Campos de Clave Única (code y rif).
+        """[ID_EC_002] - Envío de Datos Duplicados en Campo de Clave Única (rif).
 
         Args:
             auth_client (Client): Cliente HTTP autenticado.
             fiscal_profile_factory (Callable): Generador de perfiles fiscales.
         """
         # Arrange
-        fiscal_profile_factory(code="FP-EXISTENTE", rif="J-12345678-0")
+        fiscal_profile_factory(rif="J-12345678-0")
         url = reverse("fiscal-profile-create")
         payload = {
             "name": "Nueva Empresa S.A.",
             "use_accrual_method": True,
             "fy_start_month": 1,
-            "code": "FP-EXISTENTE",
             "rif": "J-12345678-0",
             "taxpayer_type": "ORDINARY"
         }
@@ -236,7 +228,6 @@ class TestFiscalProfileViews:
         assert response.status_code == 200
         profile_form = response.context["profile_form"]
         assert not profile_form.is_valid()
-        assert "code" in profile_form.errors
         assert "rif" in profile_form.errors
 
     def test_service_layer_value_error_capture_ec_003(self, auth_client: Client, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -252,8 +243,7 @@ class TestFiscalProfileViews:
             "name": "Empresa Falla S.A.",
             "use_accrual_method": True,
             "fy_start_month": 1,
-            "code": "FP-ERR-01",
-            "rif": "J-99999999-9",
+            "rif": "J999999999",
             "taxpayer_type": "ORDINARY"
         }
 
@@ -283,9 +273,9 @@ class TestFiscalProfileViews:
     #         fiscal_profile_factory (Callable): Generador de perfiles fiscales.
     #     """
     #     # Arrange
-    #     profile = fiscal_profile_factory(code="FP-BUG-01")
-    #     detail_url = reverse("fiscal-profile-detail", kwargs={"code": profile.code})
-    #     delete_url = reverse("fiscal-profile-delete", kwargs={"code": profile.code})
+    #     profile = fiscal_profile_factory()
+    #     detail_url = reverse("fiscal-profile-detail", kwargs={"pk": profile.pk})
+    #     delete_url = reverse("fiscal-profile-delete", kwargs={"pk": profile.pk})
 
     #     # Act & Assert
     #     with pytest.raises(FieldError) as exc_info_detail:
@@ -308,7 +298,6 @@ class TestFiscalProfileViews:
             "name": "Empresa Ilegal",
             "use_accrual_method": True,
             "fy_start_month": 1,
-            "code": "FP-MAL-01",
             "rif": "J-88888888-8",
             "taxpayer_type": "EXTRAORDINARY"
         }
@@ -321,5 +310,3 @@ class TestFiscalProfileViews:
         profile_form = response.context["profile_form"]
         assert not profile_form.is_valid()
         assert "taxpayer_type" in profile_form.errors
-
-   

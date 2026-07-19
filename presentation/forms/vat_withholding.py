@@ -1,4 +1,5 @@
 """Módulo de formularios para la gestión de retenciones fiscales de IVA."""
+from typing import Any
 
 from django import forms
 from data_access.models.vat_withholding import VatWithholdingCertificate
@@ -15,7 +16,23 @@ class VatWithholdingCertificateForm(forms.ModelForm):
         """Configuración meta del formulario de retención."""
 
         model = VatWithholdingCertificate
-        fields = ["application_date", "vat_withholding_percentage"]
-        widgets = {
-            "application_date": forms.DateInput(attrs={"type": "date"}),
-        }
+        fields = ["application_date", "vat_withholding_percentage", "document_number"]
+    
+    def add_error(self, field, error):
+        from django.core.exceptions import ValidationError
+        
+        # Captura errores arrojados por el modelo vinculados a 'purchase_invoice'
+        if field is None and hasattr(error, "error_dict") and "purchase_invoice" in error.error_dict:
+            pi_errors = error.error_dict.pop("purchase_invoice")
+            if self._errors is None:
+                self._errors = self.error_class()
+            self._errors["purchase_invoice"] = self.error_class([m.message for m in pi_errors])
+            
+        elif field == "purchase_invoice":
+            if self._errors is None:
+                self._errors = self.error_class()
+            msg = error.message if hasattr(error, "message") else str(error)
+            self._errors["purchase_invoice"] = self.error_class([msg])
+            return
+            
+        super().add_error(field, error)

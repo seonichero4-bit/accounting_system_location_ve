@@ -49,10 +49,17 @@ class PurchaseLedgerInvoiceForm(forms.ModelForm):
             "import_file_number",
             "exempt_amount",
             "taxable_base",
+            "vat_percentage",
             "vat_amount",
+            "igtf_base",
             "igtf_amount",
             "total_purchase",
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['invoice_control'].required = False
+
         widgets = {
             "date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
             "application_month_year": forms.TextInput(attrs={"placeholder": "MM-YYYY", "class": "form-control"}),

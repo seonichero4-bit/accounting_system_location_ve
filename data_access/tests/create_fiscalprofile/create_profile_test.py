@@ -36,16 +36,16 @@ class TestFiscalProfileCreateProfile:
             use_accrual_method=data["use_accrual_method"],
             fy_start_month=data["fy_start_month"],
             rif=data["rif"],
-            code=data["code"],
+            #code=data["code"],
             taxpayer_type=data["taxpayer_type"],
-            nit=data["nit"],
+            #nit=data["nit"],
         )
 
         # Assert
         assert profile.id is not None
         assert profile.rif == data["rif"]
-        assert profile.code == data["code"]
-        assert profile.entity is not None
+        #assert profile.code == data["code"]
+        #assert profile.entity is not None
         assert profile.entity.name == data["entity_name"]
         assert EntityModel.objects.filter(uuid=profile.entity.uuid).exists()
 
@@ -68,7 +68,7 @@ class TestFiscalProfileCreateProfile:
                 use_accrual_method=data["use_accrual_method"],
                 fy_start_month=data["fy_start_month"],
                 rif=None,  # Campo obligatorio nulo
-                code=data["code"],
+               #code=data["code"],
                 taxpayer_type=data["taxpayer_type"],
             )
 
@@ -115,7 +115,7 @@ class TestFiscalProfileCreateProfile:
                 use_accrual_method=data["use_accrual_method"],
                 fy_start_month=data["fy_start_month"],
                 rif=overflowed_rif,
-                code=data["code"],
+                #code=data["code"],
                 taxpayer_type=data["taxpayer_type"],
             )
 
@@ -173,7 +173,7 @@ class TestFiscalProfileCreateProfile:
                 use_accrual_method=data["use_accrual_method"],
                 fy_start_month=data["fy_start_month"],
                 rif=data["rif"],
-                code=data["code"],
+                #code=data["code"],
                 taxpayer_type=data["taxpayer_type"],
             )
 
@@ -203,6 +203,6 @@ class TestFiscalProfileCreateProfileTransaction:
             use_accrual_method=data["use_accrual_method"],
             fy_start_month=data["fy_start_month"],
             rif=data["rif"],
-            code=data["code"],
+            #code=data["code"],
             taxpayer_type=data["taxpayer_type"],
         )

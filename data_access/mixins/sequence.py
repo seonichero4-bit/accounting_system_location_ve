@@ -31,7 +31,9 @@ class AutomaticCodeMixin:
         PROVEEDORES = "PROV", "Proveedores"
         CLIENTES = "CLI", "Clientes"
         ARTICULOS = "ITEM", "Articulos"
-        FACTURA_COMPRA = "FAC-COM", "Factura de compra"
+        INVOICE = "FAC-COM", "Factura de compra"
+        CREDIT_NOTE = "CRED-NOT", "Nota de credito"
+        DEBIT_NOTE = "DEB_NOT", "Nota de debito "
 
     # Propiedades configurables sobrescribibles por las clases hijas o modelos contenedores
     '''

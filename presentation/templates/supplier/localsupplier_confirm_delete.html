@@ -4,5 +4,5 @@
 <form method="post">
     {% csrf_token %}
     <button type="submit">Sí, eliminar</button>
-    <a href="{% url 'supplier-detail' object.code %}">Cancelar</a>
+    <a href="{% url 'supplier-detail' object.pk %}">Cancelar</a>
 </form>

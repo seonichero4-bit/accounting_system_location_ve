@@ -63,7 +63,6 @@ def tenant_a_profile(db, ledger_entity_a: EntityModel) -> FiscalProfile:
     """Fixture que provee un perfil fiscal activo representativo del Inquilino A."""
     return FiscalProfile.objects.create(
         entity=ledger_entity_a,
-        code="TENANT-A",
         name="Empresa A C.A.",
         rif="J-11111111-1",
         taxpayer_type=FiscalProfile.TaxpayerType.ORDINARY,
@@ -75,7 +74,6 @@ def tenant_b_profile(db, ledger_entity_b: EntityModel) -> FiscalProfile:
     """Fixture que provee un perfil fiscal activo representativo del Inquilino B."""
     return FiscalProfile.objects.create(
         entity=ledger_entity_b,
-        code="TENANT-B",
        name="Empresa B C.A.",
         rif="J-22222222-2",
         taxpayer_type=FiscalProfile.TaxpayerType.ORDINARY,

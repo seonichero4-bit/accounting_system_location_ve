@@ -73,14 +73,20 @@ class VatWithholdingCertificateCreateView(FiscalTenantMixin, CreateView):
     form_class = VatWithholdingCertificateForm
     template_name = "certificate_form.html"
 
-    def form_valid(self, form: VatWithholdingCertificateForm):
-        """Asigna de manera unívoca la factura y el perfil fiscal al registro."""
+    def get_form_kwargs(self) -> dict[str, Any]:
+        """Inyecta una instancia inicializada con el contexto de la URL al formulario."""
+        kwargs = super().get_form_kwargs()
+        
+        # Extraemos el invoice de la URL y construimos la instancia base
         invoice_pk = self.kwargs.get("invoice_pk")
         purchase_invoice = get_object_or_404(PurchaseLedgerInvoice, pk=invoice_pk)
         
-        form.instance.purchase_invoice = purchase_invoice
-        form.instance.fiscal_profile = self.get_fiscal_profile()
-        return super().form_valid(form)
+        # Al pasar esto, el Form tomará esta instancia en lugar de crear una vacía
+        kwargs["instance"] = VatWithholdingCertificate(
+            purchase_invoice=purchase_invoice,
+            fiscal_profile=self.get_fiscal_profile()
+        )
+        return kwargs
 
     def get_success_url(self) -> str:
         """Retorna la ruta destino al detalle del registro creado."""

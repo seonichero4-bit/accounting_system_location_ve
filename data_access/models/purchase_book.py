@@ -2,7 +2,7 @@
 
 Define los modelos estructurados para el encabezado de las facturas de compra
 y sus respectivas líneas de detalle, integrando el control fiscal y el aislamiento
-multitenant requerido.
+multitenant requerido[cite: 1].
 """
 
 import re
@@ -14,27 +14,34 @@ from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator, MinValueValidator
 from django.db import models
 
-from data_access.mixins.sequence import AutomaticCodeMixin
-from data_access.models.base import FiscalModuleAbstractModel, FiscalProfile
+# from data_access.mixins.sequence import AutomaticCodeMixin
+from data_access.models.base import FiscalModuleAbstractModel
 from data_access.models.supplier import LocalSupplier
 
 
-class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
+class PurchaseLedgerInvoice(FiscalModuleAbstractModel):
     """Modelo para la gestión del encabezado del libro de compras fiscal.
 
     Almacena los metadatos globales, identificadores de impresión obligatorios,
     fechas de aplicación impositiva y los agregados financieros de una transacción
-    de compra. Genera de manera automática un código de control secuencial único.
+    de compra[cite: 1].
     """
+    class InvoiceCategory(models.TextChoices):
+        """Opciones de porcentaje de IVA según la legislación venezolana[cite: 1]."""
+        INVENTARIO = "INVENTARIO", "Adquisicion de mercancia para el inventario"
+        BIENE = "BIENE", "Adquisicion de bienes (Gastos)"
+        SERVICIO = "SERVICIO", "Adquisicion de servicio"
+        SERVICIO_MIXTO = "SERVICIO_MIXTO", "Adquisicion de servicio bienes (Misma factura)"
+
     class VatPercentageChoices(models.IntegerChoices):
-        """Opciones de porcentaje de IVA según la legislación venezolana."""
+        """Opciones de porcentaje de IVA según la legislación venezolana[cite: 1]."""
         GENERAL = 1, "Alícuota General (16%)"
         REDUCIDA = 2, "Alícuota Reducida (8%)"
         ADICIONAL = 3, "Alícuota Adicional (31%)"
 
         @property
         def as_decimal(self) -> Decimal:
-            """Retorna el porcentaje en formato Decimal para cálculos."""
+            """Retorna el porcentaje en formato Decimal para cálculos[cite: 1]."""
             _mapping = {
                 1: Decimal("16.00"),
                 2: Decimal("8.00"),
@@ -43,36 +50,36 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
             return _mapping[self.value]
             
     class InvoiceStatus(models.TextChoices):
-        """Estados operativos y fiscales de la factura."""
-
+        """Estados operativos y fiscales de la factura[cite: 1]."""
         PRELIMINARY = "PRELIMINARY", "Preliminary"
         PROCESSED = "PROCESSED", "Processed"
         ANULLED = "ANULLED", "ANULLED"
 
     class DocumentType(models.TextChoices):
-        """Tipos de documentos fiscales soportados en el libro de compras."""
-
+        """Tipos de documentos fiscales soportados en el libro de compras[cite: 1]."""
         INVOICE = "INVOICE", "Invoice"
         CREDIT_NOTE = "CREDIT_NOTE", "Credit Note"
         DEBIT_NOTE = "DEBIT_NOTE", "Debit Note"
 
     class PurchaseType(models.TextChoices):
-        """Clasificación del origen de la compra."""
-
+        """Clasificación del origen de la compra[cite: 1]."""
         INTERNAL = "INTERNAL", "Internal"
         IMPORT = "IMPORT", "Import"
 
-    # Configuración de propiedades para el AutomaticCodeMixin
-    PREFIX = "FACTURA_COMPRA"  
-    PADDING_LENGTH = 5
+    # PREFIX = DocumentType
+    # PADDING_LENGTH = 5
 
-    code = models.CharField(
-        max_length=50,
-        blank=True,
-        editable=True, #En produccion es False
-        verbose_name="Automatic Sequence Code",
+    # Validadores de campos
+    number_validator = RegexValidator(
+        regex=r"^[0-9A-Za-z\-]+$",
+        message="El número de factura solo debe contener caracteres alfanuméricos estándar y guiones."
     )
 
+    # code = models.CharField(
+    #     max_length=50,
+    #     blank=True,
+    #     verbose_name="Automatic Sequence Code",
+    # )
     document_type = models.CharField(
         max_length=20,
         choices=DocumentType.choices,
@@ -81,6 +88,7 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
     )
     number = models.CharField(
         max_length=50,
+        validators=[number_validator],
         verbose_name="Document Number",
     )
     invoice_control = models.CharField(
@@ -126,10 +134,6 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
         null=True,
         blank=True,
         verbose_name="Import File Number",
-    )
-    transaction_type = models.CharField(
-        max_length=50,
-        verbose_name="Transaction Type",
     )
     affected_invoice = models.ForeignKey(
         'self',
@@ -194,12 +198,19 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
         verbose_name="Total Purchase",
     )
 
+
     # Control de Flujo del Ciclo de Vida
     status = models.CharField(
         max_length=15,
         choices=InvoiceStatus.choices,
         default=InvoiceStatus.PRELIMINARY,
         verbose_name="Invoice Status",
+    )
+    invoicecategory = models.CharField(
+        max_length=20,
+        choices=InvoiceCategory.choices,
+        default=InvoiceCategory.INVENTARIO,
+        verbose_name="Invoice category",
     )
     
     class Meta:
@@ -209,22 +220,18 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
         verbose_name_plural = "Purchase Ledger Invoices"
 
         constraints = [
-            # Unicidad de Facturas por Proveedor
             models.UniqueConstraint(
                 fields=["supplier", "number", "document_type", "fiscal_profile"],
                 name="unique_supplier_invoice_document",
             ),
-            # Unicidad de Control por Proveedor
             models.UniqueConstraint(
                 fields=["supplier", "invoice_control", "document_type", "fiscal_profile"],
                 name="unique_supplier_control_document",
             ),
-            # Migración de unique_together anterior a UniqueConstraint moderna
-            models.UniqueConstraint(
-                fields=["fiscal_profile", "code"],
-                name="unique_purchase_invoice_profile_code"
-            ),
-            # Validación de Valores No Negativos en Campos Financieros
+            # models.UniqueConstraint(
+            #     fields=["fiscal_profile", "code"],
+            #     name="unique_purchase_invoice_profile_code"
+            # ),
             models.CheckConstraint(
                 condition=models.Q(exempt_amount__gte=0),
                 name="purchase_invoice_exempt_amount_not_negative",
@@ -241,6 +248,18 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
                 condition=models.Q(igtf_amount__gte=0),
                 name="purchase_invoice_igtf_amount_not_negative",
             ),
+            # Validación Cruzada de Importación
+            models.CheckConstraint(
+                condition=~models.Q(purchase_type="IMPORT") | (
+                    models.Q(import_form_number__isnull=False) & models.Q(import_file_number__isnull=False)
+                ),
+                name="purchase_invoice_import_fields_required",
+            ),
+            # Validación de Nota de Ajuste
+            models.CheckConstraint(
+                condition=models.Q(document_type="INVOICE") | models.Q(affected_invoice__isnull=False),
+                name="purchase_invoice_notes_affected_invoice_required",
+            ),
         ]
         
     def clean(self) -> None:
@@ -248,45 +267,75 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
 
         Raises:
             ValidationError: Si se violan los flujos de negocio definidos para notas
-                             de ajuste, importaciones, temporalidad o caducidad fiscal.
+                             de ajuste, importaciones, temporalidad o inconsistencias de IGTF.
         """
         super().clean()
         errors: dict[str, str] = {}
 
-        # 1. Condicional de Notas de Crédito/Débito
-        if self.document_type in [PurchaseLedgerInvoice.DocumentType.CREDIT_NOTE, PurchaseLedgerInvoice.DocumentType.DEBIT_NOTE]:
+        # 0. Saneamiento y Normalización del Campo Number
+        if self.number:
+            self.number = self.number.strip().upper()
+
+        # 1. Soporte para Documentos Anulados (Ciclo de Vida)
+        if self.status == self.InvoiceStatus.ANULLED:
+            self.exempt_amount = Decimal("0.00")
+            self.taxable_base = Decimal("0.00")
+            self.subtotal = Decimal("0.00")
+            self.vat_amount = Decimal("0.00")
+            self.igtf_base = Decimal("0.00")
+            self.igtf_amount = Decimal("0.00")
+            self.total_purchase = Decimal("0.00")
+            return
+
+        # 2. Coherencia Relacional (Notas de Crédito y Débito)
+        is_note = self.document_type in [self.DocumentType.CREDIT_NOTE, self.DocumentType.DEBIT_NOTE]
+        if is_note or self.affected_invoice:
             if not self.affected_invoice:
                 errors["affected_invoice"] = (
                     "El campo de factura afectada es estrictamente obligatorio para notas de crédito o débito."
                 )
-        elif self.document_type == PurchaseLedgerInvoice.DocumentType.INVOICE:
+            else:
+                if self.supplier != self.affected_invoice.supplier:
+                    errors["supplier"] = "El proveedor de la nota debe ser idéntico al de la factura afectada."
+                
+                if getattr(self, "fiscal_profile", None) != getattr(self.affected_invoice, "fiscal_profile", None):
+                    errors["affected_invoice"] = "La factura afectada debe pertenecer al mismo perfil fiscal multi-tenant."
+                
+                if self.date and self.affected_invoice.date and self.date < self.affected_invoice.date:
+                    errors["date"] = "La fecha de la nota no puede ser cronológicamente anterior a la de la factura afectada."
+        elif self.document_type == self.DocumentType.INVOICE:
             self.affected_invoice = None
 
-        # 2. Condicional de Compras de Importación
-        if self.purchase_type == PurchaseLedgerInvoice.PurchaseType.IMPORT:
+        # 3. Condicional de Compras de Importación
+        if self.purchase_type == self.PurchaseType.IMPORT:
             if not self.import_form_number:
-                errors["import_form_number"] = (
-                    "El número de formulario de importación es obligatorio para compras externas."
-                )
+                errors["import_form_number"] = "El número de formulario de importación es obligatorio para compras externas."
             if not self.import_file_number:
-                errors["import_file_number"] = (
-                    "El número de expediente de importación es obligatorio para compras externas."
-                )
-        elif self.purchase_type == PurchaseLedgerInvoice.PurchaseType.INTERNAL:
+                errors["import_file_number"] = "El número de expediente de importación es obligatorio para compras externas."
+            else: 
+                self.invoice_control = "N/A"
+
+        elif self.purchase_type == self.PurchaseType.INTERNAL:
             self.import_form_number = None
             self.import_file_number = None
 
-        # 3. Coherencia Temporal (Fechas futuras)
+        # 4. Coherencia Temporal e Histórica de Fechas y Períodos
         if self.date and self.date > date.today():
             errors["date"] = "La fecha de emisión no puede ser posterior a la fecha actual del sistema."
+        # Validacion fecha de pago no sea mayor a la fecha de emicion.
+        # if self.payment_date and self.date and self.payment_date < self.date:
+        #     errors["payment_date"] = "La fecha de pago debe ser igual o posterior a la fecha de emisión del documento."
 
-        # 4. Validación del Período Fiscal (application_month_year)
         if self.application_month_year:
             if not re.match(r"^(0[1-9]|1[0-2])-\d{4}$", self.application_month_year):
                 errors["application_month_year"] = "El formato del período fiscal debe ser estrictamente MM-YYYY."
             else:
                 month_str, year_str = self.application_month_year.split("-")
                 p_month, p_year = int(month_str), int(year_str)
+                today = date.today()
+
+                if p_year > today.year or (p_year == today.year and p_month > today.month):
+                    errors["application_month_year"] = "No se permite declarar períodos fiscales futuros que no hayan comenzado."
 
                 if self.date:
                     if p_year < self.date.year or (p_year == self.date.year and p_month < self.date.month):
@@ -294,7 +343,6 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
                             "El período fiscal de aplicación no puede ser cronológicamente anterior a la fecha de emisión."
                         )
 
-                    # Caducidad del Crédito Fiscal (Art. 24 Ley del IVA)
                     period_first_day = date(p_year, p_month, 1)
                     months_diff = (period_first_day.year - self.date.year) * 12 + (
                         period_first_day.month - self.date.month
@@ -304,28 +352,74 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
                             "El derecho al crédito fiscal ha caducado. El período supera los 12 meses desde su emisión (Art. 24 Ley del IVA)."
                         )
 
-        if errors:
-            raise ValidationError(errors)
-            
-        # 5. Sanea y valida el formato del número de control de imprenta nacional
-        if self.invoice_control:
-            # Saneamiento (Normalización de espacios en los extremos)
-            self.invoice_control = self.invoice_control.strip()
-            
-            # Validación de caracteres permitidos (Alfanuméricos y guiones)
-            if not re.match(r"^[0-9A-Za-z\-]+$", self.invoice_control):
-                errors["invoice_control"] = (
-                    "El número de control introducido contiene caracteres especiales o espacios inválidos."
+        # 5. Consistencia Financiera e IGTF (3%)
+        igtf_amt = Decimal(str(self.igtf_amount))
+        igtf_bs = Decimal(str(self.igtf_base))
+        tentative_subtotal = Decimal(str(self.exempt_amount)) + Decimal(str(self.taxable_base))
+
+        if igtf_amt > 0 or igtf_bs > 0:
+            if not (igtf_amt > 0 and igtf_bs > 0):
+                errors["igtf_amount"] = "Interdependencia: Si igtf_amount > 0, igtf_base debe ser mayor a 0, y viceversa."
+            else:
+                expected_igtf = (igtf_bs * Decimal("0.03")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                if abs(igtf_amt - expected_igtf) > Decimal("0.01"):
+                    errors["igtf_amount"] = f"La tasa calculada del IGTF debe corresponder al 3% de la base ({expected_igtf})."
+                
+                if igtf_bs > tentative_subtotal:
+                    errors["igtf_base"] = "El monto máximo de la base IGTF no puede ser superior al subtotal bruto antes de impuestos."
+
+        # Validacion aritmetica total_purchase y vat_amount
+                
+        # Sanitización y extracción de valores numéricos base
+        taxable_base = self.taxable_base or Decimal("0.00")
+        exempt_amount = self.exempt_amount or Decimal("0.00")
+        vat_amount = self.vat_amount or Decimal("0.00")
+        igtf_amount = self.igtf_amount or Decimal("0.00")
+        total_purchase = self.total_purchase or Decimal("0.00")
+
+        # VALIDACIÓN: CUADRATURA ARITMÉTICA DEL MONTO DE IVA ---
+        if self.vat_percentage is not None:
+            try:
+                # Se mapea el entero guardado con las opciones del enum fiscal
+                vat_choice = self.VatPercentageChoices(self.vat_percentage)
+                vat_rate = vat_choice.as_decimal  # Retorna el porcentaje (ej: 16.00)
+            except ValueError:
+                vat_rate = Decimal("0.00")
+
+            # Cálculo teórico del IVA aplicando el redondeo regulado por ley
+            expected_vat = (taxable_base * (vat_rate / Decimal("100.00"))).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+
+            if abs(vat_amount - expected_vat) > Decimal("0.01"):
+                errors["vat_amount"] = (
+                    f"El monto de IVA ingresado ({vat_amount}) discrepa de la "
+                    f"alícuota teórica calculada ({expected_vat}) para la base {taxable_base}."
                 )
+
+        # VALIDACIÓN: CUADRATURA ARITMÉTICA DEL TOTAL GENERAL ---
+        expected_total = exempt_amount + taxable_base + vat_amount + igtf_amount
+
+        if abs(total_purchase - expected_total) > Decimal("0.01"):
+            errors["total_purchase"] = (
+                f"El total de compra ({total_purchase}) no coincide con la suma "
+                f"aritmética de sus componentes ({expected_total})."
+            )
+
+        # 7. Saneo y Validación del Número de Control
+        if self.invoice_control != "N/A"  and self.purchase_type == self.PurchaseType.INTERNAL:
+            self.invoice_control = self.invoice_control.strip()
+            if not re.match(r"^[0-9A-Za-z\-]+$", self.invoice_control):
+                errors["invoice_control"] = "El número de control introducido contiene caracteres especiales o espacios inválidos."
 
         if errors:
             raise ValidationError(errors)
         
     def save(self, *args: Any, **kwargs: Any) -> None:
-        """Guarda la instancia automatizando cálculos financieros y protegiendo registros procesados.
+        """Guarda la instancia automatizando cálculos financieros y protegiendo registros procesados[cite: 1].
 
         Raises:
-            ValidationError: Si se intenta modificar un registro con estado PROCESSED.
+            ValidationError: Si se intenta modificar un registro con estado PROCESSED[cite: 1].
         """
         if self.pk:
             original = PurchaseLedgerInvoice.objects.get(pk=self.pk)
@@ -334,30 +428,44 @@ class PurchaseLedgerInvoice(AutomaticCodeMixin, FiscalModuleAbstractModel):
                     "Bloqueo de Modificación Fiscal: Un documento en estado PROCESSED es estrictamente de solo lectura."
                 )
 
-        # Cálculos Financieros Automatizados con Decimal
-        t_base = Decimal(str(self.taxable_base))
-        g_rate = Decimal(str(self.vat_percentage.as_decimal))
-        e_amount = Decimal(str(self.exempt_amount))
-        i_amount = Decimal(str(self.igtf_amount))
+        if self.status == self.InvoiceStatus.ANULLED:
+            self.exempt_amount = Decimal("0.00")
+            self.taxable_base = Decimal("0.00")
+            self.subtotal = Decimal("0.00")
+            self.vat_amount = Decimal("0.00")
+            self.igtf_base = Decimal("0.00")
+            self.igtf_amount = Decimal("0.00")
+            self.total_purchase = Decimal("0.00")
+        # else:
+        #     t_base = Decimal(str(self.taxable_base))
+        #     vat_choice = self.VatPercentageChoices(self.vat_percentage)
+        #     g_rate = vat_choice.as_decimal
+        #     e_amount = Decimal(str(self.exempt_amount))
+        #     i_amount = Decimal(str(self.igtf_amount))
 
-        self.vat_amount = (t_base * (g_rate / Decimal("100.00"))).quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        )
-        self.subtotal = e_amount + t_base
-        self.total_purchase = self.subtotal + self.vat_amount + i_amount
+        #     self.vat_amount = (t_base * (g_rate / Decimal("100.00"))).quantize(
+        #         Decimal("0.01"), rounding=ROUND_HALF_UP
+        #     )
+        #     self.subtotal = e_amount + t_base
+        #     self.total_purchase = self.subtotal + self.vat_amount + i_amount
 
-        self.handle_automatic_code()
+        # self.handle_automatic_code()
         super().save(*args, **kwargs)
 
     def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
-        """Evita la eliminación física de un documento si ya fue procesado y declarado fiscalmente.
+        """Evita la eliminación física de un documento si ya fue procesado y declarado fiscalmente[cite: 1].
 
         Raises:
-            ValidationError: Si el estado actual es PROCESSED.
+            ValidationError: Si el estado actual es PROCESSED o ANULLED.
         """
-        if self.status == PurchaseLedgerInvoice.InvoiceStatus.PROCESSED:
+        if self.status == self.InvoiceStatus.PROCESSED:
             raise ValidationError(
                 "Bloqueo de Eliminación Fiscal: No es posible eliminar un documento en estado PROCESSED."
+            )
+        
+        if self.status == self.InvoiceStatus.ANULLED:
+            raise ValidationError(
+                "Bloqueo de Eliminación Fiscal: No es posible eliminar un documento en estado ANULLED."
             )
         return super().delete(*args, **kwargs)
 

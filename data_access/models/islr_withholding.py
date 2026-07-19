@@ -46,8 +46,6 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
     # )
     document_number = models.CharField(
         max_length=50,
-        blank=True,
-        editable=False,
         verbose_name="ISLR Document Number",
     )
     application_date = models.DateField(
@@ -61,6 +59,7 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
     subtracting = models.DecimalField(
         max_digits=15,
         decimal_places=2,
+        default=Decimal("0.00"),
         verbose_name="Amount of the applied subtrahend",
     )
     # Control de Flujo del Ciclo de Vida
@@ -353,27 +352,27 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
                     params={'invoice_date': self.purchase_invoice.date},
                     code='retroactive_application_date'
                 )
-
-        if hasattr(self, 'fiscal_profile') and self.fiscal_profile and self.application_date:
-            period_exists = self.fiscal_profile.fiscal_periods.filter(
-                year=self.application_date.year,
-                month=self.application_date.month,
-                is_active=True
-            ).exists()
-            if not period_exists:
-                if 'application_date' not in errors:
-                    errors['application_date'] = ValidationError(
-                        ("El período fiscal correspondiente a la fecha de aplicación "
-                          "no se encuentra activo o válido para este contribuyente."),
-                        code='inactive_fiscal_period'
-                    )
+        # Validación de período fiscal activo controlado por el sistema
+        # if hasattr(self, 'fiscal_profile') and self.fiscal_profile and self.application_date:
+        #     period_exists = self.fiscal_profile.fiscal_periods.filter(
+        #         year=self.application_date.year,
+        #         month=self.application_date.month,
+        #         is_active=True
+        #     ).exists()
+        #     if not period_exists:
+        #         if 'application_date' not in errors:
+        #             errors['application_date'] = ValidationError(
+        #                 ("El período fiscal correspondiente a la fecha de aplicación "
+        #                   "no se encuentra activo o válido para este contribuyente."),
+        #                 code='inactive_fiscal_period'
+        #             )
 
         # D. Exclusividad Mutua de Conceptos de ISLR
         concept_fields = {
             'concepts_payment_pnnr': self.concepts_payment_pnnr,
             'concepts_payment_pnr': self.concepts_payment_pnr,
-            'concepts_payment_pjnr': self.concepts_payment_pjnr,
-            'concepts_payment_pjr': self.concepts_payment_pjr,
+            'concepts_payment_pjnd': self.concepts_payment_pjnd,
+            'concepts_payment_pjd': self.concepts_payment_pjd,
         }
         assigned_concepts = {k: v for k, v in concept_fields.items() if v is not None}
 
@@ -411,8 +410,8 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
         #                 code='legal_nature_mismatch'
         #             )
 
-        # if errors:
-        #     raise ValidationError(errors)
+        if errors:
+             raise ValidationError(errors)
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         """
@@ -442,7 +441,7 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
         Raises:
             ValidationError: Si se intenta eliminar un registro en estado PROCESSED.
         """
-        if self.status == self.Status.PROCESSED:
+        if self.status == self.CertificateStatus.PROCESSED:
             raise ValidationError(
                 ("Bloqueo de Eliminación: No se permite la eliminación física de un "
                   "comprobante en estado PROCESSED por motivos de auditoría fiscal."),

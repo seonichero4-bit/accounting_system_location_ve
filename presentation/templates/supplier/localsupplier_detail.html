@@ -1,7 +1,7 @@
 <h1>Detalle del Proveedor: {{ supplier.name }}</h1>
 
 <p><strong>RIF:</strong> {{ supplier.rif }}</p>
-<p><strong>Código Interno:</strong> {{ supplier.code }}</p>
+<p><strong>Código Interno:</strong> {{ supplier.pk }}</p>
 <p><strong>Tipo de Proveedor:</strong> {{ supplier.get_supplier_type_display }}</p>
 <p><strong>Porcentaje Retención IVA:</strong> {{ supplier.vat_withholding_percentage }}%</p>
 
@@ -14,6 +14,6 @@
 {% endif %}
 
 <br>
-<a href="{% url 'supplier-update' supplier.code %}">Editar</a> | 
-<a href="{% url 'supplier-delete' supplier.code %}">Eliminar</a> | 
+<a href="{% url 'supplier-update' supplier.pk %}">Editar</a> | 
+<a href="{% url 'supplier-delete' supplier.pk %}">Eliminar</a> | 
 <a href="{% url 'supplier-list' %}">Volver a la lista</a>

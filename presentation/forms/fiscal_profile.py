@@ -13,14 +13,21 @@ class FiscalProfileForm(forms.ModelForm):
         """Configuraciones del modelo FiscalProfile."""
 
         model = FiscalProfile
-        fields = ["code", "name", "rif", "nit", "taxpayer_type"]
+        fields = ["name", "rif", "taxpayer_type"]
 
 
 class EntityModelForm(forms.ModelForm):
     """Formulario mapeado al modelo EntityModel de Django Ledger."""
 
-    use_accrual_method = forms.BooleanField(required=False)
-    fy_start_month = forms.IntegerField()
+    use_accrual_method = forms.BooleanField(
+        initial=True, 
+        required=False
+    )
+    fy_start_month = forms.IntegerField(
+        initial=12,
+        min_value=1,
+        max_value=12
+    )
 
     class Meta:
         """Configuraciones del modelo EntityModel exponiendo los campos solicitados."""

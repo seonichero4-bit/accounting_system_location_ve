@@ -41,6 +41,8 @@ class FiscalTenantMixin:
             return FiscalProfile.objects.none()
 
         return PurchaseLedgerInvoice.objects.filter(fiscal_profile=current_fiscalprofile)
+    
+    
 
 class PurchaseLedgerInvoiceListView(FiscalTenantMixin, ListView):
     """Vista genérica para listar las facturas del Libro de Compras."""
@@ -66,12 +68,18 @@ class PurchaseLedgerInvoiceCreateView(FiscalTenantMixin, CreateView):
     template_name = "invoice_form.html"
     success_url = reverse_lazy("purchase-invoice-list")
 
-    def form_valid(self, form): # Modificar en produccion, para extraer fiscalprofile
-    # desde el request
-        current_fiscalprofile = self.get_fiscal_profile()
-        form.instance.fiscal_profile = current_fiscalprofile
+    def get_form(self, form_class=None):
+        """Inyecta de forma temprana el perfil fiscal activo en la instancia del formulario."""
+        form = super().get_form(form_class)
+        form.instance.fiscal_profile = self.get_fiscal_profile()
+        return form
+
+    # def form_valid(self, form): # Modificar en produccion, para extraer fiscalprofile
+    # # desde el request
+    #     current_fiscalprofile = self.get_fiscal_profile()
+    #     form.instance.fiscal_profile = current_fiscalprofile
         
-        return super().form_valid(form)
+    #     return super().form_valid(form)
 
 
 class PurchaseLedgerInvoiceUpdateView(FiscalTenantMixin, UpdateView):

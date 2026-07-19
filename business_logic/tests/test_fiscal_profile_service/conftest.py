@@ -59,6 +59,5 @@ def sample_fiscal_profile(admin_user: User) -> FiscalProfile:
         use_accrual_method=True,
         fy_start_month=1,
         rif="J-12345678-0",
-        code="CTRL-001",
         taxpayer_type="ORDINARY"
     )

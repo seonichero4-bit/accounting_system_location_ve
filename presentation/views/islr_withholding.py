@@ -6,6 +6,7 @@ para el modelo IslrWithholdingCertificate, aplicando aislamiento multi-tenant.
 
 from typing import Any
 from django.db.models import QuerySet
+from django.shortcuts import get_object_or_404
 from django.http import HttpResponseRedirect, HttpResponse
 from django.urls import reverse, reverse_lazy
 from django.views.generic import (
@@ -75,27 +76,43 @@ class IslrWithholdingCertificateCreateView(FiscalTenantMixin, CreateView):
     form_class = IslrWithholdingCertificateForm
     template_name = "certificate_form.html"
 
-    def form_valid(self, form: IslrWithholdingCertificateForm) -> HttpResponseRedirect:
-        """Asigna el perfil fiscal y la factura contextual antes del commit final."""
+    def get_form_kwargs(self) -> dict[str, Any]:
+        """Inyecta una instancia inicializada con el contexto de la URL al formulario."""
+        kwargs = super().get_form_kwargs()
+        
+        # Extraemos el invoice de la URL y construimos la instancia base
         invoice_pk = self.kwargs.get("invoice_pk")
-        if not invoice_pk:
-            form.add_error(None, "La transacción requiere una factura de compra contextual.")
-            return self.form_invalid(form)
+        purchase_invoice = get_object_or_404(PurchaseLedgerInvoice, pk=invoice_pk)
+        
+        # Al pasar esto, el Form tomará esta instancia en lugar de crear una vacía
+        kwargs["instance"] = IslrWithholdingCertificate(
+            purchase_invoice=purchase_invoice,
+            fiscal_profile=self.get_fiscal_profile()
+        )
+        return kwargs
 
-        fiscal_profile = self.get_fiscal_profile()
-        try:
-            purchase_invoice = PurchaseLedgerInvoice.objects.get(
-                pk=invoice_pk, fiscal_profile=fiscal_profile
-            )
-        except PurchaseLedgerInvoice.DoesNotExist:
-            form.add_error(
-                None, "La factura indicada no existe o no pertenece a este perfil fiscal."
-            )
-            return self.form_invalid(form)
 
-        form.instance.fiscal_profile = fiscal_profile
-        form.instance.purchase_invoice = purchase_invoice
-        return super().form_valid(form)
+    # def form_valid(self, form: IslrWithholdingCertificateForm) -> HttpResponseRedirect:
+    #     """Asigna el perfil fiscal y la factura contextual antes del commit final."""
+    #     invoice_pk = self.kwargs.get("invoice_pk")
+    #     if not invoice_pk:
+    #         form.add_error(None, "La transacción requiere una factura de compra contextual.")
+    #         return self.form_invalid(form)
+
+    #     fiscal_profile = self.get_fiscal_profile()
+    #     try:
+    #         purchase_invoice = PurchaseLedgerInvoice.objects.get(
+    #             pk=invoice_pk, fiscal_profile=fiscal_profile
+    #         )
+    #     except PurchaseLedgerInvoice.DoesNotExist:
+    #         form.add_error(
+    #             None, "La factura indicada no existe o no pertenece a este perfil fiscal."
+    #         )
+    #         return self.form_invalid(form)
+
+    #     form.instance.fiscal_profile = fiscal_profile
+    #     form.instance.purchase_invoice = purchase_invoice
+    #     return super().form_valid(form)
 
     def get_success_url(self) -> str:
         """Define la ruta de redirección al detalle tras guardar exitosamente."""

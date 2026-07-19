@@ -11,7 +11,26 @@ from data_access.models.supplier import LocalSupplier
 from data_access.models.base import FiscalProfile
 from ..forms.supplier import LocalSupplierForm
 from business_logic.services.supplier_service import SupplierService
-from ..mixins.fiscaltenantmixin import FiscalTenantMixin
+
+class FiscalTenantMixin:
+    """Mixin base para inyectar y aislar el perfil fiscal activo en las vistas."""
+
+    def get_fiscal_profile(self) -> FiscalProfile:
+        """Obtiene el perfil fiscal del inquilino actual.
+        
+        Nota: En producción, esto debe derivarse de `self.request.user.entity.fiscal_profile`
+        o del middleware activo. Por simplicidad del CRUD, retorna el primero disponible.
+        """
+        return FiscalProfile.objects.first()
+
+    def get_queryset(self):
+        """Aísla las consultas estrictamente al perfil fiscal actual."""
+        current_fiscalprofile = self.get_fiscal_profile()
+
+        if current_fiscalprofile is None:
+            return FiscalProfile.objects.none()
+
+        return LocalSupplier.objects.filter(fiscal_profile=current_fiscalprofile.pk)
 
 class LocalSupplierListView(FiscalTenantMixin, ListView):
     """Vista para listar los proveedores del inquilino activo."""
@@ -25,10 +44,6 @@ class LocalSupplierDetailView(FiscalTenantMixin, DetailView):
     model = LocalSupplier
     context_object_name = "supplier"
     template_name = "localsupplier_detail.html"
-    # Configuración para buscar por código
-    slug_field = "code"
-    slug_url_kwarg = "code"
-
 
 class LocalSupplierCreateView(FiscalTenantMixin, FormView):
     """Vista para la creación o recuperación de un proveedor local.
@@ -57,8 +72,7 @@ class LocalSupplierCreateView(FiscalTenantMixin, FormView):
     
         supplier, created = service.register_or_retrieve_local(form.cleaned_data)
         
-        # Redirección actualizada para usar 'code' en lugar de 'pk'
-        return redirect("supplier-detail", code=supplier.code)
+        return redirect("supplier-detail", pk=supplier.pk)
 
 
 class LocalSupplierUpdateView(FiscalTenantMixin, UpdateView):
@@ -66,13 +80,9 @@ class LocalSupplierUpdateView(FiscalTenantMixin, UpdateView):
     model = LocalSupplier
     form_class = LocalSupplierForm
     template_name = "localsupplier_form.html"
-    # Configuración para buscar por código
-    slug_field = "code"
-    slug_url_kwarg = "code"
 
     def get_success_url(self) -> str:
-        # Redirección actualizada para usar 'code' en lugar de 'pk'
-        return reverse("supplier-detail", kwargs={"code": self.object.code})
+        return reverse("supplier-detail", kwargs={"pk": self.object.pk})
 
 
 class LocalSupplierDeleteView(FiscalTenantMixin, DeleteView):
@@ -80,6 +90,4 @@ class LocalSupplierDeleteView(FiscalTenantMixin, DeleteView):
     model = LocalSupplier
     template_name = "localsupplier_confirm_delete.html"
     success_url = reverse_lazy("supplier-list")
-    # Configuración para buscar por código
-    slug_field = "code"
-    slug_url_kwarg = "code"
+    

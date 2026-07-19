@@ -20,4 +20,4 @@ class FiscalTenantMixin:
         if current_fiscalprofile is None:
             return FiscalProfile.objects.none()
 
-        return FiscalProfile.objects.filter(code=current_fiscalprofile.code)
+        return FiscalProfile.objects.filter(pk=current_fiscalprofile.pk)

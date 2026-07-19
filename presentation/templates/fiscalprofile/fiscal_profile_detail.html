@@ -2,7 +2,6 @@
 
 <h3>Información de Control Fiscal Regional</h3>
 <ul>
-    <li><strong>Código de Control Interno:</strong> {{ object.code }}</li>
     <li><strong>Nombre o Razón Social:</strong> {{ object.name }}</li>
     <li><strong>RIF:</strong> {{ object.rif }}</li>
     <li><strong>NIT:</strong> {{ object.nit|default:"No registrado" }}</li>
@@ -23,6 +22,6 @@
 {% endif %}
 
 <br>
-<a href="{% url 'fiscal-profile-update' object.code %}">Editar</a> | 
-<a href="{% url 'fiscal-profile-delete' object.code %}">Eliminar</a> | 
+<a href="{% url 'fiscal-profile-update' object.pk %}">Editar</a> | 
+<a href="{% url 'fiscal-profile-delete' object.pk %}">Eliminar</a> | 
 <a href="{% url 'fiscal-profile-list' %}">Volver a la lista</a>

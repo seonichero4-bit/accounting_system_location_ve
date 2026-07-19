@@ -51,9 +51,7 @@ class FiscalProfileCreateView(View):
                     use_accrual_method=entity_form.cleaned_data["use_accrual_method"],
                     fy_start_month=entity_form.cleaned_data["fy_start_month"],
                     rif=profile_form.cleaned_data["rif"],
-                    code=profile_form.cleaned_data["code"],
                     taxpayer_type=profile_form.cleaned_data["taxpayer_type"],
-                    nit=profile_form.cleaned_data.get("nit"),
                 )
                 return redirect("fiscal-profile-list")
             except ValueError as error:
@@ -69,15 +67,15 @@ class FiscalProfileCreateView(View):
 class FiscalProfileUpdateView(View):
     """Vista basada en clases para la edición de un perfil fiscal existente.
 
-    Extrae el perfil por medio de su código de control único y pre-pobla
+    Extrae el perfil por medio de su clave primaria (pk) y pre-pobla
     los formularios con los datos actuales del perfil y su entidad relacionada.
     """
 
     template_name = "fiscal_profile_form.html"
 
-    def get(self, request, code, *args, **kwargs):
+    def get(self, request, pk, *args, **kwargs):
         """Pre-pobla y renderiza los formularios con los datos del registro."""
-        fiscal_profile = get_object_or_404(FiscalProfile, code=code)
+        fiscal_profile = get_object_or_404(FiscalProfile, pk=pk)
         profile_form = FiscalProfileForm(instance=fiscal_profile)
 
         entity_initial = {}
@@ -98,9 +96,9 @@ class FiscalProfileUpdateView(View):
             },
         )
 
-    def post(self, request, code, *args, **kwargs):
+    def post(self, request, pk, *args, **kwargs):
         """Valida y ejecuta los cambios atómicos sobre el perfil fiscal asignado."""
-        fiscal_profile = get_object_or_404(FiscalProfile, code=code)
+        fiscal_profile = get_object_or_404(FiscalProfile, pk=pk)
         profile_form = FiscalProfileForm(request.POST, instance=fiscal_profile)
         entity_form = EntityModelForm(request.POST, instance=fiscal_profile.entity)
 
@@ -113,12 +111,10 @@ class FiscalProfileUpdateView(View):
                         use_accrual_method=entity_form.cleaned_data["use_accrual_method"],
                         fy_start_month=entity_form.cleaned_data["fy_start_month"],
                         rif=profile_form.cleaned_data["rif"],
-                        code=profile_form.cleaned_data["code"],
                         taxpayer_type=profile_form.cleaned_data["taxpayer_type"],
-                        nit=profile_form.cleaned_data.get("nit"),
                 )
     
-                return redirect("fiscal-profile-detail", code=fiscal_profile.code)
+                return redirect("fiscal-profile-detail", pk=fiscal_profile.pk)
             except ValueError as error:
                 profile_form.add_error(None, str(error))
 
@@ -132,6 +128,7 @@ class FiscalProfileUpdateView(View):
             },
         )
 
+
 class FiscalProfileListView(FiscalTenantMixin, ListView):
     """Vista genérica para listar los Perfiles Fiscales asociados al usuario."""
 
@@ -139,15 +136,14 @@ class FiscalProfileListView(FiscalTenantMixin, ListView):
     template_name = "fiscal_profile_list.html"
     context_object_name = "object_list"
 
+
 class FiscalProfileDetailView(FiscalTenantMixin, DetailView):
     """Vista genérica para exponer el desglose técnico de un Perfil Fiscal."""
 
     model = FiscalProfile
     template_name = "fiscal_profile_detail.html"
     context_object_name = "object"
-    slug_field = "code"
-    slug_url_kwarg = "code"
-
+    
 
 
 class FiscalProfileDeleteView(FiscalTenantMixin, DeleteView):
@@ -155,8 +151,5 @@ class FiscalProfileDeleteView(FiscalTenantMixin, DeleteView):
 
     model = FiscalProfile
     template_name = "fiscal_profile_confirm_delete.html"
-    slug_field = "code"
-    slug_url_kwarg = "code"
     success_url = reverse_lazy("fiscal-profile-list")
-
    

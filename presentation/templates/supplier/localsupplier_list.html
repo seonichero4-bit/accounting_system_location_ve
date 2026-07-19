@@ -4,7 +4,7 @@
 <ul>
     {% for supplier in suppliers %}
         <li>
-            <a href="{% url 'supplier-detail' supplier.code %}">
+            <a href="{% url 'supplier-detail' supplier.pk %}">
                 {{ supplier.name }} ({{ supplier.code }})
             </a>
         </li>

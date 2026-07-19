@@ -57,9 +57,8 @@ def tenant_a_profile(db: Any, ledger_entity_a: EntityModel) -> FiscalProfile:
     """Crea y retorna el perfil fiscal asociado al Inquilino A."""
     return FiscalProfile.objects.create(
         entity=ledger_entity_a,
-        code="TENANT-A",
         name="Empresa A C.A.",
-        rif="J-11111111-1",
+        rif="J111111111",
         taxpayer_type=FiscalProfile.TaxpayerType.ORDINARY,
     )
 
@@ -69,9 +68,8 @@ def tenant_b_profile(db: Any, ledger_entity_b: EntityModel) -> FiscalProfile:
     """Crea y retorna el perfil fiscal asociado al Inquilino B."""
     return FiscalProfile.objects.create(
         entity=ledger_entity_b,
-        code="TENANT-B",
         name="Empresa B C.A.",
-        rif="J-22222222-2",
+        rif="J222222222",
         taxpayer_type=FiscalProfile.TaxpayerType.ORDINARY,
     )
 
@@ -82,17 +80,17 @@ def tenant_a_suppliers(db: Any, tenant_a_profile: FiscalProfile) -> list[LocalSu
     return [
         tenant_a_profile.create_supplier(
             name="Proveedor A1 C.A.",
-            rif="J-33333333-3",
+            rif="J333333333",
             supplier_type=LocalSupplier.SupplierType.WITH_RIF,
         ),
         tenant_a_profile.create_supplier(
             name="Proveedor A2 C.A.",
-            rif="J-44444444-4",
+            rif="J444444444",
             supplier_type=LocalSupplier.SupplierType.WITH_RIF,
         ),
         tenant_a_profile.create_supplier(
             name="Proveedor A3 C.A.",
-            rif="J-55555555-5",
+            rif="J555555555",
             supplier_type=LocalSupplier.SupplierType.WITH_RIF,
         ),
     ]
@@ -103,6 +101,6 @@ def tenant_b_supplier(db: Any, tenant_b_profile: FiscalProfile) -> LocalSupplier
     """Crea un proveedor de prueba vinculado estrictamente al Inquilino B."""
     return tenant_b_profile.create_supplier(
         name="Proveedor B1 C.A.",
-        rif="J-66666666-6",
+        rif="J666666666",
         supplier_type=LocalSupplier.SupplierType.WITH_RIF,
     )

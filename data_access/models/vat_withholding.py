@@ -64,11 +64,10 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
     )
     document_number = models.CharField(
         max_length=50,
-        blank=True,
-        editable=False,
         verbose_name="Withholding Document Number",
     )
     vat_withheld_amount = models.DecimalField(
+        blank=True,
         max_digits=15,
         decimal_places=2,
         verbose_name="VAT Withheld Amount",
@@ -96,15 +95,15 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
                 condition=models.Q(application_date__lte=models.functions.Now()),
                 name="withholding_date_not_future",
             ),
-            models.CheckConstraint(
-                condition=models.Q(
-                    vat_withholding_percentage__in=[
-                        Decimal("75.00"),
-                        Decimal("100.00"),
-                    ]
-                ),
-                name="valid_withholding_percentages",
-            ),
+            # models.CheckConstraint(
+            #     condition=models.Q(
+            #         vat_withholding_percentage__in=[
+            #             Decimal("75.00"),
+            #             Decimal("100.00"),
+            #         ]
+            #     ),
+            #     name="valid_withholding_percentages",
+            # ),
         ]
 
     def __str__(self) -> str:
@@ -130,10 +129,11 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
                 )
 
         # Validación de monto de IVA mayor a cero
+        if self.purchase_invoice:
             vat_amount = getattr(self.purchase_invoice, "vat_amount", Decimal("0.00"))
             if vat_amount <= Decimal("0.00"):
-                errors["purchase_invoice"] = (
-                    "El IVA de la factura asociada debe ser estrictamente mayor a cero."
+               errors["purchase_invoice"] = (
+                     "El IVA de la factura asociada debe ser estrictamente mayor a cero."
                 )
 
             # 2. Validación de application_date vs fecha de emisión de la factura de compra
@@ -143,18 +143,18 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
                     "La fecha de aplicación no puede ser menor a la fecha de emisión de la factura asociada."
                 )
 
-        # Validación de período fiscal activo controlado por el sistema
-        if self.application_month_year and hasattr(self, "fiscal_profile") and self.fiscal_profile:
-            if hasattr(self.fiscal_profile, "is_period_active") and not self.fiscal_profile.is_period_active(
-                self.application_month_year
-            ):
-                errors["application_month_year"] = (
-                    "La fecha seleccionada no pertenece a un período fiscal activo en el sistema."
-                )
+        # # Validación de período fiscal activo controlado por el sistema
+        # if self.application_month_year and hasattr(self, "fiscal_profile") and self.fiscal_profile:
+        #     if hasattr(self.fiscal_profile, "is_period_active") and not self.fiscal_profile.is_period_active(
+        #         self.application_month_year
+        #     ):
+        #         errors["application_month_year"] = (
+        #             "La fecha seleccionada no pertenece a un período fiscal activo en el sistema."
+        #         )
 
         # 3. Validación de consistencia de document_number con application_date (YYYYMM)
-        if self.document_number and self.application_month_year:
-            expected_prefix = self.application_month_year.strftime("%Y%m")
+        if self.document_number and self.application_date:
+            expected_prefix = self.application_date.strftime("%Y%m")
             if self.document_number[:6] != expected_prefix:
                 errors["document_number"] = (
                     f"Inconsistencia fiscal: Los primeros 6 caracteres del número de comprobante "
@@ -180,7 +180,7 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
         # Cálculo automático del monto retenido resguardando tipos Decimal
         if self.status != self.CertificateStatus.PROCESSED or self.pk is None:
             vat_amount = Decimal(str(self.purchase_invoice.vat_amount))
-            percentage = Decimal(str(self.vat_withholding_percentage.as_decimal))
+            percentage = self.VatWithholdingChoices(self.vat_withholding_percentage).as_decimal
             self.vat_withheld_amount = round(vat_amount * (percentage / Decimal("100.00")), 2)
 
         super().save(*args, **kwargs)

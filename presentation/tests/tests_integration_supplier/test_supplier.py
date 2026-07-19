@@ -54,7 +54,7 @@ class TestLocalSupplierIntegration:
         """[ID_HP_002] Visualización del detalle íntegro de un proveedor autorizado."""
         # Arrange
         target_supplier = tenant_a_suppliers[0]
-        url = reverse("supplier-detail", kwargs={"code": target_supplier.code})
+        url = reverse("supplier-detail", kwargs={"pk": target_supplier.pk})
 
         # Act
         response = client.get(url)
@@ -74,7 +74,7 @@ class TestLocalSupplierIntegration:
         url = reverse("supplier-create")
         payload = {
             "name": "Nuevo Proveedor Inédito C.A.",
-            "rif": "J-99999999-9",
+            "rif": "J999999999",
             "supplier_type": LocalSupplier.SupplierType.WITH_RIF,
             "vat_withholding_percentage": "75.00",
         }
@@ -83,9 +83,9 @@ class TestLocalSupplierIntegration:
         response = client.post(url, data=payload)
 
         # Assert
-        new_supplier = LocalSupplier.objects.get(rif="J-99999999-9")
+        new_supplier = LocalSupplier.objects.get(rif="J999999999")
         assert response.status_code == 302
-        assert response.url == reverse("supplier-detail", kwargs={"code": new_supplier.code})
+        assert response.url == reverse("supplier-detail", kwargs={"pk": new_supplier.pk})
         assert new_supplier.fiscal_profile == tenant_a_profile
 
     def test_hp_004_create_idempotent_existing_rif(
@@ -110,7 +110,7 @@ class TestLocalSupplierIntegration:
 
         # Assert
         assert response.status_code == 302
-        assert response.url == reverse("supplier-detail", kwargs={"code": existing_supplier.code})
+        assert response.url == reverse("supplier-detail", kwargs={"pk": existing_supplier.pk})
         # Verifica que no se generó un duplicado del RIF en el mismo perfil
         assert LocalSupplier.objects.filter(
             fiscal_profile=tenant_a_profile, rif=existing_supplier.rif
@@ -125,7 +125,7 @@ class TestLocalSupplierIntegration:
         """[ID_HP_005] Actualización exitosa de los datos de un proveedor autorizado."""
         # Arrange
         target_supplier = tenant_a_suppliers[1]
-        url = reverse("supplier-update", kwargs={"code": target_supplier.code})
+        url = reverse("supplier-update", kwargs={"pk": target_supplier.pk})
         payload = {
             "name": "Proveedor A2 Actualizado C.A.",
             "rif": target_supplier.rif,
@@ -151,7 +151,7 @@ class TestLocalSupplierIntegration:
         """[ID_HP_006] Eliminación física exitosa de un proveedor local."""
         # Arrange
         target_supplier = tenant_a_suppliers[2]
-        url = reverse("supplier-delete", kwargs={"code": target_supplier.code})
+        url = reverse("supplier-delete", kwargs={"pk": target_supplier.pk})
 
         # Act
         response = client.post(url)
@@ -171,7 +171,7 @@ class TestLocalSupplierIntegration:
         """[ID_EC_001] Prevención de acceso no autorizado a detalles de otro inquilino."""
         # Arrange
         # Al ejecutar bajo tenant_a_profile, intentamos acceder a un proveedor del tenant B
-        url = reverse("supplier-detail", kwargs={"code": tenant_b_supplier.code})
+        url = reverse("supplier-detail", kwargs={"pk": tenant_b_supplier.pk})
 
         # Act
         response = client.get(url)
@@ -188,7 +188,7 @@ class TestLocalSupplierIntegration:
     ) -> None:
         """[ID_EC_002] Prevención de modificación cruzada de datos."""
         # Arrange
-        url = reverse("supplier-update", kwargs={"code": tenant_b_supplier.code})
+        url = reverse("supplier-update", kwargs={"pk": tenant_b_supplier.pk})
         payload = {
             "name": "Intento de Hacking",
             "rif": tenant_b_supplier.rif,
@@ -212,7 +212,7 @@ class TestLocalSupplierIntegration:
     ) -> None:
         """[ID_EC_003] Prevención de eliminación de registros de otro inquilino."""
         # Arrange
-        url = reverse("supplier-delete", kwargs={"code": tenant_b_supplier.code})
+        url = reverse("supplier-delete", kwargs={"pk": tenant_b_supplier.pk})
 
         # Act
         response = client.post(url)
@@ -264,14 +264,14 @@ class TestLocalSupplierIntegration:
         assert "name" in response.context["form"].errors
         assert "rif" in response.context["form"].errors
 
-    def test_ec_006_detail_non_existent_code_returns_404(
+    def test_ec_006_detail_non_existent_pk_returns_404(
         self,
         client: Client,
         tenant_a_profile: FiscalProfile,
     ) -> None:
         """[ID_EC_006] Respuesta 404 controlada ante un identificador inexistente."""
         # Arrange
-        url = reverse("supplier-detail", kwargs={"code": "PROV-99999"})
+        url = reverse("supplier-detail", kwargs={"pk": 99999})
 
         # Act
         response = client.get(url)
@@ -309,7 +309,7 @@ class TestLocalSupplierIntegration:
         """[ID_EC_008] Bloqueo de inyección de porcentajes impositivos fuera de límite."""
         # Arrange
         target_supplier = tenant_a_suppliers[0]
-        url = reverse("supplier-update", kwargs={"code": target_supplier.code})
+        url = reverse("supplier-update", kwargs={"pk": target_supplier.pk})
         payload = {
             "name": target_supplier.name,
             "rif": target_supplier.rif,

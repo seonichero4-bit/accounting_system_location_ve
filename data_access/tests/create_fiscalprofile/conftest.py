@@ -41,7 +41,7 @@ def valid_profile_data() -> Dict[str, Any]:
         "use_accrual_method": True,
         "fy_start_month": 1,
         "rif": "J-31234567-8",
-        "code": "CTRL-2026-001",
+        #"code": "CTRL-2026-001",
         "taxpayer_type": FiscalProfile.TaxpayerType.ORDINARY,
-        "nit": "0102030405",
+        #"nit": "0102030405",
     }

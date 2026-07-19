@@ -17,28 +17,4 @@ class LocalSupplierForm(forms.ModelForm):
         model = LocalSupplier
         exclude = ["fiscal_profile"]
         
-    def clean_rif(self) -> str:
-        """Valida estructuralmente el RIF mediante expresiones regulares.
-
-        Asegura que el Registro de Información Fiscal cumpla con el estándar
-        nacional venezolano (ej. J-12345678-9 o V-12345678-9), convirtiéndolo
-        a mayúsculas automáticamente de forma previa a la evaluación.
-
-        Returns:
-            str: El RIF validado y formateado en mayúsculas.
-
-        Raises:
-            ValidationError: Si el RIF no coincide con el patrón establecido.
-        """
-        rif = self.cleaned_data.get("rif", "").strip().upper()
-        
-        # Patrón: Letra inicial (V, J, E, G, P, C) seguida de guion, 8 dígitos, guion y 1 dígito.
-        rif_pattern = re.compile(r"^[VJEGPC]-\d{8}-\d$")
-        
-        if not rif_pattern.match(rif):
-            raise ValidationError(
-                "Formato de RIF inválido. Debe seguir el patrón 'X-00000000-0' "
-                "(ej. J-12345678-9 o V-12345678-9)."
-            )
-            
-        return rif
+ 

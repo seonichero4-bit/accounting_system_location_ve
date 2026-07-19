@@ -47,8 +47,7 @@ def fiscal_profile_a(db, admin_user):
             entity_name="Empresa cimineto S.A.",
             use_accrual_method=True,
             fy_start_month=1,
-            rif="J-12345645-0",
-            code="FP-001",
+            rif="J123456450",
             taxpayer_type="ORDINARY"
     )
 
@@ -61,8 +60,7 @@ def fiscal_profile_b(db, admin_user):
             entity_name="Empresa Base S.A.",
             use_accrual_method=True,
             fy_start_month=1,
-            rif="J-12345678-0",
-            code="FP-002",
+            rif="J123456780",
             taxpayer_type="ORDINARY"
     )
 
@@ -101,7 +99,6 @@ def invoice_preliminary_a(db, fiscal_profile_a, supplier_a):
     """Genera una factura en estado inicial (PRELIMINARY) para el Perfil A."""
     return PurchaseLedgerInvoice.objects.create(
         fiscal_profile=fiscal_profile_a,
-        code="FAC-2026-0001",
         supplier=supplier_a,
         number="10050",
         invoice_control="00-998822",
@@ -124,7 +121,6 @@ def invoice_processed_a(db, fiscal_profile_a, supplier_a):
     """Genera una factura en estado inmutable (PROCESSED) para el Perfil A."""
     return PurchaseLedgerInvoice.objects.create(
         fiscal_profile=fiscal_profile_a,
-        code="FAC-2026-0002",
         supplier=supplier_a,
         number="20060",
         invoice_control="00-998823",
@@ -147,7 +143,6 @@ def invoice_profile_b(db, fiscal_profile_b, supplier_b):
     """Genera una factura perteneciente al Perfil Fiscal B (Inquilino Ajeno)."""
     return PurchaseLedgerInvoice.objects.create(
         fiscal_profile=fiscal_profile_b,
-        code="FAC-2026-0099",
         supplier=supplier_b,
         number="99999",
         invoice_control="00-111111",

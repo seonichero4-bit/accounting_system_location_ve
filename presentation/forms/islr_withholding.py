@@ -15,4 +15,4 @@ class IslrWithholdingCertificateForm(forms.ModelForm):
         """Metadatos de configuración del formulario."""
 
         model = IslrWithholdingCertificate
-        exclude = ["fiscal_profile", "purchase_invoice"]
+        fields = ["document_number", "application_date", "concepts_payment_pnnr", "concepts_payment_pnr", "concepts_payment_pjnd", "concepts_payment_pjd"]
