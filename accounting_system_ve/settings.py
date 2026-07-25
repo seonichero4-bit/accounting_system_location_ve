@@ -83,14 +83,21 @@ WSGI_APPLICATION = "accounting_system_ve.wsgi.application"
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'account_jf8q',        
-        'USER': 'account_jf8q_user',              
-        'PASSWORD': 'BmYJITriFJyuGQM3Sl5sBcNL1DY1B7J2',       
-        'HOST': 'dpg-d9a0dhok1i2s73eu6pbg-a.virginia-postgres.render.com',   
-        'PORT': '5432',
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'account_jf8q',        
+#         'USER': 'account_jf8q_user',              
+#         'PASSWORD': 'BmYJITriFJyuGQM3Sl5sBcNL1DY1B7J2',       
+#         'HOST': 'dpg-d9a0dhok1i2s73eu6pbg-a.virginia-postgres.render.com',   
+#         'PORT': '5432',
+#     }
+# }
 
 
 # Password validation
