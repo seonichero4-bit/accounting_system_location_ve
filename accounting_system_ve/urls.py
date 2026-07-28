@@ -1,12 +1,29 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
+from django.contrib.auth import views as auth_views
+
 from presentation.views import supplier
 from presentation.views import fiscal_profile
 from presentation.views import purchase_book
 from presentation.views import vat_withholding
 from presentation.views import islr_withholding
+from presentation.views import processfiscalbatch
+from presentation.views import uploadchartofaccounts
 
 urlpatterns = [
+    path('admin/', admin.site.urls),
+    # Aquí irán tus rutas de django-ledger
+    path('ledger/', include('django_ledger.urls')),
+
+    path("fiscal-profiles/upload-coa/", uploadchartofaccounts.UploadChartOfAccountsView.as_view(), name="fiscal-profile-upload-coa"),
+
+    # URLS login y Logout
+    path('login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+
+    # URLS de Procesamiento y contabilizacion de libros ficales por lotes
+    path("compras/procesar-lote/", processfiscalbatch.ProcessFiscalBatchView.as_view(), name="process-fiscal-batch",),
+
     # URLS de Proveedores
     path("suppliers/", supplier.LocalSupplierListView.as_view(), name="supplier-list"),
     path("suppliers/new/", supplier.LocalSupplierCreateView.as_view(), name="supplier-create"),
@@ -60,6 +77,7 @@ urlpatterns = [
     path("purchase-invoices/<int:invoice_pk>/islr-withholding/<int:pk>/", islr_withholding.IslrWithholdingCertificateDetailView.as_view(), name="invoice-islr-withholding-detail"),
     path("purchase-invoices/<int:invoice_pk>/islr-withholding/<int:pk>/delete/", islr_withholding.IslrWithholdingCertificateDeleteView.as_view(), name="invoice-islr-withholding-delete"),
 ]
+
 
 
 

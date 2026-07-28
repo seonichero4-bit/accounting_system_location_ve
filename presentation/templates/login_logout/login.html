@@ -1,0 +1,5 @@
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }} <!-- Renderiza automáticamente los campos 'username' y 'password' -->
+    <button type="submit">Iniciar Sesión</button>
+</form>

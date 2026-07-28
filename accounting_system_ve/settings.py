@@ -58,6 +58,7 @@ TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [
+            BASE_DIR / 'presentation' / 'templates' / 'login_logout',
             BASE_DIR / 'presentation' / 'templates' / 'islr_withholding',
             BASE_DIR / 'presentation' / 'templates' / 'vat_withholding',
             BASE_DIR / 'presentation' / 'templates' / 'purchase_book',
@@ -81,23 +82,17 @@ WSGI_APPLICATION = "accounting_system_ve.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'account_jf8q',        
+        'USER': 'account_jf8q_user',              
+        'PASSWORD': 'BmYJITriFJyuGQM3Sl5sBcNL1DY1B7J2',       
+        'HOST': 'dpg-d9a0dhok1i2s73eu6pbg-a.virginia-postgres.render.com',   
+        'PORT': '5432',
     }
 }
-
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'account_jf8q',        
-#         'USER': 'account_jf8q_user',              
-#         'PASSWORD': 'BmYJITriFJyuGQM3Sl5sBcNL1DY1B7J2',       
-#         'HOST': 'dpg-d9a0dhok1i2s73eu6pbg-a.virginia-postgres.render.com',   
-#         'PORT': '5432',
-#     }
-# }
 
 
 # Password validation

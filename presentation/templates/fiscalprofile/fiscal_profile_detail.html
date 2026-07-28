@@ -1,27 +1,81 @@
-<h1>Detalle del Perfil Fiscal: {{ object.name }}</h1>
+<h1>Detalle del Perfil Fiscal: {{ object.name }}</h1> <!--[cite: 2] -->
 
-<h3>Información de Control Fiscal Regional</h3>
+<h3>Información de Control Fiscal Regional</h3> <!--[cite: 2] -->
 <ul>
-    <li><strong>Nombre o Razón Social:</strong> {{ object.name }}</li>
-    <li><strong>RIF:</strong> {{ object.rif }}</li>
-    <li><strong>NIT:</strong> {{ object.nit|default:"No registrado" }}</li>
-    <li><strong>Tipo de Contribuyente:</strong> {{ object.get_taxpayer_type_display }}</li>
+    <li><strong>Nombre o Razón Social:</strong> {{ object.name }}</li> <!--[cite: 2] -->
+    <li><strong>RIF:</strong> {{ object.rif }}</li> <!--[cite: 2] -->
+    <li><strong>Tipo de Contribuyente:</strong> {{ object.get_taxpayer_type_display }}</li> <!--[cite: 2] -->
 </ul>
 
 <hr>
 
-<h3>Información de la Entidad Contable (Django Ledger)</h3>
-{% if entity %}
+<h3>Información de la Entidad Contable (Django Ledger)</h3> <!--[cite: 2] -->
+{% if object.entity %} <!--[cite: 2] -->
     <ul>
-        <li><strong>Nombre de la Entidad:</strong> {{ entity.name }}</li>
-        <li><strong>Método de Devengado (Accrual Method):</strong> {% if entity.use_accrual_method %}Sí{% else %}No{% endif %}</li>
-        <li><strong>Mes de Inicio del Año Fiscal:</strong> {{ entity.fy_start_month }}</li>
+        <li><strong>Nombre de la Entidad:</strong> {{ object.entity.name }}</li> <!--[cite: 2] -->
+        <li><strong>Método de Devengado (Accrual Method):</strong> {% if object.entity.use_accrual_method %}Sí{% else %}No{% endif %}</li> <!--[cite: 2] -->
+        <li><strong>Mes de Inicio del Año Fiscal:</strong> {{ object.entity.fy_start_month }}</li> <!--[cite: 2] -->
+        <li>
+            <strong>Plan de Cuentas (CoA):</strong> 
+            {% if object.entity.get_coa_model_qs.exists %}
+                <span style="color: green; font-weight: bold;">Configurado ({{ object.entity.get_coa_model_qs.first.name }})</span>
+            {% else %}
+                <span style="color: red; font-weight: bold;">Sin Plan de Cuentas asignado</span>
+            {% endif %}
+        </li>
     </ul>
+
+    <!-- Formulario de carga del JSON: Se renderiza únicamente si NO posee un CoA -->
+    {% if not object.entity.get_coa_model_qs.exists %}
+        <div style="border: 1px solid #ccc; padding: 15px; margin-top: 15px; background-color: #f9f9f9;">
+            <h4>Cargar Plan de Cuentas Inicial (JSON)</h4>
+            <form action="{% url 'fiscal-profile-upload-coa' %}" method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <p>
+                    <label for="json_file"><strong>Seleccionar archivo .json:</strong></label><br>
+                    <input type="file" name="json_file" id="json_file" accept=".json" required>
+                </p>
+                <button type="submit">Subir e Importar Plan de Cuentas</button>
+            </form>
+        </div>
+    {% endif %}
+
 {% else %}
-    <p style="color: orange;">Este perfil fiscal no tiene una entidad contable asociada de forma directa.</p>
+    <p style="color: orange;">Este perfil fiscal no tiene una entidad contable asociada de forma directa.</p> <!--[cite: 2] -->
 {% endif %}
 
+<hr>
+
+<!-- Atributos de cuentas del modelo base FiscalProfile -->
+<h3>Cuentas Contables de Control Asignadas</h3>
+<ul>
+    <li>
+        <strong>Cuenta de Inventario (inventory_account):</strong> <!--[cite: 1] -->
+        {% if object.inventory_account %}{{ object.inventory_account }}{% else %}<em>No asignada</em>{% endif %}
+    </li>
+    <li>
+        <strong>Cuenta IVA Crédito Fiscal (vat_credit_account):</strong> <!--[cite: 1] -->
+        {% if object.vat_credit_account %}{{ object.vat_credit_account }}{% else %}<em>No asignada</em>{% endif %}
+    </li>
+    <li>
+        <strong>Cuenta Gasto IGTF (igtf_expense_account):</strong> <!--[cite: 1] -->
+        {% if object.igtf_expense_account %}{{ object.igtf_expense_account }}{% else %}<em>No asignada</em>{% endif %}
+    </li>
+    <li>
+        <strong>Cuenta Retención ISLR por Pagar (islr_payable_account):</strong> <!--[cite: 1] -->
+        {% if object.islr_payable_account %}{{ object.islr_payable_account }}{% else %}<em>No asignada</em>{% endif %}
+    </li>
+    <li>
+        <strong>Cuenta CXP Proveedores (cxp_suppliers_account):</strong> <!--[cite: 1] -->
+        {% if object.cxp_suppliers_account %}{{ object.cxp_suppliers_account }}{% else %}<em>No asignada</em>{% endif %}
+    </li>
+    <li>
+        <strong>Cuenta Retención IVA por Pagar (vat_withheld_payable_account):</strong> <!--[cite: 1] -->
+        {% if object.vat_withheld_payable_account %}{{ object.vat_withheld_payable_account }}{% else %}<em>No asignada</em>{% endif %}
+    </li>
+</ul>
+
 <br>
-<a href="{% url 'fiscal-profile-update' object.pk %}">Editar</a> | 
-<a href="{% url 'fiscal-profile-delete' object.pk %}">Eliminar</a> | 
-<a href="{% url 'fiscal-profile-list' %}">Volver a la lista</a>
+<a href="{% url 'fiscal-profile-update' object.pk %}">Editar</a> | <!--[cite: 2] -->
+<a href="{% url 'fiscal-profile-delete' object.pk %}">Eliminar</a> | <!--[cite: 2] -->
+<a href="{% url 'fiscal-profile-list' %}">Volver a la lista</a> <!--[cite: 2] -->

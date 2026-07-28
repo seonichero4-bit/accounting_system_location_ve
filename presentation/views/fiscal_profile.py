@@ -6,6 +6,8 @@ con vistas genéricas de Django para operaciones estándar de lectura y eliminac
 
 from typing import Any
 
+from django.core.exceptions import ValidationError
+from django.contrib.auth import get_user_model
 from django.db.models.query import QuerySet
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -15,35 +17,55 @@ from django.views.generic import DeleteView, DetailView, ListView
 
 from business_logic.services.fiscal_profile_service import FiscalProfileService
 from data_access.models.base import FiscalProfile
-from presentation.forms.fiscal_profile import EntityModelForm, FiscalProfileForm
+from presentation.forms.fiscal_profile import EntityModelForm, FiscalProfileForm, FiscalPeriodForm
 from ..mixins.fiscaltenantmixin import FiscalTenantMixin
 
+User = get_user_model()
+
+
+class AdminFiscalTenantMixin:
+    """Mixin para aislar y obtener los perfiles fiscales (tenants) 
+    pertenecientes al superusuario 'admin'."""
+
+    def get_admin_user(self) -> User | None:
+        """Obtiene el superusuario de Django con nombre de usuario 'admin'."""
+        return User.objects.filter(username="admin", is_superuser=True).first()
+
+    def get_queryset(self):
+        """Obtiene el queryset de perfiles fiscales (FiscalProfile) cuyas 
+        entidades están asociadas al superusuario 'admin' (entity.admin)."""
+        admin_user = self.get_admin_user()
+
+        if admin_user is None:
+            return FiscalProfile.objects.none()
+
+        return FiscalProfile.objects.filter(entity__admin=admin_user)
 
 class FiscalProfileCreateView(View):
-    """Vista basada en clases para la creación de un perfil fiscal y su entidad.
-
-    Coordina la validación conjunta de FiscalProfileForm y EntityModelForm,
-    delegando la persistencia transaccional al servicio correspondiente.
-    """
+    """Vista para la creación conjunta de FiscalProfile, EntityModel y FiscalPeriod."""
 
     template_name = "fiscal_profile_form.html"
 
     def get(self, request, *args, **kwargs):
-        """Muestra los formularios limpios requeridos para el alta del perfil."""
         profile_form = FiscalProfileForm()
         entity_form = EntityModelForm()
+        period_form = FiscalPeriodForm()
         return render(
             request, 
             self.template_name,
-            {"profile_form": profile_form, "entity_form": entity_form},
+            {
+                "profile_form": profile_form,
+                "entity_form": entity_form,
+                "period_form": period_form,
+            },
         )
 
     def post(self, request, *args, **kwargs):
-        """Procesa y valida los datos de ambos formularios para crear el perfil."""
         profile_form = FiscalProfileForm(request.POST)
         entity_form = EntityModelForm(request.POST)
+        period_form = FiscalPeriodForm(request.POST)
 
-        if profile_form.is_valid() and entity_form.is_valid():
+        if profile_form.is_valid() and entity_form.is_valid() and period_form.is_valid():
             service = FiscalProfileService(admin_user=request.user)
             try:
                 service.create_fiscal_profile(
@@ -52,29 +74,39 @@ class FiscalProfileCreateView(View):
                     fy_start_month=entity_form.cleaned_data["fy_start_month"],
                     rif=profile_form.cleaned_data["rif"],
                     taxpayer_type=profile_form.cleaned_data["taxpayer_type"],
+                    start_period=period_form.cleaned_data.get("start_period"),
                 )
                 return redirect("fiscal-profile-list")
-            except ValueError as error:
-                profile_form.add_error(None, str(error))
+            except (ValueError, ValidationError) as error:
+                if hasattr(error, "message_dict"):
+                    for field, errors in error.message_dict.items():
+                        for err in errors:
+                            if field in profile_form.fields:
+                                profile_form.add_error(field, err)
+                            elif field in period_form.fields:
+                                period_form.add_error(field, err)
+                            else:
+                                profile_form.add_error(None, err)
+                else:
+                    profile_form.add_error(None, str(error))
 
         return render(
             request,
             self.template_name,
-            {"profile_form": profile_form, "entity_form": entity_form},
+            {
+                "profile_form": profile_form,
+                "entity_form": entity_form,
+                "period_form": period_form,
+            },
         )
 
 
 class FiscalProfileUpdateView(View):
-    """Vista basada en clases para la edición de un perfil fiscal existente.
-
-    Extrae el perfil por medio de su clave primaria (pk) y pre-pobla
-    los formularios con los datos actuales del perfil y su entidad relacionada.
-    """
+    """Vista para la actualización conjunta de FiscalProfile, EntityModel y FiscalPeriod."""
 
     template_name = "fiscal_profile_form.html"
 
     def get(self, request, pk, *args, **kwargs):
-        """Pre-pobla y renderiza los formularios con los datos del registro."""
         fiscal_profile = get_object_or_404(FiscalProfile, pk=pk)
         profile_form = FiscalProfileForm(instance=fiscal_profile)
 
@@ -85,6 +117,7 @@ class FiscalProfileUpdateView(View):
                 "fy_start_month": fiscal_profile.entity.fy_start_month,
             }
         entity_form = EntityModelForm(instance=fiscal_profile.entity, initial=entity_initial)
+        period_form = FiscalPeriodForm(instance=fiscal_profile.initial_fiscal_period)
 
         return render(
             request,
@@ -92,31 +125,42 @@ class FiscalProfileUpdateView(View):
             {
                 "profile_form": profile_form,
                 "entity_form": entity_form,
+                "period_form": period_form,
                 "fiscal_profile": fiscal_profile,
             },
         )
 
     def post(self, request, pk, *args, **kwargs):
-        """Valida y ejecuta los cambios atómicos sobre el perfil fiscal asignado."""
         fiscal_profile = get_object_or_404(FiscalProfile, pk=pk)
         profile_form = FiscalProfileForm(request.POST, instance=fiscal_profile)
         entity_form = EntityModelForm(request.POST, instance=fiscal_profile.entity)
+        period_form = FiscalPeriodForm(request.POST, instance=fiscal_profile.initial_fiscal_period)
 
-        if profile_form.is_valid() and entity_form.is_valid():
+        if profile_form.is_valid() and entity_form.is_valid() and period_form.is_valid():
             service = FiscalProfileService(admin_user=request.user)
             try:
                 service.update_fiscal_profile(
-                        fiscal_profile=fiscal_profile,
-                        entity_name=entity_form.cleaned_data["name"],
-                        use_accrual_method=entity_form.cleaned_data["use_accrual_method"],
-                        fy_start_month=entity_form.cleaned_data["fy_start_month"],
-                        rif=profile_form.cleaned_data["rif"],
-                        taxpayer_type=profile_form.cleaned_data["taxpayer_type"],
+                    fiscal_profile=fiscal_profile,
+                    entity_name=entity_form.cleaned_data["name"],
+                    use_accrual_method=entity_form.cleaned_data["use_accrual_method"],
+                    fy_start_month=entity_form.cleaned_data["fy_start_month"],
+                    rif=profile_form.cleaned_data["rif"],
+                    taxpayer_type=profile_form.cleaned_data["taxpayer_type"],
+                    start_period=period_form.cleaned_data.get("start_period"),
                 )
-    
                 return redirect("fiscal-profile-detail", pk=fiscal_profile.pk)
-            except ValueError as error:
-                profile_form.add_error(None, str(error))
+            except (ValueError, ValidationError) as error:
+                if hasattr(error, "message_dict"):
+                    for field, errors in error.message_dict.items():
+                        for err in errors:
+                            if field in profile_form.fields:
+                                profile_form.add_error(field, err)
+                            elif field in period_form.fields:
+                                period_form.add_error(field, err)
+                            else:
+                                profile_form.add_error(None, err)
+                else:
+                    profile_form.add_error(None, str(error))
 
         return render(
             request,
@@ -124,12 +168,12 @@ class FiscalProfileUpdateView(View):
             {
                 "profile_form": profile_form,
                 "entity_form": entity_form,
+                "period_form": period_form,
                 "fiscal_profile": fiscal_profile,
             },
         )
 
-
-class FiscalProfileListView(FiscalTenantMixin, ListView):
+class FiscalProfileListView(AdminFiscalTenantMixin, ListView):
     """Vista genérica para listar los Perfiles Fiscales asociados al usuario."""
 
     model = FiscalProfile
@@ -137,7 +181,7 @@ class FiscalProfileListView(FiscalTenantMixin, ListView):
     context_object_name = "object_list"
 
 
-class FiscalProfileDetailView(FiscalTenantMixin, DetailView):
+class FiscalProfileDetailView(AdminFiscalTenantMixin, DetailView):
     """Vista genérica para exponer el desglose técnico de un Perfil Fiscal."""
 
     model = FiscalProfile
@@ -146,7 +190,7 @@ class FiscalProfileDetailView(FiscalTenantMixin, DetailView):
     
 
 
-class FiscalProfileDeleteView(FiscalTenantMixin, DeleteView):
+class FiscalProfileDeleteView(AdminFiscalTenantMixin, DeleteView):
     """Vista genérica para la eliminación física de un Perfil Fiscal determinado."""
 
     model = FiscalProfile

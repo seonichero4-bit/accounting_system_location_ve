@@ -1,9 +1,9 @@
 <h1>Eliminar Perfil Fiscal</h1>
 
-<p>¿Estás seguro de que deseas eliminar permanentemente el perfil fiscal <strong>{{ object.name }}</strong> (Código: {{ object.code }}) y todos sus registros asociados?</p>
+<p>¿Estás seguro de que deseas eliminar permanentemente el perfil fiscal <strong>{{ object.name }}</strong> (Código: {{ object.pk }}) y todos sus registros asociados?</p>
 
 <form method="post">
     {% csrf_token %}
     <button type="submit" style="color: red;">Sí, confirmar eliminación</button>
-    <a href="{% url 'fiscal-profile-detail' object.code %}">Cancelar</a>
+    <a href="{% url 'fiscal-profile-detail' object.pk %}">Cancelar</a>
 </form>

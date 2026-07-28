@@ -20,9 +20,9 @@
                 <td>{{ profile.rif }}</td>
                 <td>{{ profile.get_taxpayer_type_display }}</td>
                 <td>
-                    <a href="{% url 'fiscal-profile-detail' profile.code %}">Ver</a> | 
-                    <a href="{% url 'fiscal-profile-update' profile.code %}">Editar</a> | 
-                    <a href="{% url 'fiscal-profile-delete' profile.code %}">Eliminar</a>
+                    <a href="{% url 'fiscal-profile-detail' profile.pk %}">Ver</a> | 
+                    <a href="{% url 'fiscal-profile-update' profile.pk %}">Editar</a> | 
+                    <a href="{% url 'fiscal-profile-delete' profile.pk %}">Eliminar</a>
                 </td>
             </tr>
         {% empty %}
