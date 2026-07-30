@@ -9,6 +9,7 @@ from presentation.views import vat_withholding
 from presentation.views import islr_withholding
 from presentation.views import processfiscalbatch
 from presentation.views import uploadchartofaccounts
+from presentation.views import selectfiscalprofile
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -16,6 +17,9 @@ urlpatterns = [
     path('ledger/', include('django_ledger.urls')),
 
     path("fiscal-profiles/upload-coa/", uploadchartofaccounts.UploadChartOfAccountsView.as_view(), name="fiscal-profile-upload-coa"),
+
+    #URLS seleccion FiscalProfile y FiscalPeriod
+    path('select-fiscalprofile/', selectfiscalprofile.SelectFiscalProfileView.as_view(), name='select_fiscal_profile'),
 
     # URLS login y Logout
     path('login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),

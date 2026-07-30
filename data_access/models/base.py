@@ -4,6 +4,8 @@ Define el perfil fiscal asociado a las entidades de contabilidad de Django Ledge
 y proporciona un modelo abstracto para imponer un aislamiento estricto de datos
 por cada inquilino (tenant) sobre el backend de PostgreSQL.
 """
+
+import calendar
 from typing import Optional, Any
 
 from django_ledger.models import EntityModel, LedgerModel, AccountModel
@@ -277,6 +279,33 @@ class FiscalProfile(models.Model):
                 if self.initial_fiscal_period_id != original.initial_fiscal_period_id:
                     raise ValidationError(
                         {"initial_fiscal_period": "No se puede modificar el periodo fiscal de inicio cuando su estatus es 'procesado'."}
+                    )
+
+       # Validar tipo de contribuyente vs. frecuencia de periodo fiscal
+        if self.initial_fiscal_period and self.initial_fiscal_period.start_period:
+            start_date = self.initial_fiscal_period.start_period
+            _, last_day = calendar.monthrange(start_date.year, start_date.month)
+            day = start_date.day
+
+            if self.taxpayer_type == self.TaxpayerType.SPECIAL:
+                if day not in (15, last_day):
+                    raise ValidationError(
+                        {
+                            "initial_fiscal_period": (
+                                "Los contribuyentes de tipo Especial deben manejar periodos fiscales quincenales "
+                                "(fecha de inicio el día 15 o a final de mes)."
+                            )
+                        }
+                    )
+            elif self.taxpayer_type in (self.TaxpayerType.ORDINARY, self.TaxpayerType.FORMAL):
+                if day != 1:
+                    raise ValidationError(
+                        {
+                            "initial_fiscal_period": (
+                                "Los contribuyentes de tipo Ordinario y Formal deben manejar periodos fiscales mensuales "
+                                "(fecha de inicio el día 01 del mes)."
+                            )
+                        }
                     )
 
         super().save(*args, **kwargs)

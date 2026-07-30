@@ -1,0 +1,28 @@
+{% block content %}
+<div class="container mt-5" style="max-width: 500px;">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Seleccionar Perfil Fiscal</h4>
+        </div>
+        <div class="card-body">
+            <form method="post" novalidate>
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="{{ form.fiscal_profile.id_for_label }}" class="form-label">
+                        {{ form.fiscal_profile.label }}
+                    </label>
+                    {{ form.fiscal_profile }}
+                    {% if form.fiscal_profile.errors %}
+                        <div class="text-danger small mt-1">
+                            {{ form.fiscal_profile.errors|striptags }}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary">Establecer Activo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

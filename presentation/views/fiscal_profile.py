@@ -41,6 +41,7 @@ class AdminFiscalTenantMixin:
 
         return FiscalProfile.objects.filter(entity__admin=admin_user)
 
+
 class FiscalProfileCreateView(View):
     """Vista para la creación conjunta de FiscalProfile, EntityModel y FiscalPeriod."""
 
@@ -63,7 +64,10 @@ class FiscalProfileCreateView(View):
     def post(self, request, *args, **kwargs):
         profile_form = FiscalProfileForm(request.POST)
         entity_form = EntityModelForm(request.POST)
-        period_form = FiscalPeriodForm(request.POST)
+
+        # Se recupera taxpayer_type desde los datos recibidos en el POST
+        taxpayer_type = request.POST.get("taxpayer_type")
+        period_form = FiscalPeriodForm(request.POST, taxpayer_type=taxpayer_type)
 
         if profile_form.is_valid() and entity_form.is_valid() and period_form.is_valid():
             service = FiscalProfileService(admin_user=request.user)
@@ -117,7 +121,12 @@ class FiscalProfileUpdateView(View):
                 "fy_start_month": fiscal_profile.entity.fy_start_month,
             }
         entity_form = EntityModelForm(instance=fiscal_profile.entity, initial=entity_initial)
-        period_form = FiscalPeriodForm(instance=fiscal_profile.initial_fiscal_period)
+
+        # Se pasa taxpayer_type guardado en la instancia de FiscalProfile
+        period_form = FiscalPeriodForm(
+            instance=fiscal_profile.initial_fiscal_period,
+            taxpayer_type=fiscal_profile.taxpayer_type,
+        )
 
         return render(
             request,
@@ -134,7 +143,15 @@ class FiscalProfileUpdateView(View):
         fiscal_profile = get_object_or_404(FiscalProfile, pk=pk)
         profile_form = FiscalProfileForm(request.POST, instance=fiscal_profile)
         entity_form = EntityModelForm(request.POST, instance=fiscal_profile.entity)
-        period_form = FiscalPeriodForm(request.POST, instance=fiscal_profile.initial_fiscal_period)
+
+        # Se extrae taxpayer_type del POST o se mantiene el existente
+        taxpayer_type = request.POST.get("taxpayer_type") or fiscal_profile.taxpayer_type
+
+        period_form = FiscalPeriodForm(
+            request.POST,
+            instance=fiscal_profile.initial_fiscal_period,
+            taxpayer_type=taxpayer_type,
+        )
 
         if profile_form.is_valid() and entity_form.is_valid() and period_form.is_valid():
             service = FiscalProfileService(admin_user=request.user)
@@ -173,6 +190,7 @@ class FiscalProfileUpdateView(View):
             },
         )
 
+
 class FiscalProfileListView(AdminFiscalTenantMixin, ListView):
     """Vista genérica para listar los Perfiles Fiscales asociados al usuario."""
 
@@ -187,7 +205,6 @@ class FiscalProfileDetailView(AdminFiscalTenantMixin, DetailView):
     model = FiscalProfile
     template_name = "fiscal_profile_detail.html"
     context_object_name = "object"
-    
 
 
 class FiscalProfileDeleteView(AdminFiscalTenantMixin, DeleteView):
@@ -196,4 +213,3 @@ class FiscalProfileDeleteView(AdminFiscalTenantMixin, DeleteView):
     model = FiscalProfile
     template_name = "fiscal_profile_confirm_delete.html"
     success_url = reverse_lazy("fiscal-profile-list")
-   
