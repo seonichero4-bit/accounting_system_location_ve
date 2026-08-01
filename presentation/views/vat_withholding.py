@@ -10,37 +10,9 @@ from data_access.models.purchase_book import PurchaseLedgerInvoice
 from data_access.models.vat_withholding import VatWithholdingCertificate
 from data_access.models.base import FiscalProfile 
 from presentation.forms.vat_withholding import VatWithholdingCertificateForm
+from presentation.mixins.requestscopedquerysetmixin import RequestScopedQuerySetMixin
 
-
-class FiscalTenantMixin:
-    """Mixin base para inyectar y aislar el perfil fiscal activo en las vistas."""
-
-    def get_fiscal_profile(self) -> FiscalProfile:
-        """Obtiene el perfil fiscal del inquilino actual.
-        
-        Nota: En producción, esto debe derivarse de `self.request.user.entity.fiscal_profile`
-        o del middleware activo. Por simplicidad del CRUD, retorna el primero disponible.
-        """
-        return FiscalProfile.objects.first()
-
-    def get_queryset(self) -> QuerySet:
-        """Aísla las consultas al perfil fiscal activo y filtra por factura si aplica."""
-        current_fiscalprofile = self.get_fiscal_profile()
-
-        if current_fiscalprofile is None:
-            return VatWithholdingCertificate.objects.none()
-
-        queryset = VatWithholdingCertificate.objects.filter(
-            fiscal_profile=current_fiscalprofile
-        )
-        
-        invoice_pk = self.kwargs.get("invoice_pk")
-        if invoice_pk:
-            return queryset.filter(purchase_invoice_id=invoice_pk)
-        return queryset
-
-
-class VatWithholdingCertificateListView(FiscalTenantMixin, ListView):
+class VatWithholdingCertificateListView(RequestScopedQuerySetMixin, ListView):
     """Vista genérica para listar los Comprobantes de Retención de IVA."""
 
     model = VatWithholdingCertificate
@@ -58,7 +30,7 @@ class VatWithholdingCertificateListView(FiscalTenantMixin, ListView):
         return context
 
 
-class VatWithholdingCertificateDetailView(FiscalTenantMixin, DetailView):
+class VatWithholdingCertificateDetailView(RequestScopedQuerySetMixin, DetailView):
     """Vista genérica para visualizar los detalles de un comprobante de retención."""
 
     model = VatWithholdingCertificate
@@ -66,7 +38,7 @@ class VatWithholdingCertificateDetailView(FiscalTenantMixin, DetailView):
     context_object_name = "certificate"
 
 
-class VatWithholdingCertificateCreateView(FiscalTenantMixin, CreateView):
+class VatWithholdingCertificateCreateView(RequestScopedQuerySetMixin, CreateView):
     """Vista para la creación de comprobantes vinculados a una factura obligatoria."""
 
     model = VatWithholdingCertificate
@@ -84,7 +56,7 @@ class VatWithholdingCertificateCreateView(FiscalTenantMixin, CreateView):
         # Al pasar esto, el Form tomará esta instancia en lugar de crear una vacía
         kwargs["instance"] = VatWithholdingCertificate(
             purchase_invoice=purchase_invoice,
-            fiscal_profile=self.get_fiscal_profile()
+            fiscal_profile=self.request.user
         )
         return kwargs
 
@@ -93,7 +65,7 @@ class VatWithholdingCertificateCreateView(FiscalTenantMixin, CreateView):
         return reverse("vat-withholding-detail", kwargs={"pk": self.object.pk})
 
 
-class VatWithholdingCertificateUpdateView(FiscalTenantMixin, UpdateView):
+class VatWithholdingCertificateUpdateView(RequestScopedQuerySetMixin, UpdateView):
     """Vista para la modificación de comprobantes vinculados a una factura obligatoria."""
 
     model = VatWithholdingCertificate
@@ -105,7 +77,7 @@ class VatWithholdingCertificateUpdateView(FiscalTenantMixin, UpdateView):
         return reverse("vat-withholding-detail", kwargs={"pk": self.object.pk})
 
 
-class VatWithholdingCertificateDeleteView(FiscalTenantMixin, DeleteView):
+class VatWithholdingCertificateDeleteView(RequestScopedQuerySetMixin, DeleteView):
     """Vista genérica para la eliminación física de un comprobante preliminar."""
 
     model = VatWithholdingCertificate

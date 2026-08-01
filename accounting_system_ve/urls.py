@@ -10,6 +10,7 @@ from presentation.views import islr_withholding
 from presentation.views import processfiscalbatch
 from presentation.views import uploadchartofaccounts
 from presentation.views import selectfiscalprofile
+from presentation.views import selectfiscalperiod
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -20,7 +21,8 @@ urlpatterns = [
 
     #URLS seleccion FiscalProfile y FiscalPeriod
     path('select-fiscalprofile/', selectfiscalprofile.SelectFiscalProfileView.as_view(), name='select_fiscal_profile'),
-
+    path('select-period/', selectfiscalperiod.SelectFiscalPeriodView.as_view(), name='select_fiscal_period'), # uso solo desde redirect
+    
     # URLS login y Logout
     path('login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),

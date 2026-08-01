@@ -7,8 +7,7 @@ from presentation.forms.fiscalprofileselection import FiscalProfileSelectionForm
 class SelectFiscalProfileView(LoginRequiredMixin, FormView):
     template_name = 'fiscal_profile_select.html'
     form_class = FiscalProfileSelectionForm
-    success_url = reverse_lazy('dashboard')  # Ajustar a la ruta destino de tu aplicación
-
+    success_url = reverse_lazy('select_fiscal_period') 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user

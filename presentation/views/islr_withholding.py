@@ -21,36 +21,10 @@ from presentation.forms.islr_withholding import IslrWithholdingCertificateForm
 from data_access.models.base import FiscalProfile
 from data_access.models.islr_withholding import IslrWithholdingCertificate
 from data_access.models.purchase_book import PurchaseLedgerInvoice
+from ..mixins.requestscopedquerysetmixin import RequestScopedQuerySetMixin 
 
 
-class FiscalTenantMixin:
-    """Mixin base para inyectar y aislar el perfil fiscal activo en las vistas."""
-
-    def get_fiscal_profile(self) -> FiscalProfile:
-        """Obtiene el perfil fiscal del inquilino actual.
-
-        Nota: En producción, esto debe derivarse de `self.request.user.entity.fiscal_profile`
-        o del middleware activo. Por simplicidad del CRUD, retorna el primero disponible.
-        """
-        return FiscalProfile.objects.first()
-
-    def get_queryset(self) -> QuerySet:
-        """Aísla las consultas al perfil fiscal activo y filtra por factura si aplica."""
-        current_fiscalprofile = self.get_fiscal_profile()
-
-        if current_fiscalprofile is None:
-            return IslrWithholdingCertificate.objects.none()
-
-        queryset = IslrWithholdingCertificate.objects.filter(
-            fiscal_profile=current_fiscalprofile
-        )
-
-        invoice_pk = self.kwargs.get("invoice_pk")
-        if invoice_pk:
-            return queryset.filter(purchase_invoice_id=invoice_pk)
-        return queryset
-
-class IslrWithholdingCertificateListView(FiscalTenantMixin, ListView):
+class IslrWithholdingCertificateListView(RequestScopedQuerySetMixin, ListView):
     """Vista genérica para listar los comprobantes de retención de ISLR."""
 
     model = IslrWithholdingCertificate
@@ -58,7 +32,7 @@ class IslrWithholdingCertificateListView(FiscalTenantMixin, ListView):
     context_object_name = "certificates"
 
 
-class IslrWithholdingCertificateDetailView(FiscalTenantMixin, DetailView):
+class IslrWithholdingCertificateDetailView(RequestScopedQuerySetMixin, DetailView):
     """Vista genérica para visualizar el detalle de un comprobante."""
 
     model = IslrWithholdingCertificate
@@ -66,7 +40,7 @@ class IslrWithholdingCertificateDetailView(FiscalTenantMixin, DetailView):
     context_object_name = "certificate"
 
 
-class IslrWithholdingCertificateCreateView(FiscalTenantMixin, CreateView):
+class IslrWithholdingCertificateCreateView(RequestScopedQuerySetMixin, CreateView):
     """Vista contextual para la creación de comprobantes de retención de ISLR.
 
     Obliga el flujo desde una factura de compra específica provista en la URL.
@@ -87,39 +61,16 @@ class IslrWithholdingCertificateCreateView(FiscalTenantMixin, CreateView):
         # Al pasar esto, el Form tomará esta instancia en lugar de crear una vacía
         kwargs["instance"] = IslrWithholdingCertificate(
             purchase_invoice=purchase_invoice,
-            fiscal_profile=self.get_fiscal_profile()
+            fiscal_profile=self.request.fiscal_profile
         )
         return kwargs
-
-
-    # def form_valid(self, form: IslrWithholdingCertificateForm) -> HttpResponseRedirect:
-    #     """Asigna el perfil fiscal y la factura contextual antes del commit final."""
-    #     invoice_pk = self.kwargs.get("invoice_pk")
-    #     if not invoice_pk:
-    #         form.add_error(None, "La transacción requiere una factura de compra contextual.")
-    #         return self.form_invalid(form)
-
-    #     fiscal_profile = self.get_fiscal_profile()
-    #     try:
-    #         purchase_invoice = PurchaseLedgerInvoice.objects.get(
-    #             pk=invoice_pk, fiscal_profile=fiscal_profile
-    #         )
-    #     except PurchaseLedgerInvoice.DoesNotExist:
-    #         form.add_error(
-    #             None, "La factura indicada no existe o no pertenece a este perfil fiscal."
-    #         )
-    #         return self.form_invalid(form)
-
-    #     form.instance.fiscal_profile = fiscal_profile
-    #     form.instance.purchase_invoice = purchase_invoice
-    #     return super().form_valid(form)
 
     def get_success_url(self) -> str:
         """Define la ruta de redirección al detalle tras guardar exitosamente."""
         return reverse("islr-withholding-detail", kwargs={"pk": self.object.pk})
 
 
-class IslrWithholdingCertificateUpdateView(FiscalTenantMixin, UpdateView):
+class IslrWithholdingCertificateUpdateView(RequestScopedQuerySetMixin, UpdateView):
     """Vista contextual para la edición de comprobantes de retención de ISLR."""
 
     model = IslrWithholdingCertificate
@@ -131,7 +82,7 @@ class IslrWithholdingCertificateUpdateView(FiscalTenantMixin, UpdateView):
         return reverse("islr-withholding-detail", kwargs={"pk": self.object.pk})
 
 
-class IslrWithholdingCertificateDeleteView(FiscalTenantMixin, DeleteView):
+class IslrWithholdingCertificateDeleteView(RequestScopedQuerySetMixin, DeleteView):
     """Vista genérica para procesar la eliminación de un comprobante."""
 
     model = IslrWithholdingCertificate

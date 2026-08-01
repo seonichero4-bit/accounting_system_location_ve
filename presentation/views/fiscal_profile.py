@@ -18,29 +18,7 @@ from django.views.generic import DeleteView, DetailView, ListView
 from business_logic.services.fiscal_profile_service import FiscalProfileService
 from data_access.models.base import FiscalProfile
 from presentation.forms.fiscal_profile import EntityModelForm, FiscalProfileForm, FiscalPeriodForm
-from ..mixins.fiscaltenantmixin import FiscalTenantMixin
-
-User = get_user_model()
-
-
-class AdminFiscalTenantMixin:
-    """Mixin para aislar y obtener los perfiles fiscales (tenants) 
-    pertenecientes al superusuario 'admin'."""
-
-    def get_admin_user(self) -> User | None:
-        """Obtiene el superusuario de Django con nombre de usuario 'admin'."""
-        return User.objects.filter(username="admin", is_superuser=True).first()
-
-    def get_queryset(self):
-        """Obtiene el queryset de perfiles fiscales (FiscalProfile) cuyas 
-        entidades están asociadas al superusuario 'admin' (entity.admin)."""
-        admin_user = self.get_admin_user()
-
-        if admin_user is None:
-            return FiscalProfile.objects.none()
-
-        return FiscalProfile.objects.filter(entity__admin=admin_user)
-
+from ..mixins.requestscopedquerysetmixin import RequestScopedQuerySetMixin 
 
 class FiscalProfileCreateView(View):
     """Vista para la creación conjunta de FiscalProfile, EntityModel y FiscalPeriod."""
@@ -191,7 +169,7 @@ class FiscalProfileUpdateView(View):
         )
 
 
-class FiscalProfileListView(AdminFiscalTenantMixin, ListView):
+class FiscalProfileListView(RequestScopedQuerySetMixin, ListView):
     """Vista genérica para listar los Perfiles Fiscales asociados al usuario."""
 
     model = FiscalProfile
@@ -199,7 +177,7 @@ class FiscalProfileListView(AdminFiscalTenantMixin, ListView):
     context_object_name = "object_list"
 
 
-class FiscalProfileDetailView(AdminFiscalTenantMixin, DetailView):
+class FiscalProfileDetailView(RequestScopedQuerySetMixin, DetailView):
     """Vista genérica para exponer el desglose técnico de un Perfil Fiscal."""
 
     model = FiscalProfile
@@ -207,7 +185,7 @@ class FiscalProfileDetailView(AdminFiscalTenantMixin, DetailView):
     context_object_name = "object"
 
 
-class FiscalProfileDeleteView(AdminFiscalTenantMixin, DeleteView):
+class FiscalProfileDeleteView(RequestScopedQuerySetMixin, DeleteView):
     """Vista genérica para la eliminación física de un Perfil Fiscal determinado."""
 
     model = FiscalProfile

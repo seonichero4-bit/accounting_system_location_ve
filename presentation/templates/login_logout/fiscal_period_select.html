@@ -1,0 +1,34 @@
+{% block content %}
+<div class="container mt-5" style="max-width: 500px;">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Seleccionar Período Fiscal</h4>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-3">
+                Perfil Fiscal Activo: <strong>{{ request.fiscal_profile.name }}</strong> ({{ request.fiscal_profile.rif }})
+            </p>
+            <form method="post" novalidate>
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="{{ form.fiscal_period.id_for_label }}" class="form-label">
+                        {{ form.fiscal_period.label }}
+                    </label>
+                    {{ form.fiscal_period }}
+                    {% if form.fiscal_period.errors %}
+                        <div class="text-danger small mt-1">
+                            {{ form.fiscal_period.errors|striptags }}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary">Establecer Período Activo</button>
+                    <a href="{% url 'select_fiscal_profile' %}" class="btn btn-outline-secondary btn-sm">
+                        Cambiar Perfil Fiscal
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

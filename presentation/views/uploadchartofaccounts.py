@@ -4,15 +4,14 @@ from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.contrib import messages
 
-from presentation.mixins import FiscalTenantMixin  
 from business_logic.services.chartofaccountsImportservice import ChartOfAccountsImportService
 
 
-class UploadChartOfAccountsView(FiscalTenantMixin, View):
+class UploadChartOfAccountsView(View):
     """Vista para recibir, validar e importar el archivo JSON con el Plan de Cuentas."""
 
     def post(self, request, *args, **kwargs):
-        fiscal_profile = self.get_fiscal_profile()  #[cite: 3]
+        fiscal_profile = self.request.user 
 
         if not fiscal_profile:
             return JsonResponse({'error': 'No se encontró un perfil fiscal activo para el inquilino actual.'}, status=404)

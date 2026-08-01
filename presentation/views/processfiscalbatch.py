@@ -4,17 +4,16 @@ from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.core.exceptions import ValidationError
 
-from presentation.mixins import FiscalTenantMixin
 from business_logic.services.fiscalbatchprocessingservice import FiscalBatchProcessingService
 
-class ProcessFiscalBatchView(FiscalTenantMixin, FormView):
+class ProcessFiscalBatchView(FormView):
     """Vista para ejecutar el procesamiento en lote del Libro de Compras."""
     
     template_name = "purchase_book.html"
     success_url = reverse_lazy("purchase-invoice-list")
 
     def form_valid(self, form):
-        fiscal_profile = self.get_fiscal_profile()
+        fiscal_profile = self.request.fiscal_profile
         period = form.cleaned_data["application_month_year"]
 
         service = FiscalBatchProcessingService(
