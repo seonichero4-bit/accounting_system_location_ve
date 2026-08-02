@@ -11,7 +11,7 @@ class UploadChartOfAccountsView(View):
     """Vista para recibir, validar e importar el archivo JSON con el Plan de Cuentas."""
 
     def post(self, request, *args, **kwargs):
-        fiscal_profile = self.request.user 
+        fiscal_profile = self.request.fiscal_profile 
 
         if not fiscal_profile:
             return JsonResponse({'error': 'No se encontró un perfil fiscal activo para el inquilino actual.'}, status=404)
