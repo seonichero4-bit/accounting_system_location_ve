@@ -57,6 +57,11 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
     application_date = models.DateField(
         verbose_name="Fiscal Application Date",
     )
+    fiscal_period = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Fiscal Period(DD-MM-YYYY)",
+    )
     vat_withholding_percentage = models.PositiveSmallIntegerField(
         choices=VatWithholdingChoices.choices,
         default=VatWithholdingChoices.SETENTA_Y_CINCO,
@@ -176,6 +181,10 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
                 raise ValidationError(
                     "Este comprobante de retención ya ha sido procesado y es estrictamente de solo lectura."
                 )
+
+        # Asignación automática del período fiscal desde la factura de compra asociada
+        if hasattr(self, "purchase_invoice") and self.purchase_invoice:
+            self.fiscal_period = self.purchase_invoice.fiscal_period
 
         # Cálculo automático del monto retenido resguardando tipos Decimal
         if self.status != self.CertificateStatus.PROCESSED or self.pk is None:

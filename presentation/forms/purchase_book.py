@@ -56,9 +56,9 @@ class PurchaseLedgerInvoiceForm(forms.ModelForm):
             "total_purchase",
         ]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['invoice_control'].required = False
+    # def __init__(self, *args, **kwargs):
+    #     super().__init__(*args, **kwargs)
+    #     self.fields['invoice_control'].required = False
 
         widgets = {
             "date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),

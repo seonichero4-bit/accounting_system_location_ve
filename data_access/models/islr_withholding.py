@@ -51,6 +51,11 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
     application_date = models.DateField(
         verbose_name="Fiscal Application Date",
     )
+    fiscal_period = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Fiscal Period(DD-MM-YYYY)",
+    )
     islr_withheld_amount = models.DecimalField(
         max_digits=15,
         decimal_places=2,
@@ -428,6 +433,10 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
                       "y su ciclo fiscal se encuentra cerrado."),
                     code='immutable_record_processed'
                 )
+
+        # Asignación automática del período fiscal desde la factura de compra asociada
+        if hasattr(self, "purchase_invoice") and self.purchase_invoice:
+            self.fiscal_period = self.purchase_invoice.fiscal_period
 
         # Calculo automatico del atributo "islr_withheld_amount" y "subtracting"
         self.execute_withholding_routing()

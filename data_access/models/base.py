@@ -15,6 +15,7 @@ from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
 
 from data_access.models.fiscalperiod import FiscalPeriod
+from data_access.manager.requestscopedmanager import RequestScopedManager
 
 # Validador de formato oficial para el RIF venezolano (Capa de Aplicación)
 rif_format_validator = RegexValidator(
@@ -139,6 +140,8 @@ class FiscalProfile(models.Model):
         blank=True,
         help_text="Cuenta contable de pasivo fiscal para IVA Retenido por Enterar al SENIAT.",
     )
+
+    objects = RequestScopedManager()
 
     @classmethod
     def create_profile(

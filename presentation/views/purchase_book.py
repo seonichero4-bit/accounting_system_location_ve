@@ -22,10 +22,6 @@ from presentation.forms.purchase_book import PurchaseLedgerInvoiceForm
 from data_access.models.base import FiscalProfile
 from presentation.mixins.requestscopedquerysetmixin import RequestScopedQuerySetMixin
 
-
-    
-    
-
 class PurchaseLedgerInvoiceListView(RequestScopedQuerySetMixin, ListView):
     """Vista genérica para listar las facturas del Libro de Compras."""
 
@@ -53,7 +49,8 @@ class PurchaseLedgerInvoiceCreateView(RequestScopedQuerySetMixin, CreateView):
     def get_form(self, form_class=None):
         """Inyecta de forma temprana el perfil fiscal activo en la instancia del formulario."""
         form = super().get_form(form_class)
-        form.instance.fiscal_profile = self.request.user
+        form.instance.fiscal_profile = self.request.fiscal_profile
+        form.instance.fiscal_period = self.request.fiscal_period
         return form
 
 class PurchaseLedgerInvoiceUpdateView(RequestScopedQuerySetMixin, UpdateView):

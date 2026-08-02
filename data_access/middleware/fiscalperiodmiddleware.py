@@ -15,11 +15,19 @@ def get_fiscal_period(request) -> FiscalPeriod | None:
                 except FiscalPeriod.DoesNotExist:
                     request.session.pop('active_fiscal_period_id', None)
 
-        request._cached_fiscal_period = period
+        # Validación del valor del periodo fiscal antes de retornar
+        if period:
+            if period.subsequent_period:
+                selected_period_value = period.subsequent_period
+            else:
+                selected_period_value = period.start_period
+
+        request._cached_fiscal_period = selected_period_value
+
     return request._cached_fiscal_period
 
 
-class FiscalProfileMiddleware:
+class FiscalPeriodMiddleware:
     """Middleware para inyectar `request.fiscal_profile` y `request.fiscal_period` en cada petición."""
 
     def __init__(self, get_response):

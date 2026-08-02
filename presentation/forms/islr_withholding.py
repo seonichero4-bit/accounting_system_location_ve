@@ -15,4 +15,15 @@ class IslrWithholdingCertificateForm(forms.ModelForm):
         """Metadatos de configuración del formulario."""
 
         model = IslrWithholdingCertificate
-        fields = ["document_number", "application_date", "concepts_payment_pnnr", "concepts_payment_pnr", "concepts_payment_pjnd", "concepts_payment_pjd"]
+        fields = ["document_number", 
+                  "application_date", 
+                  "concepts_payment_pnnr", 
+                  "concepts_payment_pnr", 
+                  "concepts_payment_pjnd", 
+                  "concepts_payment_pjd"
+
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['fiscal_period'].required = False

@@ -16,7 +16,14 @@ class VatWithholdingCertificateForm(forms.ModelForm):
         """Configuración meta del formulario de retención."""
 
         model = VatWithholdingCertificate
-        fields = ["application_date", "vat_withholding_percentage", "document_number"]
+        fields = ["application_date", 
+                  "vat_withholding_percentage", 
+                  "document_number"
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['fiscal_period'].required = False
     
     def add_error(self, field, error):
         from django.core.exceptions import ValidationError

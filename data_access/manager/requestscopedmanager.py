@@ -21,16 +21,16 @@ class RequestScopedQuerySet(models.QuerySet):
             if req_fiscal_period:
                 filters['fiscal_period'] = req_fiscal_period
             
-            qs = qs.filter(**filters)
+            qs = self.filter(**filters)
 
         # 2. Si el modelo posee 'fiscal_profile' pero NO 'fiscal_period'
         elif hasattr(self.model, 'fiscal_profile'):
             if req_fiscal_profile:
-                qs = qs.filter(fiscal_profile=req_fiscal_profile)
+                qs = self.filter(fiscal_profile=req_fiscal_profile)
 
         # 3. Caso para el modelo 'FiscalProfile' (sin los atributos anteriores)
         elif self.model.__name__ == 'FiscalProfile':
-            qs = qs.filter(entity__admin=request.user)
+            qs = self.filter(entity__admin=request.user)
 
         return qs
 

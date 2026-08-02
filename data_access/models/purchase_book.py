@@ -115,6 +115,11 @@ class PurchaseLedgerInvoice(FiscalModuleAbstractModel):
         max_length=7,
         verbose_name="Application Month and Year (MM-YYYY)",
     )
+    fiscal_period = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Fiscal Period(DD-MM-YYYY)",
+    )
 
     # Controles Operativos e Importación
     purchase_type = models.CharField(

@@ -44,7 +44,8 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    'data_access.middleware.fiscalprofilemiddleware.FiscalProfileMiddleware',
+    "data_access.middleware.fiscalprofilemiddleware.FiscalProfileMiddleware",
+    "data_access.middleware.fiscalperiodmiddleware.FiscalPeriodMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
