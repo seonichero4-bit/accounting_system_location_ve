@@ -26,6 +26,13 @@ class PurchaseLedgerInvoice(FiscalModuleAbstractModel):
     fechas de aplicación impositiva y los agregados financieros de una transacción
     de compra[cite: 1].
     """
+    class TransactionType(models.TextChoices):
+        """Opciones de porcentaje de IVA según la legislación venezolana."""
+        REGISTRO = "01 Registro"
+        COMPLEMENTO = "02 Complemento"
+        ANULACION = "03 Anulación"
+        AJUSTE = "04 Ajuste"
+
     class InvoiceCategory(models.TextChoices):
         """Opciones de porcentaje de IVA según la legislación venezolana[cite: 1]."""
         INVENTARIO = "INVENTARIO", "Adquisicion de mercancia para el inventario"
@@ -80,6 +87,12 @@ class PurchaseLedgerInvoice(FiscalModuleAbstractModel):
     #     blank=True,
     #     verbose_name="Automatic Sequence Code",
     # )
+    transaction_type = models.CharField(
+        max_length=20,
+        choices=TransactionType.choices,
+        default=TransactionType.REGISTRO,
+        verbose_name="transaction type",
+    )
     document_type = models.CharField(
         max_length=20,
         choices=DocumentType.choices,
@@ -148,6 +161,7 @@ class PurchaseLedgerInvoice(FiscalModuleAbstractModel):
         related_name="credit_debit_notes",
         verbose_name="Affected Invoice (Credit/Debit Notes)",
     )
+    # Amount
     exempt_amount = models.DecimalField(
         validators=[MinValueValidator(Decimal('0.00'))],
         max_digits=15,
@@ -155,6 +169,28 @@ class PurchaseLedgerInvoice(FiscalModuleAbstractModel):
         default=Decimal("0.00"),
         verbose_name="Exempt Amount",
     )
+    amount_exonerated = models.DecimalField(
+        validators=[MinValueValidator(Decimal('0.00'))],
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name="Amount exonerated",
+    )
+    amount_not_subject = models.DecimalField(
+        validators=[MinValueValidator(Decimal('0.00'))],
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name="Amount not subject",
+    )
+    amount_without_right_to_credit = models.DecimalField(
+        validators=[MinValueValidator(Decimal('0.00'))],
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name="Amount without right to credit",
+    )
+    #subtotales
     taxable_base = models.DecimalField(
         validators=[MinValueValidator(Decimal('0.00'))],
         max_digits=15,

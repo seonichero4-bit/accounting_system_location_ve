@@ -11,12 +11,19 @@ from presentation.views import processfiscalbatch
 from presentation.views import uploadchartofaccounts
 from presentation.views import selectfiscalprofile
 from presentation.views import selectfiscalperiod
+from presentation.views import dl_account_model_view
+from presentation.views import purchaseledgerdownloadview
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     # Aquí irán tus rutas de django-ledger
     path('ledger/', include('django_ledger.urls')),
 
+    # URL Dowloader purchase_book
+    path("fiscal-profile/<int:profile_pk>/purchase-ledger/export/excel/", purchaseledgerdownloadview.PurchaseLedgerDownloadView.as_view(), name="purchase_ledger_download_excel",),
+
+    #URLS AccountModel
+    path('accounts/add/', dl_account_model_view.AccountCreateView.as_view(), name='account-create'),
     path("fiscal-profiles/upload-coa/", uploadchartofaccounts.UploadChartOfAccountsView.as_view(), name="fiscal-profile-upload-coa"),
 
     #URLS seleccion FiscalProfile y FiscalPeriod

@@ -60,6 +60,7 @@ TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [
+            BASE_DIR / 'presentation' / 'templates' / 'account_model',
             BASE_DIR / 'presentation' / 'templates' / 'login_logout',
             BASE_DIR / 'presentation' / 'templates' / 'islr_withholding',
             BASE_DIR / 'presentation' / 'templates' / 'vat_withholding',
@@ -134,3 +135,9 @@ USE_TZ = True
 STATIC_URL = "static/"
 
 DJANGO_LEDGER_USE_DEPRECATED_BEHAVIOR = False
+
+# Activar el sistema de internacionalización
+USE_I18N = True
+
+# Establecer el idioma principal a español
+LANGUAGE_CODE = 'es'  # o 'es-es', 'es-mx', 'es-co', etc.
