@@ -4,10 +4,10 @@ from django.shortcuts import get_object_or_404
 from django.core.exceptions import PermissionDenied
 
 # Asumiendo las importaciones correspondientes
-# from .services import PurchaseLedgerExcelBuilder
-# from data_access.models.purchase_book import PurchaseLedgerInvoice
-# from data_access.models.base import FiscalProfile
-# from data_access.mixins import RequestScopedQuerySetMixin
+from business_logic.services.purchaseledgerexcelbuilderservice import PurchaseLedgerExcelBuilder
+from data_access.models.purchase_book import PurchaseLedgerInvoice
+from data_access.models.base import FiscalProfile
+from presentation.mixins.requestscopedquerysetmixin import RequestScopedQuerySetMixin
 
 class PurchaseLedgerDownloadView(LoginRequiredMixin, RequestScopedQuerySetMixin, View):
     """

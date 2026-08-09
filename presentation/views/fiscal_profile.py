@@ -7,6 +7,7 @@ con vistas genéricas de Django para operaciones estándar de lectura y eliminac
 from typing import Any
 
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 from django.contrib.auth import get_user_model
 from django.db.models.query import QuerySet
 from django.http import HttpRequest, HttpResponse
@@ -20,13 +21,16 @@ from data_access.models.base import FiscalProfile
 from presentation.forms.fiscal_profile import EntityModelForm, FiscalProfileForm, FiscalPeriodForm
 from ..mixins.requestscopedquerysetmixin import RequestScopedQuerySetMixin 
 
+
 class FiscalProfileCreateView(View):
     """Vista para la creación conjunta de FiscalProfile, EntityModel y FiscalPeriod."""
 
     template_name = "fiscal_profile_form.html"
 
-    def get(self, request, *args, **kwargs):
-        profile_form = FiscalProfileForm()
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        """Procesa la petición GET y renderiza los formularios vacíos."""
+        # Se indica is_update=False para excluir los campos de configuración contable
+        profile_form = FiscalProfileForm(is_update=False)
         entity_form = EntityModelForm()
         period_form = FiscalPeriodForm()
         return render(
@@ -39,8 +43,10 @@ class FiscalProfileCreateView(View):
             },
         )
 
-    def post(self, request, *args, **kwargs):
-        profile_form = FiscalProfileForm(request.POST)
+    def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        """Procesa la petición POST, valida los datos y orquesta la creación."""
+        # Se indica is_update=False para que los campos contables no se validen ni procesen
+        profile_form = FiscalProfileForm(request.POST, is_update=False)
         entity_form = EntityModelForm(request.POST)
 
         # Se recupera taxpayer_type desde los datos recibidos en el POST
@@ -59,7 +65,7 @@ class FiscalProfileCreateView(View):
                     start_period=period_form.cleaned_data.get("start_period"),
                 )
                 return redirect("fiscal-profile-list")
-            except (ValueError, ValidationError) as error:
+            except ValidationError as error:
                 if hasattr(error, "message_dict"):
                     for field, errors in error.message_dict.items():
                         for err in errors:
@@ -71,6 +77,11 @@ class FiscalProfileCreateView(View):
                                 profile_form.add_error(None, err)
                 else:
                     profile_form.add_error(None, str(error))
+            except IntegrityError as error:
+                profile_form.add_error(
+                    None, 
+                    f"Error de integridad en la base de datos (restricción violada): {str(error)}"
+                )
 
         return render(
             request,
@@ -88,19 +99,21 @@ class FiscalProfileUpdateView(View):
 
     template_name = "fiscal_profile_form.html"
 
-    def get(self, request, pk, *args, **kwargs):
+    def get(self, request: HttpRequest, pk: int, *args: Any, **kwargs: Any) -> HttpResponse:
+        """Procesa la petición GET y renderiza los formularios con instancias preexistentes."""
         fiscal_profile = get_object_or_404(FiscalProfile, pk=pk)
-        profile_form = FiscalProfileForm(instance=fiscal_profile)
+        
+        # Se indica is_update=True para que se rendericen los campos de Django Ledger acotados al usuario
+        profile_form = FiscalProfileForm(instance=fiscal_profile, is_update=True)
 
-        entity_initial = {}
-        if fiscal_profile.entity:
-            entity_initial = {
-                "use_accrual_method": fiscal_profile.entity.use_accrual_method,
-                "fy_start_month": fiscal_profile.entity.fy_start_month,
-            }
-        entity_form = EntityModelForm(instance=fiscal_profile.entity, initial=entity_initial)
+        # entity_initial = {}
+        # if fiscal_profile.entity:
+        #     entity_initial = {
+        #         "use_accrual_method": fiscal_profile.entity.use_accrual_method,
+        #         "fy_start_month": fiscal_profile.entity.fy_start_month,
+        #     }
+        # entity_form = EntityModelForm(instance=fiscal_profile.entity, initial=entity_initial)
 
-        # Se pasa taxpayer_type guardado en la instancia de FiscalProfile
         period_form = FiscalPeriodForm(
             instance=fiscal_profile.initial_fiscal_period,
             taxpayer_type=fiscal_profile.taxpayer_type,
@@ -111,18 +124,19 @@ class FiscalProfileUpdateView(View):
             self.template_name,
             {
                 "profile_form": profile_form,
-                "entity_form": entity_form,
+                # "entity_form": entity_form,
                 "period_form": period_form,
                 "fiscal_profile": fiscal_profile,
             },
         )
 
-    def post(self, request, pk, *args, **kwargs):
+    def post(self, request: HttpRequest, pk: int, *args: Any, **kwargs: Any) -> HttpResponse:
+        """Procesa la petición POST, valida los datos y orquesta la actualización."""
         fiscal_profile = get_object_or_404(FiscalProfile, pk=pk)
-        profile_form = FiscalProfileForm(request.POST, instance=fiscal_profile)
-        entity_form = EntityModelForm(request.POST, instance=fiscal_profile.entity)
+        
+        # Se indica is_update=True para evaluar los campos de configuración de Django Ledger
+        profile_form = FiscalProfileForm(request.POST, instance=fiscal_profile, is_update=True)
 
-        # Se extrae taxpayer_type del POST o se mantiene el existente
         taxpayer_type = request.POST.get("taxpayer_type") or fiscal_profile.taxpayer_type
 
         period_form = FiscalPeriodForm(
@@ -131,20 +145,24 @@ class FiscalProfileUpdateView(View):
             taxpayer_type=taxpayer_type,
         )
 
-        if profile_form.is_valid() and entity_form.is_valid() and period_form.is_valid():
+        if profile_form.is_valid() and period_form.is_valid():
             service = FiscalProfileService(admin_user=request.user)
             try:
                 service.update_fiscal_profile(
                     fiscal_profile=fiscal_profile,
-                    entity_name=entity_form.cleaned_data["name"],
-                    use_accrual_method=entity_form.cleaned_data["use_accrual_method"],
-                    fy_start_month=entity_form.cleaned_data["fy_start_month"],
                     rif=profile_form.cleaned_data["rif"],
                     taxpayer_type=profile_form.cleaned_data["taxpayer_type"],
                     start_period=period_form.cleaned_data.get("start_period"),
+                    ledger=profile_form.cleaned_data.get("ledger"),
+                    inventory_account=profile_form.cleaned_data.get("inventory_account"),
+                    vat_credit_account=profile_form.cleaned_data.get("vat_credit_account"),
+                    igtf_expense_account=profile_form.cleaned_data.get("igtf_expense_account"),
+                    islr_payable_account=profile_form.cleaned_data.get("islr_payable_account"),
+                    cxp_suppliers_account=profile_form.cleaned_data.get("cxp_suppliers_account"),
+                    vat_withheld_payable_account=profile_form.cleaned_data.get("vat_withheld_payable_account"),
                 )
                 return redirect("fiscal-profile-detail", pk=fiscal_profile.pk)
-            except (ValueError, ValidationError) as error:
+            except ValidationError as error:
                 if hasattr(error, "message_dict"):
                     for field, errors in error.message_dict.items():
                         for err in errors:
@@ -156,13 +174,17 @@ class FiscalProfileUpdateView(View):
                                 profile_form.add_error(None, err)
                 else:
                     profile_form.add_error(None, str(error))
+            except IntegrityError as error:
+                profile_form.add_error(
+                    None, 
+                    f"Error de integridad en la base de datos (restricción violada): {str(error)}"
+                )
 
         return render(
             request,
             self.template_name,
             {
                 "profile_form": profile_form,
-                "entity_form": entity_form,
                 "period_form": period_form,
                 "fiscal_profile": fiscal_profile,
             },

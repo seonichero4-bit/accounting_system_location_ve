@@ -143,42 +143,6 @@ class FiscalProfile(models.Model):
 
     objects = RequestScopedManager()
 
-    @classmethod
-    def create_profile(
-        cls,
-        admin: 'User',
-        entity_name: str,
-        use_accrual_method: bool,
-        fy_start_month: int,
-        rif: str,
-        taxpayer_type: str,
-        start_period: FiscalPeriod,
-    ) -> "FiscalProfile":
-        """Crea el perfil fiscal, su entidad contable y el periodo inicial de forma atómica."""
-        with transaction.atomic():
-            entity = EntityModel.create_entity(
-                name=entity_name,
-                admin=admin,
-                use_accrual_method=use_accrual_method,
-                fy_start_month=fy_start_month
-            )
-
-            initial_period = None
-            if start_period:
-                initial_period = FiscalPeriod.objects.create(
-                    start_period=start_period,
-                    status=FiscalPeriod.Status.PRELIMINARY
-                )
-
-            profile = cls.objects.create(
-                entity=entity,
-                name=entity_name,
-                rif=rif,
-                taxpayer_type=taxpayer_type,
-                initial_fiscal_period=initial_period
-            )
-            return profile
-
     def get_supplier_by_rif(self, rif: str) -> Optional["LocalSupplier"]:
         """Obtiene un proveedor local asociado a esta instancia mediante su RIF.
 
@@ -197,27 +161,6 @@ class FiscalProfile(models.Model):
         except self.localsupplier_models.model.DoesNotExist:
             return None
        
-    def create_supplier(self, name: str, rif: str, **other_fields) -> "LocalSupplier":
-        """Crea y persiste un nuevo proveedor local asociado directamente a este perfil.
-
-        Aprovecha la relación inversa para asegurar la asignación implícita
-        de la clave foránea en la base de datos.
-
-        Args:
-            name (str): Nombre del proveedor local.
-            rif (str): Registro de Información Fiscal (RIF) del proveedor.
-            **other_fields (Any): Campos adicionales pasados al creador del modelo.
-
-        Returns:
-            LocalSupplier: La instancia del proveedor local recién creada.
-        """
-        return self.localsupplier_models.create(
-            fiscal_profile=self, 
-            name=name,
-            rif=rif,
-            **other_fields
-        )
-
     def clean(self) -> None:
         """Realiza el saneamiento, normalización activa y validaciones del modelo.
 
@@ -247,25 +190,6 @@ class FiscalProfile(models.Model):
         if self.entity_id:
             if not EntityModel.objects.filter(pk=self.entity_id).exists():
                 errors["entity"] = "La instancia seleccionada de EntityModel no existe formalmente en el sistema."
-
-        # 4. Validación opcional de Coherencia de Cuentas con el COA de la Entidad
-        if self.entity_id and hasattr(self.entity, "default_coa"):
-            coa = self.entity.default_coa
-            if coa:
-                accounts_to_check = {
-                    "inventory_account": self.inventory_account,
-                    "vat_credit_account": self.vat_credit_account,
-                    "igtf_expense_account": self.igtf_expense_account,
-                    "islr_payable_account": self.islr_payable_account,
-                    "cxp_suppliers_account": self.cxp_suppliers_account,
-                    "vat_withheld_payable_account": self.vat_withheld_payable_account,
-                }
-                for field_name, acc_obj in accounts_to_check.items():
-                    if acc_obj and acc_obj.coa_model_id != coa.pk:
-                        errors[field_name] = f"La cuenta {acc_obj} no pertenece al Plan de Cuentas (COA) de la entidad asociada."
-
-        if errors:
-            raise ValidationError(errors)
 
     def save(self, *args, **kwargs) -> None:
         """Restricción a nivel de modelo: impide cambiar el periodo fiscal de inicio

@@ -1,0 +1,4 @@
+TESTING [
+1. Modelo "FiscalProfile": falta implementar test unitarios a las validaciones y restriccion (clean() y save())
+
+]
