@@ -2,7 +2,7 @@
 
 Define PurchaseLedgerInvoiceForm utilizando la API nativa de Django ModelForm,
 asegurando el cumplimiento estricto de las validaciones cruzadas temporales,
-formatos de imprenta del SENIAT y consistencia aritmética decimal.
+formatos de imprenta del SENIAT y consistencia aritmética decimal[cite: 2].
 """
 
 import re
@@ -20,7 +20,7 @@ class PurchaseLedgerInvoiceForm(forms.ModelForm):
     """Formulario robusto mapeado al modelo de Facturas del Libro de Compras.
 
     Gestiona la captura limpia de datos fiscales e intercepta descuadres
-    aritméticos o caducidades de créditos fiscales antes de la persistencia.
+    aritméticos o caducidades de créditos fiscales antes de la persistencia[cite: 2].
     """
 
     igtf_base = forms.DecimalField(
@@ -33,7 +33,7 @@ class PurchaseLedgerInvoiceForm(forms.ModelForm):
     )
 
     class Meta:
-        """Configuraciones base y mapeo de campos del modelo."""
+        """Configuraciones base y mapeo de campos del modelo[cite: 2]."""
 
         model = PurchaseLedgerInvoice
         fields = [
@@ -43,11 +43,13 @@ class PurchaseLedgerInvoiceForm(forms.ModelForm):
             "document_type",
             "purchase_type",
             "date",
-            "application_month_year",
             "affected_invoice",
             "import_form_number",
             "import_file_number",
             "exempt_amount",
+            "amount_exonerated",
+            "amount_not_subject",
+            "amount_without_right_to_credit",
             "taxable_base",
             "vat_percentage",
             "vat_amount",
@@ -56,11 +58,6 @@ class PurchaseLedgerInvoiceForm(forms.ModelForm):
             "total_purchase",
         ]
 
-    # def __init__(self, *args, **kwargs):
-    #     super().__init__(*args, **kwargs)
-    #     self.fields['invoice_control'].required = False
-
         widgets = {
             "date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
-            "application_month_year": forms.TextInput(attrs={"placeholder": "MM-YYYY", "class": "form-control"}),
         }

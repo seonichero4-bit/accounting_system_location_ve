@@ -1,18 +1,22 @@
 {% block content %}
 <div class="container mt-4">
     <div class="row justify-content-center">
-        <div class="col-xl-10">
+        <div class="col-xl-12">
             <div class="card shadow-sm">
                 <div class="card-header bg-dark text-white">
                     <h4 class="mb-0">
-                        {% if form.instance.pk %}Modificar Factura Fiscal #{{ form.instance.code }}{% else %}Registrar Factura en Libro de Compras{% endif %}
+                        {% if form.instance.pk %}
+                            Modificar Factura Fiscal (ID: {{ form.instance.pk }})
+                        {% else %}
+                            Registrar Factura en Libro de Compras
+                        {% endif %}
                     </h4>
                 </div>
                 <div class="card-body">
                     
                     {% if form.non_field_errors %}
                     <div class="alert alert-danger shadow-sm border-start border-danger border-4" role="alert">
-                        <h5 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Error de Validación General / Descuadre</h5>
+                        <h5 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Error de Validación / Descuadre</h5>
                         <ul class="mb-0">
                             {% for error in form.non_field_errors %}
                             <li><strong>{{ error }}</strong></li>
@@ -26,16 +30,6 @@
                         
                         <h5 class="text-primary border-bottom pb-2 mb-3">1. Datos de Identificación y Control</h5>
                         <div class="row g-3 mb-4">
-                            <div class="col-md-4">
-                                <label class="form-label font-weight-bold">Perfil Fiscal (Tenant)</label>
-                                {{ form.fiscal_profile }}
-                                {% if form.fiscal_profile.errors %}<div class="text-danger small">{{ form.fiscal_profile.errors.0 }}</div>{% endif %}
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Código Control Interno</label>
-                                {{ form.code }}
-                                {% if form.code.errors %}<div class="text-danger small">{{ form.code.errors.0 }}</div>{% endif %}
-                            </div>
                             <div class="col-md-4">
                                 <label class="form-label">Proveedor</label>
                                 {{ form.supplier }}
@@ -52,39 +46,29 @@
                                 <div class="form-text text-muted small">Se auto-asignará "N/A" para importaciones.</div>
                                 {% if form.invoice_control.errors %}<div class="text-danger small">{{ form.invoice_control.errors.0 }}</div>{% endif %}
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Estatus Inicial</label>
-                                {{ form.status }}
-                                {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors.0 }}</div>{% endif %}
-                            </div>
                         </div>
 
                         <h5 class="text-primary border-bottom pb-2 mb-3">2. Clasificación Fiscal y Temporalidad</h5>
                         <div class="row g-3 mb-4">
-                            <div class="col-md-3">
+                            <div class="col-md-4">
                                 <label class="form-label">Tipo de Documento</label>
                                 {{ form.document_type }}
                                 {% if form.document_type.errors %}<div class="text-danger small">{{ form.document_type.errors.0 }}</div>{% endif %}
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-4">
                                 <label class="form-label">Tipo de Compra</label>
                                 {{ form.purchase_type }}
                                 {% if form.purchase_type.errors %}<div class="text-danger small">{{ form.purchase_type.errors.0 }}</div>{% endif %}
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-4">
                                 <label class="form-label">Fecha de Emisión</label>
                                 {{ form.date }}
                                 {% if form.date.errors %}<div class="text-danger small">{{ form.date.errors.0 }}</div>{% endif %}
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Período de Aplicación (MM-YYYY)</label>
-                                {{ form.application_month_year }}
-                                {% if form.application_month_year.errors %}<div class="text-danger small">{{ form.application_month_year.errors.0 }}</div>{% endif %}
-                            </div>
                         </div>
 
                         <h5 class="text-secondary border-bottom pb-2 mb-3">3. Campos Condicionales de Localización</h5>
-                        <div class="row g-3 mb-4 bg-light p-2 rounded border">
+                        <div class="row g-3 mb-4 bg-light p-3 rounded border">
                             <div class="col-md-4">
                                 <label class="form-label">Factura Afectada (Notas Crédito/Débito)</label>
                                 {{ form.affected_invoice }}
@@ -104,41 +88,63 @@
 
                         <h5 class="text-primary border-bottom pb-2 mb-3">4. Importes, Alícuotas y Cuadre Matemático</h5>
                         <div class="row g-3 mb-4">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label">Monto Exento</label>
                                 {{ form.exempt_amount }}
                                 {% if form.exempt_amount.errors %}<div class="text-danger small">{{ form.exempt_amount.errors.0 }}</div>{% endif %}
                             </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Monto Exonerado</label>
+                                {{ form.amount_exonerated }}
+                                {% if form.amount_exonerated.errors %}<div class="text-danger small">{{ form.amount_exonerated.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Monto No Sujeto</label>
+                                {{ form.amount_not_subject }}
+                                {% if form.amount_not_subject.errors %}<div class="text-danger small">{{ form.amount_not_subject.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Sin Derecho a Crédito</label>
+                                {{ form.amount_without_right_to_credit }}
+                                {% if form.amount_without_right_to_credit.errors %}<div class="text-danger small">{{ form.amount_without_right_to_credit.errors.0 }}</div>{% endif %}
+                            </div>
+                            
                             <div class="col-md-4">
-                                <label class="form-label">Base Imponible (IVA)</label>
+                                <label class="form-label mt-2">Base Imponible (IVA)</label>
                                 {{ form.taxable_base }}
                                 {% if form.taxable_base.errors %}<div class="text-danger small">{{ form.taxable_base.errors.0 }}</div>{% endif %}
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label">Alícuota General %</label>
-                                {{ form.general_rate }}
-                                {% if form.general_rate.errors %}<div class="text-danger small">{{ form.general_rate.errors.0 }}</div>{% endif %}
+                                <label class="form-label mt-2">Alícuota IVA %</label>
+                                {{ form.vat_percentage }}
+                                {% if form.vat_percentage.errors %}<div class="text-danger small">{{ form.vat_percentage.errors.0 }}</div>{% endif %}
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label">Monto Impuesto IVA</label>
+                                <label class="form-label mt-2">Monto Impuesto IVA</label>
                                 {{ form.vat_amount }}
                                 {% if form.vat_amount.errors %}<div class="text-danger small">{{ form.vat_amount.errors.0 }}</div>{% endif %}
                             </div>
+                            
                             <div class="col-md-4">
-                                <label class="form-label">Base Imponible IGTF</label>
+                                <label class="form-label mt-2">Base Imponible IGTF</label>
                                 {{ form.igtf_base }}
                                 {% if form.igtf_base.errors %}<div class="text-danger small">{{ form.igtf_base.errors.0 }}</div>{% endif %}
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label">Monto IGTF (3%)</label>
+                                <label class="form-label mt-2">Monto IGTF (3%)</label>
                                 {{ form.igtf_amount }}
                                 {% if form.igtf_amount.errors %}<div class="text-danger small">{{ form.igtf_amount.errors.0 }}</div>{% endif %}
                             </div>
-                            <div class="col-md-6 offset-md-6 bg-dark text-white p-3 rounded">
-                                <label class="form-label fs-5">Monto Total de la Compra (Gran Total)</label>
-                                {{ form.total_purchase }}
-                                <div class="form-text text-light small">Debe cumplir exactamente: Total = Exento + Base + IVA + IGTF</div>
-                                {% if form.total_purchase.errors %}<div class="text-danger small font-weight-bold">{{ form.total_purchase.errors.0 }}</div>{% endif %}
+                            
+                            <div class="col-md-12 mt-4">
+                                <div class="bg-dark text-white p-3 rounded">
+                                    <label class="form-label fs-5">Monto Total de la Compra (Gran Total)</label>
+                                    {{ form.total_purchase }}
+                                    <div class="form-text text-light small">
+                                        Debe cumplir: Total = Exento + Exonerado + No Sujeto + Sin Der. a Crédito + Base + IVA + IGTF
+                                    </div>
+                                    {% if form.total_purchase.errors %}<div class="text-danger small font-weight-bold">{{ form.total_purchase.errors.0 }}</div>{% endif %}
+                                </div>
                             </div>
                         </div>
 
@@ -158,7 +164,6 @@
 </div>
 
 <script>
-    // Inyección cosmética rápida de clases CSS de Bootstrap para los inputs nativos de Django
     document.querySelectorAll('input, select').forEach(function(el) {
         if (!el.classList.contains('form-control') && el.type !== 'checkbox') {
             el.classList.add('form-control');

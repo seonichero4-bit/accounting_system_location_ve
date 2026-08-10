@@ -2,13 +2,16 @@
 
 Utiliza las vistas genéricas de Django para procesar la creación, lectura,
 actualización y eliminación de registros del modelo PurchaseLedgerInvoice,
-garantizando el aislamiento multi-inquilino a través del usuario autenticado.
+garantizando el aislamiento multi-inquilino a través del usuario autenticado[cite: 1].
 """
 
 from typing import Any
+
 from django.db.models.query import QuerySet
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 from django.views.generic import (
     ListView,
     DetailView,
@@ -23,7 +26,7 @@ from data_access.models.base import FiscalProfile
 from presentation.mixins.requestscopedquerysetmixin import RequestScopedQuerySetMixin
 
 class PurchaseLedgerInvoiceListView(RequestScopedQuerySetMixin, ListView):
-    """Vista genérica para listar las facturas del Libro de Compras."""
+    """Vista genérica para listar las facturas del Libro de Compras[cite: 1]."""
 
     model = PurchaseLedgerInvoice
     template_name = "invoice_list.html"
@@ -31,7 +34,7 @@ class PurchaseLedgerInvoiceListView(RequestScopedQuerySetMixin, ListView):
 
 
 class PurchaseLedgerInvoiceDetailView(RequestScopedQuerySetMixin, DetailView):
-    """Vista genérica para exponer el desglose técnico de una factura específica."""
+    """Vista genérica para exponer el desglose técnico de una factura específica[cite: 1]."""
 
     model = PurchaseLedgerInvoice
     template_name = "invoice_detail.html"
@@ -39,7 +42,7 @@ class PurchaseLedgerInvoiceDetailView(RequestScopedQuerySetMixin, DetailView):
 
 
 class PurchaseLedgerInvoiceCreateView(RequestScopedQuerySetMixin, CreateView):
-    """Vista genérica para el alta y procesamiento de nuevas facturas fiscales."""
+    """Vista genérica para el alta y procesamiento de nuevas facturas fiscales[cite: 1]."""
 
     model = PurchaseLedgerInvoice
     form_class = PurchaseLedgerInvoiceForm
@@ -47,24 +50,59 @@ class PurchaseLedgerInvoiceCreateView(RequestScopedQuerySetMixin, CreateView):
     success_url = reverse_lazy("purchase-invoice-list")
 
     def get_form(self, form_class=None):
-        """Inyecta de forma temprana el perfil fiscal activo en la instancia del formulario."""
+        """Inyecta de forma temprana el perfil fiscal activo en la instancia del formulario[cite: 1]."""
         form = super().get_form(form_class)
         form.instance.fiscal_profile = self.request.fiscal_profile
         form.instance.fiscal_period = self.request.fiscal_period
         return form
 
+    def form_valid(self, form):
+        """Intercepta las excepciones del modelo o la BD al intentar guardar."""
+        try:
+            return super().form_valid(form)
+        except ValidationError as e:
+            form.add_error(None, e)
+            return self.form_invalid(form)
+        except IntegrityError as e:
+            form.add_error(None, f"Error de integridad en la base de datos (Restricción violada): {e}")
+            return self.form_invalid(form)
+
+
 class PurchaseLedgerInvoiceUpdateView(RequestScopedQuerySetMixin, UpdateView):
-    """Vista genérica para la edición de parámetros de una factura existente."""
+    """Vista genérica para la edición de parámetros de una factura existente[cite: 1]."""
 
     model = PurchaseLedgerInvoice
     form_class = PurchaseLedgerInvoiceForm
     template_name = "invoice_form.html"
     success_url = reverse_lazy("purchase-invoice-list")
 
+    def form_valid(self, form):
+        """Intercepta excepciones que bloquean la modificación (e.g. estado PROCESSED)[cite: 3]."""
+        try:
+            return super().form_valid(form)
+        except ValidationError as e:
+            form.add_error(None, e)
+            return self.form_invalid(form)
+        except IntegrityError as e:
+            form.add_error(None, f"Error de integridad en la base de datos: {e}")
+            return self.form_invalid(form)
+
 
 class PurchaseLedgerInvoiceDeleteView(RequestScopedQuerySetMixin, DeleteView):
-    """Vista genérica para la remoción o anulación física de una factura."""
+    """Vista genérica para la remoción o anulación física de una factura[cite: 1]."""
 
     model = PurchaseLedgerInvoice
     template_name = "invoice_confirm_delete.html"
     success_url = reverse_lazy("purchase-invoice-list")
+
+    def form_valid(self, form):
+        """Intercepta excepciones lanzadas por el método delete() del modelo[cite: 3]."""
+        try:
+            return super().form_valid(form)
+        except ValidationError as e:
+            # En Django >4.0 DeleteView utiliza FormMixin, permitiendo manejar errores en el form
+            form.add_error(None, e)
+            return self.form_invalid(form)
+        except IntegrityError as e:
+            form.add_error(None, f"No se puede eliminar el registro por integridad referencial: {e}")
+            return self.form_invalid(form)
