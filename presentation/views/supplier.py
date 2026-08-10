@@ -36,25 +36,20 @@ class LocalSupplierCreateView(RequestScopedQuerySetMixin, FormView):
     form_class = LocalSupplierForm 
     template_name = "localsupplier_form.html"
 
-    def form_valid(self, form: LocalSupplierForm) -> HttpResponse:
-        """Procesa el formulario validado utilizando la capa de servicios.
-
-        Instancia el servicio con el contexto del inquilino, delega la decisión 
-        transaccional (crear o recuperar), y gestiona únicamente la redirección.
-
-        Args:
-            form (ProveedorLocalForm): El formulario con los datos validados.
-
-        Returns:
-            HttpResponse: Redirección a la vista de detalle del proveedor procesado.
-        """
-        
-        service = SupplierService(fiscal_profile=self.request.user)
+class LocalSupplierCreateView(RequestScopedQuerySetMixin, CreateView):
     
-        supplier, created = service.register_or_retrieve_local(form.cleaned_data)
-        
-        return redirect("supplier-detail", pk=supplier.pk)
+    model = LocalSupplier
+    fields = ['name', 'rif', 'supplier_type', 'vat_withholding_percentage', 'ari_percentage']
+    template_name = "localsupplier_form.html"
 
+    def get_success_url(self) -> str:
+            return reverse("supplier-detail", kwargs={"pk": self.object.pk})
+
+    def form_valid(self, form) -> HttpResponse:
+
+        form.instance.fiscal_profile = self.request.fiscal_profile
+        return super().form_valid(form)
+    
 
 class LocalSupplierUpdateView(RequestScopedQuerySetMixin, UpdateView):
     """Vista para la actualización de datos de un proveedor."""

@@ -10,7 +10,6 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinLengthValidator, RegexValidator, MinValueValidator, MaxValueValidator
 from django.db import models
 
-from data_access.mixins.sequence import AutomaticCodeMixin
 from data_access.models.base import FiscalModuleAbstractModel, FiscalProfile
 
 # Validador de formato oficial para el RIF del proveedor (Capa de Modelado)
@@ -21,7 +20,7 @@ rif_format_regex = RegexValidator(
 )
 
 
-class LocalSupplier(AutomaticCodeMixin, FiscalModuleAbstractModel):
+class LocalSupplier(FiscalModuleAbstractModel):
     """Modelo para gestionar los metadatos y configuraciones fiscales de proveedores regionales.
 
     Hereda de FiscalModuleAbstractModel para heredar el aislamiento de inquilino
@@ -45,16 +44,6 @@ class LocalSupplier(AutomaticCodeMixin, FiscalModuleAbstractModel):
         SEVENTY_FIVE = Decimal('75.00'), "75%"
         ONE_HUNDRED = Decimal('100.00'), "100%"
 
-    # Configuración de propiedades para el AutomaticCodeMixin
-    PREFIX = AutomaticCodeMixin.CodePrefixes.PROVEEDORES
-    PADDING_LENGTH = 5
-
-    code = models.CharField(
-        max_length=50,
-        blank=True,
-        editable=False,
-        verbose_name="Automatic Sequence Code",
-    )
     name = models.CharField(
         max_length=255,
         blank=False,  
@@ -94,47 +83,6 @@ class LocalSupplier(AutomaticCodeMixin, FiscalModuleAbstractModel):
         verbose_name="ARI Percentage (ISLR)",
     )
 
-    class Meta:
-        """Configuración de metadatos del modelo LocalSupplier."""
-
-        verbose_name = "Local Supplier"
-        verbose_name_plural = "Local Suppliers"
-        
-        constraints = [
-            # 1. Restricciones de Unicidad (Aislamiento Multitenant)
-            models.UniqueConstraint(
-                fields=["fiscal_profile", "rif"],
-                name="%(app_label)s_%(class)s_unique_profile_rif"
-            ),
-            models.UniqueConstraint(
-                fields=["fiscal_profile", "code"],
-                name="%(app_label)s_%(class)s_unique_profile_code"
-            ),
-            
-            # 2. Restricciones de Integridad de Datos
-            models.CheckConstraint(
-                condition=~models.Q(name=""),
-                name="%(app_label)s_%(class)s_name_not_empty"
-            ),
-            models.CheckConstraint(
-                condition=~models.Q(rif=""),
-                name="%(app_label)s_%(class)s_rif_not_empty"
-            ),
-            # Restricciones añadidas por requerimiento impositivo
-            models.CheckConstraint(
-                condition=~models.Q(code=""),
-                name="%(app_label)s_%(class)s_code_not_empty"
-            ),
-            models.CheckConstraint(
-                condition=models.Q(ari_percentage__isnull=True) | models.Q(ari_percentage__gte=0, ari_percentage__lte=100),
-                name="%(app_label)s_%(class)s_ari_percentage_range"
-            ),
-        ]
-
-    def __str__(self) -> str:
-        """Retorna una representación legible del Proveedor Local."""
-        return f"{self.name} ({self.rif}) - {self.code}"
-
     def clean(self) -> None:
         """Ejecuta la sanitización de cadenas y las reglas de negocio condicionales del modelo.
 
@@ -170,7 +118,35 @@ class LocalSupplier(AutomaticCodeMixin, FiscalModuleAbstractModel):
         if errors:
             raise ValidationError(errors)
 
-    def save(self, *args: Any, **kwargs: Any) -> None:
-        """Persiste el proveedor ejecutando la generación automática de códigos."""
-        self.handle_automatic_code()
-        super().save(*args, **kwargs)
+    class Meta:
+        """Configuración de metadatos del modelo LocalSupplier."""
+    
+        verbose_name = "Local Supplier"
+        verbose_name_plural = "Local Suppliers"
+            
+        constraints = [
+            # 1. Restricciones de Unicidad (Aislamiento Multitenant)
+            models.UniqueConstraint(
+                fields=["fiscal_profile", "rif"],
+                name="%(app_label)s_%(class)s_unique_profile_rif"
+            ),
+            # 2. Restricciones de Integridad de Datos
+            models.CheckConstraint(
+                condition=~models.Q(name=""),
+                name="%(app_label)s_%(class)s_name_not_empty"
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(rif=""),
+                name="%(app_label)s_%(class)s_rif_not_empty"
+            ),
+            # Restricciones añadidas por requerimiento impositivo
+            models.CheckConstraint(
+                condition=models.Q(ari_percentage__isnull=True) | models.Q(ari_percentage__gte=0, ari_percentage__lte=100),
+                name="%(app_label)s_%(class)s_ari_percentage_range"
+            ),
+        ]
+    
+    def __str__(self) -> str:
+        """Retorna una representación legible del Proveedor Local."""
+        return f"{self.name} ({self.rif}) - {self.code}"
+    
