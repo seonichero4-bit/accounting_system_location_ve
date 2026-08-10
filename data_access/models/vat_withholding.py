@@ -11,10 +11,8 @@ from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
 
-#from data_access.mixins.sequence import TransactionalSequenceMixin
 from data_access.models.base import FiscalModuleAbstractModel
-from data_access.models.purchase_book import PurchaseLedgerInvoice#, PurchaseInvoiceLine
-
+from data_access.models.purchase_book import PurchaseLedgerInvoice
 
 class VatWithholdingCertificate(FiscalModuleAbstractModel):
     """Modelo legal para el registro de comprobantes de retención de IVA.
@@ -43,10 +41,6 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
 
         PRELIMINARY = "PRELIMINARY", "Preliminary"
         PROCESSED = "PROCESSED", "Processed"
-
-    # Configuración de propiedades para el TransactionalSequenceMixin
-    #PREFIX = "RETENCION_IVA"
-    #PADDING_LENGTH = 5
 
     purchase_invoice = models.OneToOneField(
         PurchaseLedgerInvoice,
@@ -84,36 +78,6 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
         default=CertificateStatus.PRELIMINARY,
         verbose_name="Invoice Status",
     )
-    
-
-    class Meta:
-        """Configuración de metadatos del modelo ComprobanteRetencionIVA."""
-
-        verbose_name = "VAT Withholding Certificate"
-        verbose_name_plural = "VAT Withholding Certificates"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["fiscal_profile", "document_number",],
-                name="unique_withholding_per_fiscal_profile",
-            ),
-            models.CheckConstraint(
-                condition=models.Q(application_date__lte=models.functions.Now()),
-                name="withholding_date_not_future",
-            ),
-            # models.CheckConstraint(
-            #     condition=models.Q(
-            #         vat_withholding_percentage__in=[
-            #             Decimal("75.00"),
-            #             Decimal("100.00"),
-            #         ]
-            #     ),
-            #     name="valid_withholding_percentages",
-            # ),
-        ]
-
-    def __str__(self) -> str:
-        """Retorna una representación legible del comprobante de IVA."""
-        return f"VAT Certificate No. {self.document_number}"
 
     def clean(self) -> None:
         """Valida las reglas de negocio cruzadas del comprobante de retención.
@@ -124,14 +88,12 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
         super().clean()
         errors: dict[str, str] = {}
 
-        # 1. Validación de purchase_invoice
-        if hasattr(self, "purchase_invoice") and self.purchase_invoice:
-            # Validación de estado de la factura (Procesado, Registrado o Posted)
-            invoice_status = getattr(self.purchase_invoice, "status", None)
-            if invoice_status != "PRELIMINARY":
-                errors["purchase_invoice"] = (
-                    "La factura asociada ya fue procesada."
-                )
+        # Validacion de status de la factura a retener
+        invoice_status = getattr(self.purchase_invoice, "status", None)
+        if invoice_status != "PRELIMINARY":
+            errors["purchase_invoice"] = (
+                "La factura asociada ya fue procesada."
+            )
 
         # Validación de monto de IVA mayor a cero
         if self.purchase_invoice:
@@ -141,23 +103,14 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
                      "El IVA de la factura asociada debe ser estrictamente mayor a cero."
                 )
 
-            # 2. Validación de application_date vs fecha de emisión de la factura de compra
-            invoice_date = getattr(self.purchase_invoice, "date", None)
-            if invoice_date and self.application_date < invoice_date:
-                errors["application_date"] = (
-                    "La fecha de aplicación no puede ser menor a la fecha de emisión de la factura asociada."
-                )
+        # Validación de application_date vs fecha de emisión de la factura de compra
+        invoice_date = getattr(self.purchase_invoice, "date", None)
+        if invoice_date and self.application_date < invoice_date:
+            errors["application_date"] = (
+                "La fecha de aplicación no puede ser menor a la fecha de emisión de la factura asociada."
+            )
 
-        # # Validación de período fiscal activo controlado por el sistema
-        # if self.application_month_year and hasattr(self, "fiscal_profile") and self.fiscal_profile:
-        #     if hasattr(self.fiscal_profile, "is_period_active") and not self.fiscal_profile.is_period_active(
-        #         self.application_month_year
-        #     ):
-        #         errors["application_month_year"] = (
-        #             "La fecha seleccionada no pertenece a un período fiscal activo en el sistema."
-        #         )
-
-        # 3. Validación de consistencia de document_number con application_date (YYYYMM)
+        # Validación de consistencia de document_number con application_date (YYYYMM)
         if self.document_number and self.application_date:
             expected_prefix = self.application_date.strftime("%Y%m")
             if self.document_number[:6] != expected_prefix:
@@ -175,6 +128,7 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
         Lanza un ValidationError si se intenta modificar un registro cuyo estado
         en la base de datos ya era PROCESSED.
         """
+        # Restriccinon de modificacion de rentencion ya fue procesada
         if self.pk is not None:
             original = VatWithholdingCertificate.objects.get(pk=self.pk)
             if original.status == self.CertificateStatus.PROCESSED:
@@ -199,17 +153,29 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
 
         Lanza un ValidationError si el estado actual es PROCESSED.
         """
+        # Restriccion de eliminacion de rentencion ya procesada
         if self.status == self.CertificateStatus.PROCESSED:
             raise ValidationError(
                 "Los comprobantes emitidos y procesados no pueden ser eliminados del sistema por razones legales."
             )
         return super().delete(*args, **kwargs)
     
-
-
-    # def save(self, *args: Any, **kwargs: Any) -> None:
-    #     """Persiste el comprobante ejecutando la pre-generación del número de documento."""
-    #     self.handle_transactional_code()
-    #     super().save(*args, **kwargs)
-
-
+    class Meta:
+        """Configuración de metadatos del modelo ComprobanteRetencionIVA."""
+    
+        verbose_name = "VAT Withholding Certificate"
+        verbose_name_plural = "VAT Withholding Certificates"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["fiscal_profile", "document_number",],
+                name="unique_withholding_per_fiscal_profile",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(application_date__lte=models.functions.Now()),
+                name="withholding_date_not_future",
+            ),
+        ]
+    
+    def __str__(self) -> str:
+        """Retorna una representación legible del comprobante de IVA."""
+        return f"VAT Certificate No. {self.document_number}"

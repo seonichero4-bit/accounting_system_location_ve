@@ -1,6 +1,7 @@
 """Módulo de vistas genéricas basadas en clases para el CRUD de retenciones de IVA."""
 
 from typing import Any
+from django.core.exceptions import ValidationError
 from django.db.models import QuerySet
 from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy, reverse
@@ -60,6 +61,14 @@ class VatWithholdingCertificateCreateView(RequestScopedQuerySetMixin, CreateView
         )
         return kwargs
 
+    def form_valid(self, form):
+        """Captura las excepciones del método save() del modelo y las propaga al formulario."""
+        try:
+            return super().form_valid(form)
+        except ValidationError as e:
+            form.add_error(None, e)
+            return self.form_invalid(form)
+
     def get_success_url(self) -> str:
         """Retorna la ruta destino al detalle del registro creado."""
         return reverse("vat-withholding-detail", kwargs={"pk": self.object.pk})
@@ -76,6 +85,14 @@ class VatWithholdingCertificateUpdateView(RequestScopedQuerySetMixin, UpdateView
         """Retorna la ruta destino al detalle del registro actualizado."""
         return reverse("vat-withholding-detail", kwargs={"pk": self.object.pk})
 
+    def form_valid(self, form):
+        """Captura las excepciones del método save() del modelo y las propaga al formulario."""
+        try:
+            return super().form_valid(form)
+        except ValidationError as e:
+            form.add_error(None, e)
+            return self.form_invalid(form)
+
 
 class VatWithholdingCertificateDeleteView(RequestScopedQuerySetMixin, DeleteView):
     """Vista genérica para la eliminación física de un comprobante preliminar."""
@@ -83,3 +100,11 @@ class VatWithholdingCertificateDeleteView(RequestScopedQuerySetMixin, DeleteView
     model = VatWithholdingCertificate
     template_name = "certificate_confirm_delete.html"
     success_url = reverse_lazy("vat-withholding-list")
+
+    def form_valid(self, form):
+        """Captura las excepciones del método delete() del modelo y las propaga al formulario."""
+        try:
+            return super().form_valid(form)
+        except ValidationError as e:
+            form.add_error(None, e)
+            return self.form_invalid(form)
