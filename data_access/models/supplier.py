@@ -148,5 +148,5 @@ class LocalSupplier(FiscalModuleAbstractModel):
     
     def __str__(self) -> str:
         """Retorna una representación legible del Proveedor Local."""
-        return f"{self.name} ({self.rif}) - {self.code}"
+        return f"{self.name} ({self.rif}) - {self.pk}"
     

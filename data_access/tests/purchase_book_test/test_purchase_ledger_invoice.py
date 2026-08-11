@@ -14,6 +14,7 @@ from django.db import IntegrityError
 from dateutil.relativedelta import relativedelta
 
 from data_access.models.purchase_book import PurchaseLedgerInvoice
+from data_access.models.base import FiscalProfile
 
 
 @pytest.mark.django_db
@@ -221,7 +222,7 @@ class TestPurchaseLedgerInvoiceEdgeCases:
             note.clean()
         assert "supplier" in exc.value.message_dict
 
-    def test_ec_004_adjustment_note_with_different_fiscal_profile_raises_error(self, base_invoice_data: dict[str, Any]) -> None:
+    def test_ec_004_adjustment_note_with_different_fiscal_profile_raises_error(self, base_invoice_data: dict[str, Any], alternate_fiscal_profile: FiscalProfile) -> None:
         """[ID_EC_004] Discrepancia de perfil fiscal multi-tenant en notas de ajuste[cite: 3]."""
         # Arrange
         original_invoice = PurchaseLedgerInvoice(**base_invoice_data)
@@ -230,7 +231,7 @@ class TestPurchaseLedgerInvoiceEdgeCases:
         base_invoice_data.update({
             "document_type": PurchaseLedgerInvoice.DocumentType.CREDIT_NOTE,
             "affected_invoice": original_invoice,
-            "fiscal_profile": "PERFIL-DISTINTO"
+            "fiscal_profile": alternate_fiscal_profile
         })
         note = PurchaseLedgerInvoice(**base_invoice_data)
 

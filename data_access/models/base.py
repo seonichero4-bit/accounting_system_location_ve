@@ -285,3 +285,7 @@ class FiscalModuleAbstractModel(models.Model):
         """Configuración de metadatos para el modelo abstracto."""
 
         abstract = True
+
+    def __str__(self) -> str:
+        """Retorna una representación legible del Perfil fiscal."""
+        return f"{self.name} ({self.rif}) - {self.pk}"
