@@ -303,22 +303,6 @@ class PurchaseLedgerInvoice(FiscalModuleAbstractModel):
             meses_diferencia = (self.fiscal_period.year - self.date.year) * 12 + (self.fiscal_period.month - self.date.month)
             if meses_diferencia > 12:
                 errors["date"] = "Caducidad de crédito fiscal: La diferencia entre la fecha del documento y el periodo fiscal supera los 12 meses."
-        
-        # Consistencia Financiera e IGTF (3%)
-        igtf_amt = Decimal(str(self.igtf_amount))
-        igtf_bs = Decimal(str(self.igtf_base))
-        tentative_subtotal = Decimal(str(self.exempt_amount)) + Decimal(str(self.taxable_base))
-
-        if igtf_amt > 0 or igtf_bs > 0:
-            if not (igtf_amt > 0 and igtf_bs > 0):
-                errors["igtf_amount"] = "Interdependencia: Si igtf_amount > 0, igtf_base debe ser mayor a 0, y viceversa."
-            else:
-                expected_igtf = (igtf_bs * Decimal("0.03")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-                if abs(igtf_amt - expected_igtf) > Decimal("0.01"):
-                    errors["igtf_amount"] = f"La tasa calculada del IGTF debe corresponder al 3% de la base ({expected_igtf})."
-                
-                if igtf_bs > tentative_subtotal:
-                    errors["igtf_base"] = "El monto máximo de la base IGTF no puede ser superior al subtotal bruto antes de impuestos."
 
     # Validacion aritmetica total_purchase y vat_amount
                 
@@ -329,8 +313,25 @@ class PurchaseLedgerInvoice(FiscalModuleAbstractModel):
         amount_not_subject = self.amount_not_subject or Decimal("0.00")
         amount_without_right_to_credit = self.amount_without_right_to_credit or Decimal("0.00")
         vat_amount = self.vat_amount or Decimal("0.00")
+        igtf_base = self.igtf_base or Decimal("0.00")
         igtf_amount = self.igtf_amount or Decimal("0.00")
         total_purchase = self.total_purchase or Decimal("0.00")
+
+        # Consistencia Financiera e IGTF (3%)
+        igtf_amt = Decimal(str(igtf_amount))
+        igtf_bs = Decimal(str(igtf_base))
+        tentative_subtotal = Decimal(str(self.exempt_amount)) + Decimal(str(self.taxable_base))
+        
+        if igtf_amt > 0 or igtf_bs > 0:
+            if not (igtf_amt > 0 and igtf_bs > 0):
+                errors["igtf_amount"] = "Interdependencia: Si igtf_amount > 0, igtf_base debe ser mayor a 0, y viceversa."
+            else:
+                expected_igtf = (igtf_bs * Decimal("0.03")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                if abs(igtf_amt - expected_igtf) > Decimal("0.01"):
+                    errors["igtf_amount"] = f"La tasa calculada del IGTF debe corresponder al 3% de la base ({expected_igtf})."
+                        
+                if igtf_bs > tentative_subtotal:
+                    errors["igtf_base"] = "El monto máximo de la base IGTF no puede ser superior al subtotal bruto antes de impuestos."
 
         # VALIDACIÓN: CUADRATURA ARITMÉTICA DEL MONTO DE IVA ---
         if self.vat_percentage is not None:
@@ -453,4 +454,6 @@ class PurchaseLedgerInvoice(FiscalModuleAbstractModel):
                 name="purchase_invoice_notes_affected_invoice_required",
             ),
         ]
-        
+
+    def __str__(self) -> str:
+        return f"Factura N° {self.number} ({self.invoice_control}) - ID: {self.pk}"

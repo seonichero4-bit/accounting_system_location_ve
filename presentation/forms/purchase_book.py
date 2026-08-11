@@ -23,14 +23,14 @@ class PurchaseLedgerInvoiceForm(forms.ModelForm):
     aritméticos o caducidades de créditos fiscales antes de la persistencia[cite: 2].
     """
 
-    igtf_base = forms.DecimalField(
-        max_digits=15,
-        decimal_places=2,
-        required=False,
-        initial=Decimal("0.00"),
-        label="Base Imponible IGTF",
-        widget=forms.NumberInput(attrs={"class": "form-control"}),
-    )
+    # igtf_base = forms.DecimalField(
+    #     max_digits=15,
+    #     decimal_places=2,
+    #     required=False,
+    #     initial=Decimal("0.00"),
+    #     label="Base Imponible IGTF",
+    #     widget=forms.NumberInput(attrs={"class": "form-control"}),
+    # )
 
     class Meta:
         """Configuraciones base y mapeo de campos del modelo[cite: 2]."""

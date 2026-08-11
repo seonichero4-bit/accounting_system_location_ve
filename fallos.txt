@@ -5,68 +5,270 @@ django: version: 6.0.7, settings: accounting_system_ve.settings (from ini)
 rootdir: /workspaces/accounting_system_location_ve
 configfile: pytest.ini
 plugins: django-4.14.0, Faker-40.15.0
-collecting ... collected 29 items / 28 deselected / 1 selected
-run-last-failure: rerun previous 1 failure
+collecting ... collected 7 items
 
-data_access/tests/purchase_book_test/test_purchase_ledger_invoice.py::TestPurchaseLedgerInvoiceEdgeCases::test_ec_004_adjustment_note_with_different_fiscal_profile_raises_error FAILED [100%]
+presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_create_view_injects_tenant_context PASSED [ 14%]
+presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_form_initializes_default_decimal_values FAILED [ 28%]
+presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_create_view_intercepts_validation_error PASSED [ 42%]
+presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_create_view_intercepts_integrity_error PASSED [ 57%]
+presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_update_view_intercepts_fiscal_immutability_error PASSED [ 71%]
+presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_delete_view_intercepts_fiscal_deletion_lock PASSED [ 85%]
+presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_delete_view_intercepts_referential_integrity_error FAILED [100%]
 
 =================================== FAILURES ===================================
-_ TestPurchaseLedgerInvoiceEdgeCases.test_ec_004_adjustment_note_with_different_fiscal_profile_raises_error _
+_________________ test_form_initializes_default_decimal_values _________________
 
-self = <test_purchase_ledger_invoice.TestPurchaseLedgerInvoiceEdgeCases object at 0x7200357b0080>
-base_invoice_data = {'transaction_type': PurchaseLedgerInvoice.TransactionType.REGISTRO, 'document_type': PurchaseLedgerInvoice.DocumentType.CREDIT_NOTE, 'purchase_type': PurchaseLedgerInvoice.PurchaseType.INTERNAL, 'number': 'fact-001', ...}
+base_invoice_data = {'supplier': 48, 'number': 'INV-100', 'invoice_control': 'CTRL-100', 'document_type': 'INVOICE', ...}
 
-    def test_ec_004_adjustment_note_with_different_fiscal_profile_raises_error(self, base_invoice_data: dict[str, Any]) -> None:
-        """[ID_EC_004] Discrepancia de perfil fiscal multi-tenant en notas de ajuste[cite: 3]."""
+    @pytest.mark.django_db
+    def test_form_initializes_default_decimal_values(base_invoice_data):
+        """[ID_HP_002] Verifica que el formulario procesa y asigna valores decimales por defecto."""
         # Arrange
-        original_invoice = PurchaseLedgerInvoice(**base_invoice_data)
-        original_invoice.save()
+        data = base_invoice_data.copy()
+        data.pop("igtf_base")  # Se elimina el campo opcional
     
-        base_invoice_data.update({
-            "document_type": PurchaseLedgerInvoice.DocumentType.CREDIT_NOTE,
-            "affected_invoice": original_invoice,
-            "fiscal_profile": "PERFIL-DISTINTO"
-        })
->       note = PurchaseLedgerInvoice(**base_invoice_data)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        # Act
+        form = PurchaseLedgerInvoiceForm(data=data)
+        is_valid = form.is_valid()
+    
+        # Assert
+        assert is_valid is True
+>       assert form.cleaned_data["igtf_base"] == Decimal("0.00")
+E       AssertionError: assert None == Decimal('0.00')
+E        +  where Decimal('0.00') = Decimal('0.00')
 
-data_access/tests/purchase_book_test/test_purchase_ledger_invoice.py:235: 
+presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py:60: AssertionError
+___________ test_delete_view_intercepts_referential_integrity_error ____________
+
+self = <presentation.views.purchase_book.PurchaseLedgerInvoiceDeleteView object at 0x74fcb193fd70>
+form = <Form bound=True, valid=True, fields=()>
+
+    def form_valid(self, form):
+        """Intercepta excepciones lanzadas por el método delete() del modelo[cite: 3]."""
+        try:
+>           return super().form_valid(form)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^
+
+presentation/views/purchase_book.py:101: 
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-venv/lib/python3.12/site-packages/django/db/models/base.py:566: in __init__
-    _setattr(self, field.name, rel_obj)
+venv/lib/python3.12/site-packages/django/views/generic/edit.py:264: in form_valid
+    self.object.delete()
+data_access/models/purchase_book.py:414: in delete
+    return super().delete(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/base.py:1299: in delete
+    collector.collect([self], keep_parents=keep_parents)
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <django.db.models.fields.related_descriptors.ForwardManyToOneDescriptor object at 0x720035a76a50>
-instance = <[AttributeError("'PurchaseLedgerInvoice' object has no attribute 'name'") raised in repr()] PurchaseLedgerInvoice object at 0x720035696990>
-value = 'PERFIL-DISTINTO'
+self = <django.db.models.deletion.Collector object at 0x74fcb158e870>
+objs = [<[AttributeError("'PurchaseLedgerInvoice' object has no attribute 'name'") raised in repr()] PurchaseLedgerInvoice object at 0x74fcb15ad6a0>]
+source = None, nullable = False, collect_related = True, source_attr = None
+reverse_dependency = False, keep_parents = False, fail_on_restricted = True
 
-    def __set__(self, instance, value):
+    def collect(
+        self,
+        objs,
+        source=None,
+        nullable=False,
+        collect_related=True,
+        source_attr=None,
+        reverse_dependency=False,
+        keep_parents=False,
+        fail_on_restricted=True,
+    ):
         """
-        Set the related instance through the forward relation.
+        Add 'objs' to the collection of objects to be deleted as well as all
+        parent instances. 'objs' must be a homogeneous iterable collection of
+        model instances (e.g. a QuerySet). If 'collect_related' is True,
+        related objects will be handled by their respective on_delete handler.
     
-        With the example above, when setting ``child.parent = parent``:
+        If the call is the result of a cascade, 'source' should be the model
+        that caused it and 'nullable' should be set to True, if the relation
+        can be null.
     
-        - ``self`` is the descriptor managing the ``parent`` attribute
-        - ``instance`` is the ``child`` instance
-        - ``value`` is the ``parent`` instance on the right of the equal sign
+        If 'reverse_dependency' is True, 'source' will be deleted before the
+        current model, rather than after. (Needed for cascading to parent
+        models, the one case in which the cascade follows the forwards
+        direction of an FK rather than the reverse direction.)
+    
+        If 'keep_parents' is True, data of parent model's will be not deleted.
+    
+        If 'fail_on_restricted' is False, error won't be raised even if it's
+        prohibited to delete such objects due to RESTRICT, that defers
+        restricted object checking in recursive calls where the top-level call
+        may need to collect more objects to determine whether restricted ones
+        can be deleted.
         """
-        # An object must be an instance of the related class.
-        if value is not None and not isinstance(
-            value, self.field.remote_field.model._meta.concrete_model
-        ):
->           raise ValueError(
-                'Cannot assign "%r": "%s.%s" must be a "%s" instance.'
+        if self.can_fast_delete(objs):
+            self.fast_deletes.append(objs)
+            return
+        new_objs = self.add(
+            objs, source, nullable, reverse_dependency=reverse_dependency
+        )
+        if not new_objs:
+            return
+    
+        model = new_objs[0].__class__
+    
+        if not keep_parents:
+            # Recursively collect concrete model's parent models, but not their
+            # related objects. These will be found by meta.get_fields()
+            concrete_model = model._meta.concrete_model
+            for ptr in concrete_model._meta.parents.values():
+                if ptr:
+                    parent_objs = [getattr(obj, ptr.name) for obj in new_objs]
+                    self.collect(
+                        parent_objs,
+                        source=model,
+                        source_attr=ptr.remote_field.related_name,
+                        collect_related=False,
+                        reverse_dependency=True,
+                        fail_on_restricted=False,
+                    )
+        if not collect_related:
+            return
+    
+        model_fast_deletes = defaultdict(list)
+        protected_objects = defaultdict(list)
+        for related in get_candidate_relations_to_delete(model._meta):
+            # Preserve parent reverse relationships if keep_parents=True.
+            if (
+                keep_parents
+                and related.model._meta.concrete_model in model._meta.all_parents
+            ):
+                continue
+            field = related.field
+            on_delete = field.remote_field.on_delete
+            if on_delete == DO_NOTHING:
+                continue
+            related_model = related.related_model
+            if self.can_fast_delete(related_model, from_field=field):
+                model_fast_deletes[related_model].append(field)
+                continue
+            batches = self.get_del_batches(new_objs, [field])
+            for batch in batches:
+                sub_objs = self.related_objects(related_model, [field], batch)
+                # Non-referenced fields can be deferred if no signal receivers
+                # are connected for the related model as they'll never be
+                # exposed to the user. Skip field deferring when some
+                # relationships are select_related as interactions between both
+                # features are hard to get right. This should only happen in
+                # the rare cases where .related_objects is overridden anyway.
+                if not (
+                    sub_objs.query.select_related
+                    or self._has_signal_listeners(related_model)
+                ):
+                    referenced_fields = set(
+                        chain.from_iterable(
+                            (rf.attname for rf in rel.field.foreign_related_fields)
+                            for rel in get_candidate_relations_to_delete(
+                                related_model._meta
+                            )
+                        )
+                    )
+                    sub_objs = sub_objs.only(*tuple(referenced_fields))
+                if getattr(on_delete, "lazy_sub_objs", False) or sub_objs:
+                    try:
+                        on_delete(self, field, sub_objs, self.using)
+                    except ProtectedError as error:
+                        key = "'%s.%s'" % (field.model.__name__, field.name)
+                        protected_objects[key] += error.protected_objects
+        if protected_objects:
+>           raise ProtectedError(
+                "Cannot delete some instances of model %r because they are "
+                "referenced through protected foreign keys: %s."
                 % (
-                    value,
-                    instance._meta.object_name,
-                    self.field.name,
-                    self.field.remote_field.model._meta.object_name,
-                )
-E               ValueError: Cannot assign "'PERFIL-DISTINTO'": "PurchaseLedgerInvoice.fiscal_profile" must be a "FiscalProfile" instance.
+                    model.__name__,
+                    ", ".join(protected_objects),
+                ),
+                set(chain.from_iterable(protected_objects.values())),
+            )
+E           django.db.models.deletion.ProtectedError: <exception str() failed>
 
-venv/lib/python3.12/site-packages/django/db/models/fields/related_descriptors.py:287: ValueError
----------------------------- Captured stderr setup -----------------------------
-Using existing test database for alias 'default'...
+venv/lib/python3.12/site-packages/django/db/models/deletion.py:354: ProtectedError
+
+During handling of the above exception, another exception occurred:
+
+request_factory = <django.test.client.RequestFactory object at 0x74fcb15ae0f0>
+admin_user = <User: test_admin>
+fiscal_profile = <FiscalProfile: Empresa de Pruebas CA (J123456789)>
+fiscal_period = datetime.date(2026, 1, 1)
+supplier = <LocalSupplier: Proveedor de Pruebas (J987654321) - 53>
+
+    @pytest.mark.django_db
+    def test_delete_view_intercepts_referential_integrity_error(
+        request_factory, admin_user, fiscal_profile, fiscal_period, supplier
+    ):
+        """[ID_EC_005] Verifica el manejo de errores de base de datos por dependencias referenciales."""
+        # Arrange
+        parent_invoice = PurchaseLedgerInvoice.objects.create(
+            fiscal_profile=fiscal_profile,
+            fiscal_period=fiscal_period,
+            supplier=supplier,
+            number="INV-100",
+            invoice_control="CTRL-100",
+            document_type="INVOICE",
+            date=date.today(),
+            taxable_base=Decimal("100.00"),
+            vat_percentage=1,
+            vat_amount=Decimal("16.00"),
+            total_purchase=Decimal("116.00")
+        )
+        # Crear nota de crédito dependiente (Restricción PROTECTED)
+        PurchaseLedgerInvoice.objects.create(
+            fiscal_profile=fiscal_profile,
+            fiscal_period=fiscal_period,
+            supplier=supplier,
+            number="NC-001",
+            invoice_control="CTRL-101",
+            document_type="CREDIT_NOTE",
+            affected_invoice=parent_invoice,
+            date=date.today(),
+        )
+    
+        # Demostración explícita de fallo a nivel de modelo por protección referencial
+        with pytest.raises(ProtectedError):
+            parent_invoice.delete()
+    
+        request = request_factory.post(f"/purchase-invoices/{parent_invoice.pk}/delete/")
+        request.user = admin_user
+        request.fiscal_profile = fiscal_profile
+        request.fiscal_period = fiscal_period
+        view = PurchaseLedgerInvoiceDeleteView.as_view()
+    
+        # Act
+>       response = view(request, pk=parent_invoice.pk)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py:250: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+venv/lib/python3.12/site-packages/django/views/generic/base.py:106: in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/views/generic/base.py:145: in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/views/generic/edit.py:258: in post
+    return self.form_valid(form)
+           ^^^^^^^^^^^^^^^^^^^^^
+presentation/views/purchase_book.py:107: in form_valid
+    form.add_error(None, f"No se puede eliminar el registro por integridad referencial: {e}")
+                                                                                        ^^^
+venv/lib/python3.12/site-packages/django/db/models/base.py:611: in __repr__
+    return "<%s: %s>" % (self.__class__.__name__, self)
+                                                  ^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <[AttributeError("'PurchaseLedgerInvoice' object has no attribute 'name'") raised in repr()] PurchaseLedgerInvoice object at 0x74fcb15aecc0>
+
+    def __str__(self) -> str:
+        """Retorna una representación legible del Perfil fiscal."""
+>       return f"{self.name} ({self.rif}) - {self.pk}"
+                  ^^^^^^^^^
+E       AttributeError: 'PurchaseLedgerInvoice' object has no attribute 'name'
+
+data_access/models/base.py:291: AttributeError
 =========================== short test summary info ============================
-FAILED data_access/tests/purchase_book_test/test_purchase_ledger_invoice.py::TestPurchaseLedgerInvoiceEdgeCases::test_ec_004_adjustment_note_with_different_fiscal_profile_raises_error
-======================= 1 failed, 28 deselected in 1.77s =======================
+FAILED presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_form_initializes_default_decimal_values
+FAILED presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_delete_view_intercepts_referential_integrity_error
+========================= 2 failed, 5 passed in 6.93s ==========================

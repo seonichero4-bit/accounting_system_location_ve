@@ -1,160 +1,88 @@
-"""
-Configuración global de fixtures para la suite de pruebas del Libro de Compras.
+"""Módulo de configuración de fixtures de Pytest para la suite de integración.
 
-Este archivo define los recursos compartidos, inquilinos (FiscalProfiles), 
-proveedores locales y documentos fiscales preliminares o procesados requeridos
-para las pruebas de integración de las vistas.
+Proporciona objetos base reutilizables, manejando la creación secuencial
+de usuarios, perfiles fiscales y datos complementarios requeridos para 
+garantizar un entorno de prueba aislado y repetible.
 """
 
-import pytest
-from typing import Any
 from datetime import date
 from decimal import Decimal
-from django.test import Client
+
+import pytest
 from django.contrib.auth.models import User
+from django.test import RequestFactory
 
-from data_access.models.purchase_book import PurchaseLedgerInvoice
-from data_access.models.base import FiscalProfile
 from data_access.models.supplier import LocalSupplier
+from data_access.models.base import FiscalProfile
+from business_logic.services.fiscal_profile_service import FiscalProfileService
+
 
 @pytest.fixture
-def admin_user(db: Any) -> User:
-    """Fixture que crea y retorna un usuario administrador estándar.
-
-    Args:
-        db (Any): Inyección de la base de datos de pytest-django.
-
-    Returns:
-        User: Instancia del usuario con privilegios administrativos.
-    """
+def admin_user() -> User:
+    """Crea y retorna un usuario administrador requerido por el sistema."""
     return User.objects.create_user(
-        username="admin_test",
-        email="admin@empresa.com",
-        password="securepassword123"
-    )
-
-@pytest.fixture
-def clean_client():
-    """Proporciona una instancia limpia del cliente de pruebas de Django."""
-    return Client()
-
-
-@pytest.fixture
-def fiscal_profile_a(db, admin_user):
-    """Crea el perfil fiscal del Inquilino A (Tenant Activo)."""
-    return FiscalProfile.create_profile(
-            admin=admin_user,
-            entity_name="Empresa cimineto S.A.",
-            use_accrual_method=True,
-            fy_start_month=1,
-            rif="J123456450",
-            taxpayer_type="ORDINARY"
+        username="test_admin",
+        password="testpassword123",
+        email="admin@test.com"
     )
 
 
 @pytest.fixture
-def fiscal_profile_b(db, admin_user):
-    """Crea el perfil fiscal del Inquilino B (Tenant Ajeno para Cross-Tenant)."""
-    return FiscalProfile.create_profile(
-            admin=admin_user,
-            entity_name="Empresa Base S.A.",
-            use_accrual_method=True,
-            fy_start_month=1,
-            rif="J123456780",
-            taxpayer_type="ORDINARY"
+def fiscal_profile(admin_user: User) -> FiscalProfile:
+    """Crea un perfil fiscal asociado al usuario mediante el servicio de dominio."""
+    service = FiscalProfileService(admin_user=admin_user)
+    return service.create_fiscal_profile(
+        entity_name="Empresa de Pruebas CA",
+        use_accrual_method=True,
+        fy_start_month=1,
+        rif="J123456789",
+        taxpayer_type="ORDINARY",
+        start_period=date(2026, 1, 1)
     )
 
 
 @pytest.fixture
-def auth_client_profile_a(clean_client, fiscal_profile_a):
-    """Configura el cliente inyectando el Perfil Fiscal A en la sesión activa."""
-    session = clean_client.session
-    session['fiscal_profile_id'] = fiscal_profile_a.id
-    session.save()
-    return clean_client
+def fiscal_period(fiscal_profile: FiscalProfile):
+    """Retorna el periodo fiscal inicial del perfil fiscal creado."""
+    return fiscal_profile.initial_fiscal_period.start_period
 
 
 @pytest.fixture
-def supplier_a(db, fiscal_profile_a):
-    """Crea un proveedor local asociado al Perfil Fiscal A."""
+def supplier(fiscal_profile: FiscalProfile) -> LocalSupplier:
+    """Crea y retorna un proveedor local válido asociado al perfil fiscal."""
     return LocalSupplier.objects.create(
-        fiscal_profile=fiscal_profile_a,
-        rif="J-33333333-3",
-        name="Proveedor Nacional A, C.A."
+        fiscal_profile=fiscal_profile,
+        name="Proveedor de Pruebas",
+        rif="J987654321",
+        supplier_type="WITH_RIF",
+        vat_withholding_percentage=Decimal("0.00")
     )
 
 
 @pytest.fixture
-def supplier_b(db, fiscal_profile_b):
-    """Crea un proveedor local asociado al Perfil Fiscal B."""
-    return LocalSupplier.objects.create(
-        fiscal_profile=fiscal_profile_b,
-        rif="J-44444444-4",
-        name="Proveedor Nacional B, C.A."
-    )
+def request_factory() -> RequestFactory:
+    """Retorna una instancia de RequestFactory para simular peticiones HTTP."""
+    return RequestFactory()
 
 
 @pytest.fixture
-def invoice_preliminary_a(db, fiscal_profile_a, supplier_a):
-    """Genera una factura en estado inicial (PRELIMINARY) para el Perfil A."""
-    return PurchaseLedgerInvoice.objects.create(
-        fiscal_profile=fiscal_profile_a,
-        supplier=supplier_a,
-        number="10050",
-        invoice_control="00-998822",
-        document_type=PurchaseLedgerInvoice.DocumentType.INVOICE,
-        purchase_type=PurchaseLedgerInvoice.PurchaseType.INTERNAL,
-        status=PurchaseLedgerInvoice.InvoiceStatus.PRELIMINARY,  # Equivalente al estado preliminar del flujo
-        date=date(2026, 6, 1),
-        application_month_year="06-2026",
-        taxable_base=Decimal("500.00"),
-        exempt_amount=Decimal("100.00"),
-        vat_amount=Decimal("80.00"),
-        igtf_amount=Decimal("0.00"),
-        subtotal=Decimal("600.00"),
-        total_purchase=Decimal("680.00")
-    )
-
-
-@pytest.fixture
-def invoice_processed_a(db, fiscal_profile_a, supplier_a):
-    """Genera una factura en estado inmutable (PROCESSED) para el Perfil A."""
-    return PurchaseLedgerInvoice.objects.create(
-        fiscal_profile=fiscal_profile_a,
-        supplier=supplier_a,
-        number="20060",
-        invoice_control="00-998823",
-        document_type=PurchaseLedgerInvoice.DocumentType.INVOICE,
-        purchase_type=PurchaseLedgerInvoice.PurchaseType.INTERNAL,
-        status=PurchaseLedgerInvoice.InvoiceStatus.PROCESSED,
-        date=date(2026, 6, 1),
-        application_month_year="06-2026",
-        taxable_base=Decimal("1000.00"),
-        exempt_amount=Decimal("0.00"),
-        vat_amount=Decimal("160.00"),
-        igtf_amount=Decimal("0.00"),
-        subtotal=Decimal("1000.00"),
-        total_purchase=Decimal("1160.00")
-    )
-
-
-@pytest.fixture
-def invoice_profile_b(db, fiscal_profile_b, supplier_b):
-    """Genera una factura perteneciente al Perfil Fiscal B (Inquilino Ajeno)."""
-    return PurchaseLedgerInvoice.objects.create(
-        fiscal_profile=fiscal_profile_b,
-        supplier=supplier_b,
-        number="99999",
-        invoice_control="00-111111",
-        document_type=PurchaseLedgerInvoice.DocumentType.INVOICE,
-        purchase_type=PurchaseLedgerInvoice.PurchaseType.INTERNAL,
-        status=PurchaseLedgerInvoice.InvoiceStatus.PRELIMINARY,
-        date=date(2026, 6, 1),
-        application_month_year="06-2026",
-        taxable_base=Decimal("200.00"),
-        exempt_amount=Decimal("0.00"),
-        vat_amount=Decimal("32.00"),
-        igtf_amount=Decimal("0.00"),
-        subtotal=Decimal("200.00"),
-        total_purchase=Decimal("232.00")
-    )
+def base_invoice_data(supplier: LocalSupplier) -> dict[str, any]:
+    """Proporciona un diccionario con los datos base para un formulario de factura válido."""
+    return {
+        "supplier": supplier.pk,
+        "number": "INV-100",
+        "invoice_control": "CTRL-100",
+        "document_type": "INVOICE",
+        "purchase_type": "INTERNAL",
+        "date": date.today(),
+        "exempt_amount": "0.00",
+        "amount_exonerated": "0.00",
+        "amount_not_subject": "0.00",
+        "amount_without_right_to_credit": "0.00",
+        "taxable_base": "100.00",
+        "vat_percentage": 1,
+        "vat_amount": "16.00",
+        "igtf_base": "0.00",
+        "igtf_amount": "0.00",
+        "total_purchase": "116.00",
+    }
