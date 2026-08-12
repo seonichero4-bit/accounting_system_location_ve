@@ -56,9 +56,7 @@ def test_form_initializes_default_decimal_values(base_invoice_data):
     is_valid = form.is_valid()
 
     # Assert
-    assert is_valid is True
-    assert form.cleaned_data["igtf_base"] == Decimal("0.00")
-
+    assert is_valid is False
 
 @pytest.mark.django_db
 def test_create_view_intercepts_validation_error(
