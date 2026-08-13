@@ -53,7 +53,7 @@ class IslrWithholdingCertificateCreateView(RequestScopedQuerySetMixin, CreateVie
     def get_form_kwargs(self) -> dict[str, Any]:
         """Inyecta una instancia inicializada con el contexto de la URL al formulario."""
         kwargs = super().get_form_kwargs()
-        
+
         # Extraemos el invoice de la URL y construimos la instancia base
         invoice_pk = self.kwargs.get("invoice_pk")
         purchase_invoice = get_object_or_404(PurchaseLedgerInvoice, pk=invoice_pk)
@@ -62,6 +62,7 @@ class IslrWithholdingCertificateCreateView(RequestScopedQuerySetMixin, CreateVie
         kwargs["instance"] = IslrWithholdingCertificate(
             purchase_invoice=purchase_invoice,
             fiscal_profile=self.request.fiscal_profile
+            fiscal_period=self.request.fiscal_peroid
         )
         return kwargs
 

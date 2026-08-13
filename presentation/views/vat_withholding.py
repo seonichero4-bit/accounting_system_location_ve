@@ -57,7 +57,8 @@ class VatWithholdingCertificateCreateView(RequestScopedQuerySetMixin, CreateView
         # Al pasar esto, el Form tomará esta instancia en lugar de crear una vacía
         kwargs["instance"] = VatWithholdingCertificate(
             purchase_invoice=purchase_invoice,
-            fiscal_profile=self.request.user
+            fiscal_profile=self.request.fiscal_profile
+            fiscal_period=self.request.fiscal_peroid
         )
         return kwargs
 

@@ -5,13 +5,13 @@ from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
 
-#from data_access.mixins.sequence import TransactionalSequenceMixin
 from data_access.models.base import FiscalModuleAbstractModel
-from data_access.models.purchase_book import PurchaseLedgerInvoice#, PurchaseInvoiceLine
+from data_access.models.purchase_book import PurchaseLedgerInvoice
 from data_access.models.concep_payment_islr.concepts_payment_pjd import IslrPjdChoices
 from data_access.models.concep_payment_islr.concepts_payment_pjnd import IslrPjndChoices
 from data_access.models.concep_payment_islr.concepts_payment_pnnr import IslrPnnrChoices
-from data_access.models.concep_payment_islr.concepts_payment_pnr import IslrPnrChoices 
+from data_access.models.concep_payment_islr.concepts_payment_pnr import IslrPnrChoices
+from business_logic.services.ut_setup import TAX_UNIT as ut_value
 
 
 
@@ -28,22 +28,12 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
         PRELIMINARY = "PRELIMINARY", "Preliminary"
         PROCESSED = "PROCESSED", "Processed"
 
-    # Configuración de propiedades para el TransactionalSequenceMixin
-    # PREFIX = "RETENCION_ISLR"
-    # PADDING_LENGTH = 5
-
     purchase_invoice = models.OneToOneField(
         PurchaseLedgerInvoice,
         on_delete=models.PROTECT,
         related_name="islr_withholding_certificates",
         verbose_name="Related Purchase Invoice",
     )
-    # source_line = models.OneToOneField(
-    #     PurchaseInvoiceLine,
-    #     on_delete=models.PROTECT,
-    #     related_name="islr_withholding_certificate",
-    #     verbose_name="Source Invoice Line",
-    # )
     document_number = models.CharField(
         max_length=50,
         verbose_name="ISLR Document Number",
@@ -154,14 +144,6 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
                 "La factura de compra asociada no posee un perfil fiscal (fiscal_profile) válido.",
                 code="missing_fiscal_profile"
             )
-
-        ut_value = getattr(fiscal_profile, "ut", None)
-        if ut_value is None or ut_value <= 0:
-            raise ValidationError(
-                "El perfil fiscal no tiene definido un valor válido para la Unidad Tributaria (ut).",
-                code="invalid_ut_value"
-            )
-
         # Variables de entrada base
         concept_choice = IslrPnrChoices(self.concepts_payment_pnr)
         subtotal: Decimal = getattr(invoice, "subtotal", Decimal("0.00"))
@@ -301,24 +283,6 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
         elif self.concepts_payment_pjd is not None:
             self.calculate_pjd_withholding()
     
-    class Meta:
-        """Configuración de metadatos del modelo ComprobanteRetencionISLR."""
-
-        verbose_name = "ISLR Withholding Certificate"
-        verbose_name_plural = "ISLR Withholding Certificates"
-        
-        # Restricción de Base de Datos para garantizar aislamiento multi-tenant
-        constraints = [
-            models.UniqueConstraint(
-                fields=['document_number', 'fiscal_profile'],
-                name='unique_document_per_fiscal_profile'
-            )
-        ]
-
-    def __str__(self) -> str:
-        """Retorna la representación en cadena del comprobante."""
-        return f"{self.document_number} - {self.fiscal_profile}"
-
     def clean(self) -> None:
         """
         Ejecuta las validaciones de negocio a nivel de aplicación.
@@ -329,7 +293,7 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
         super().clean()
         errors: Dict[str, ValidationError] = {}
 
-        # A. Validación de Factura Base
+        # Validación de Factura Base
         if hasattr(self, 'purchase_invoice') and self.purchase_invoice:
             if self.purchase_invoice.status != 'PRELIMINARY':
                 errors['purchase_invoice'] = ValidationError(
@@ -337,7 +301,7 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
                     code='invalid_invoice_status'
                 )
 
-        # B. Estructura Jerárquica del Correlativo
+        # Estructura Jerárquica del Correlativo del numero de documento
         if self.document_number and self.application_date:
             expected_prefix = self.application_date.strftime('%Y%m')
             if not re.match(rf'^{expected_prefix}\d+', self.document_number):
@@ -348,7 +312,7 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
                     code='invalid_correlative_structure'
                 )
 
-        # C. Temporalidad Fiscal de la Operación
+        # Temporalidad Fiscal de la Operación
         if hasattr(self, 'purchase_invoice') and self.purchase_invoice and self.application_date:
             if self.application_date < self.purchase_invoice.date:
                 errors['application_date'] = ValidationError(
@@ -357,22 +321,7 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
                     params={'invoice_date': self.purchase_invoice.date},
                     code='retroactive_application_date'
                 )
-        # Validación de período fiscal activo controlado por el sistema
-        # if hasattr(self, 'fiscal_profile') and self.fiscal_profile and self.application_date:
-        #     period_exists = self.fiscal_profile.fiscal_periods.filter(
-        #         year=self.application_date.year,
-        #         month=self.application_date.month,
-        #         is_active=True
-        #     ).exists()
-        #     if not period_exists:
-        #         if 'application_date' not in errors:
-        #             errors['application_date'] = ValidationError(
-        #                 ("El período fiscal correspondiente a la fecha de aplicación "
-        #                   "no se encuentra activo o válido para este contribuyente."),
-        #                 code='inactive_fiscal_period'
-        #             )
-
-        # D. Exclusividad Mutua de Conceptos de ISLR
+        # Exclusividad Mutua de Conceptos de ISLR
         concept_fields = {
             'concepts_payment_pnnr': self.concepts_payment_pnnr,
             'concepts_payment_pnr': self.concepts_payment_pnr,
@@ -393,28 +342,6 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
                 code='multiple_islr_concepts'
             )
 
-        # # E. Coherencia Jurídica del Sujeto Pasivo (Proveedor)
-        # if hasattr(self, 'purchase_invoice') and self.purchase_invoice and assigned_concepts:
-        #     supplier = getattr(self.purchase_invoice, 'supplier', None)
-        #     if supplier:
-        #         # Mapeo de campos técnicos con la clasificación del LocalSupplier
-        #         legal_nature_mapping = {
-        #             'concepts_payment_pnnr': 'PNNR',
-        #             'concepts_payment_pnr': 'PNR',
-        #             'concepts_payment_pjnr': 'PJNR',
-        #             'concepts_payment_pjr': 'PJR',
-        #         }
-        #         selected_field = list(assigned_concepts.keys())[0]
-        #         expected_nature = legal_nature_mapping[selected_field]
-
-        #         if supplier.legal_nature != expected_nature:
-        #             raise ValidationError(
-        #                 _("Incoherencia jurídica: El concepto seleccionado corresponde a una naturaleza "
-        #                   "%(expected)s, pero el proveedor está clasificado como %(actual)s."),
-        #                 params={'expected': expected_nature, 'actual': supplier.legal_nature},
-        #                 code='legal_nature_mismatch'
-        #             )
-
         if errors:
              raise ValidationError(errors)
 
@@ -433,10 +360,6 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
                       "y su ciclo fiscal se encuentra cerrado."),
                     code='immutable_record_processed'
                 )
-
-        # Asignación automática del período fiscal desde la factura de compra asociada
-        if hasattr(self, "purchase_invoice") and self.purchase_invoice:
-            self.fiscal_period = self.purchase_invoice.fiscal_period
 
         # Calculo automatico del atributo "islr_withheld_amount" y "subtracting"
         self.execute_withholding_routing()
@@ -457,3 +380,22 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
                 code='protected_record_processed'
             )
         return super().delete(*args, **kwargs)
+
+    class Meta:
+        """Configuración de metadatos del modelo ComprobanteRetencionISLR."""
+    
+        verbose_name = "ISLR Withholding Certificate"
+        verbose_name_plural = "ISLR Withholding Certificates"
+            
+        # Restricción de Base de Datos para garantizar aislamiento multi-tenant
+        constraints = [
+            models.UniqueConstraint(
+                fields=['document_number', 'fiscal_profile'],
+                name='unique_document_per_fiscal_profile'
+            )
+        ]
+    
+    def __str__(self) -> str:
+        """Retorna la representación en cadena del comprobante."""
+        return f"{self.document_number} - {self.fiscal_profile}"
+    

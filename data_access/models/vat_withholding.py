@@ -135,11 +135,7 @@ class VatWithholdingCertificate(FiscalModuleAbstractModel):
                 raise ValidationError(
                     "Este comprobante de retención ya ha sido procesado y es estrictamente de solo lectura."
                 )
-
-        # Asignación automática del período fiscal desde la factura de compra asociada
-        if hasattr(self, "purchase_invoice") and self.purchase_invoice:
-            self.fiscal_period = self.purchase_invoice.fiscal_period
-
+            
         # Cálculo automático del monto retenido resguardando tipos Decimal
         if self.status != self.CertificateStatus.PROCESSED or self.pk is None:
             vat_amount = Decimal(str(self.purchase_invoice.vat_amount))
