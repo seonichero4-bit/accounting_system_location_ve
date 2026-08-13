@@ -199,13 +199,6 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
                 "La factura de compra asociada no posee un perfil fiscal (fiscal_profile) válido.",
                 code="missing_fiscal_profile"
             )
-
-        ut_value = getattr(fiscal_profile, "ut", None)
-        if ut_value is None or ut_value <= 0:
-            raise ValidationError(
-                "El perfil fiscal no tiene definido un valor válido para la Unidad Tributaria (ut).",
-                code="invalid_ut_value"
-            )
     
         # Variables base para el cálculo financiero
         concept_choice = IslrPjndChoices(self.concepts_payment_pjnd)
@@ -234,11 +227,14 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
                 sustraendo_bs = Decimal("500.00") * ut
 
             raw_withheld_amount = (monto_base_bs * rate) - sustraendo_bs
+            raw_subtracting = sustraendo_bs
 
         # ESCENARIO B: Flujo Ordinario con Alícuota Fija
         else:
+            sustraendo_bs = Decimal("0.00")
             rate = Decimal(percentage_attr)
             raw_withheld_amount = subtotal * base_imponible * rate
+            raw_subtracting = sustraendo_bs
 
         # Sustracción Mínima: Forzar a 0.00 si el resultado es negativo por desbalances o redondeos
         if raw_withheld_amount < Decimal("0.00"):
@@ -247,7 +243,8 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
         # Política de Redondeo Financiero Estricto (ROUND_HALF_UP) a dos (2) posiciones decimales
         precision = Decimal("0.01")
         self.islr_withheld_amount = raw_withheld_amount.quantize(precision, rounding=ROUND_HALF_UP)
-    
+        self.subtracting = raw_subtracting.quantize(precision, rounding=ROUND_HALF_UP)
+        
     def calculate_pjd_withholding(self) -> None:
         """
         Calcula y asigna de manera automática el impuesto neto retenido (islr_withheld_amount)

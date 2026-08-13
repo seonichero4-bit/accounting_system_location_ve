@@ -513,7 +513,7 @@ class TestIslrWithholdingPaymentConcepts:
 
 
 @pytest.mark.django_db
-class TestConceptsPaymentPnr:
+class TestConceptsPayment:
     """Suite de pruebas automatizadas para el concepto de pago PNR."""
 
     @pytest.mark.parametrize(
@@ -523,11 +523,10 @@ class TestConceptsPaymentPnr:
             ("012", 3, "4000.00", "4000.00", "12.50", "107.50"),
             ("041", 7, "1000.00", "1000.00", "340.00", "0.00"),
         ],
-        ids=["code_002", "code_012", "code_041"],
+        #ids=["code_002", "code_012", "code_041"],
     )
     def test_concepts_payment_pnr_happy_path(
         self,
-        monkeypatch: pytest.MonkeyPatch,
         preliminary_invoice: Any,
         base_fiscal_profile: Any,
         code: str,
@@ -568,7 +567,7 @@ class TestConceptsPaymentPnr:
             ("024", 5, "1000.00", "1000.00", "49.50", "0.00"),
             ("028", 6, "200000.00", "190000.00", "43100.00", "21500.00"),
         ],
-        ids=["code_005", "code_017", "code_023", "code_024", "code_028"],
+        #ids=["code_005", "code_017", "code_023", "code_024", "code_028"],
     )
     def test_concepts_payment_pjnd_happy_path(
         self,
@@ -608,3 +607,4 @@ class TestConceptsPaymentPnr:
         # `sustraendo_bs` en la propiedad `self.subtracting`, este test fallará sirviendo 
         # como red de seguridad para forzar la corrección en la capa lógica.
         assert getattr(certificate, "subtracting", Decimal("0.00")) == Decimal(expected_sust)
+    
