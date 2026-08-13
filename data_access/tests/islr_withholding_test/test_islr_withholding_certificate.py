@@ -345,174 +345,6 @@ class TestIslrWithholdingCertificate:
 
 
 @pytest.mark.django_db
-class TestIslrWithholdingPaymentConcepts:
-    """
-    Suite de pruebas para validar los cálculos de retención de ISLR.
-    
-    Verifica los métodos de enrutamiento invocados en el método save() del
-    modelo IslrWithholdingCertificate para los distintos tipos de persona.
-    """
-
-    @pytest.mark.parametrize(
-        (
-            "code",
-            "payment_concept",
-            "subtotal",
-            "expected_base",
-            "expected_islr",
-        ),
-        [
-            ("003", 1, Decimal("1000"), Decimal("900"), Decimal("306")),
-            ("015", 4, Decimal("1000"), Decimal("1000"), Decimal("340")),
-            ("022", 6, Decimal("1000"), Decimal("950"), Decimal("323")),
-            ("032", 8, Decimal("1000"), Decimal("250"), Decimal("85")),
-            ("036", 10, Decimal("1000"), Decimal("300"), Decimal("102")),
-            ("038", 11, Decimal("1000"), Decimal("500"), Decimal("170")),
-        ],
-        ids=["code_003", "code_015", "code_022", "code_032", "code_036", "code_038"],
-    )
-    def test_concepts_payment_pnnr(
-        self,
-        valid_islr_certificate: Any,
-        code: str,
-        payment_concept: int,
-        subtotal: Decimal,
-        expected_base: Decimal,
-        expected_islr: Decimal,
-    ) -> None:
-        """Prueba los cálculos de retención para Personas Naturales No Residentes (PNNR)."""
-        # Arrange
-        valid_islr_certificate.invoice.subtotal = subtotal
-       # valid_islr_certificate.invoice.save()
-        valid_islr_certificate.concepts_payment_pnnr = payment_concept
-
-        # Act
-        valid_islr_certificate.save()
-
-        # Assert
-        assert valid_islr_certificate.base_imponible == expected_base
-        assert valid_islr_certificate.islr_withheld_amount == expected_islr
-
-    @pytest.mark.parametrize(
-        (
-            "code",
-            "payment_concept",
-            "subtotal",
-            "expected_base",
-            "expected_islr",
-            "expected_sustraendo",
-        ),
-        [
-            ("002", 1, Decimal("1000"), Decimal("1000"), Decimal("0"), Decimal("0")),
-            ("012", 3, Decimal("4000"), Decimal("4000"), Decimal("12.50"), Decimal("107.50")),
-            ("041", 7, Decimal("1000"), Decimal("1000"), Decimal("340"), Decimal("0")),
-        ],
-        ids=["code_002", "code_012", "code_041"],
-    )
-    def test_concepts_payment_pnr(
-        self,
-        valid_islr_certificate: Any,
-        code: str,
-        payment_concept: int,
-        subtotal: Decimal,
-        expected_base: Decimal,
-        expected_islr: Decimal,
-        expected_sustraendo: Decimal,
-    ) -> None:
-        """Prueba los cálculos de retención para Personas Naturales Residentes (PNR)."""
-        # Arrange
-        valid_islr_certificate.invoice.subtotal = subtotal
-        valid_islr_certificate.invoice.save()
-        valid_islr_certificate.concepts_payment_pnr = payment_concept
-
-        # Act
-        valid_islr_certificate.save()
-
-        # Assert
-        assert valid_islr_certificate.base_imponible == expected_base
-        assert valid_islr_certificate.islr_withheld_amount == expected_islr
-        assert valid_islr_certificate.sustraendo == expected_sustraendo
-
-    @pytest.mark.parametrize(
-        (
-            "code",
-            "payment_concept",
-            "subtotal",
-            "expected_base",
-            "expected_islr",
-            "expected_sustraendo",
-        ),
-        [
-            ("005", 1, Decimal("1000"), Decimal("900"), Decimal("135"), Decimal("0")),
-            ("017", 2, Decimal("1000"), Decimal("1000"), Decimal("50"), Decimal("0")),
-            ("023", 4, Decimal("128000"), Decimal("121600"), Decimal("20732"), Decimal("6020")),
-            ("024", 5, Decimal("1000"), Decimal("1000"), Decimal("49.5"), Decimal("0")),
-            ("028", 6, Decimal("200000"), Decimal("190000"), Decimal("43100"), Decimal("21500")),
-        ],
-        ids=["code_005", "code_017", "code_023", "code_024", "code_028"],
-    )
-    def test_concepts_payment_pjnd(
-        self,
-        valid_islr_certificate: Any,
-        code: str,
-        payment_concept: int,
-        subtotal: Decimal,
-        expected_base: Decimal,
-        expected_islr: Decimal,
-        expected_sustraendo: Decimal,
-    ) -> None:
-        """Prueba los cálculos de retención para Personas Jurídicas No Domiciliadas (PJND)."""
-        # Arrange
-        valid_islr_certificate.invoice.subtotal = subtotal
-        valid_islr_certificate.invoice.save()
-        valid_islr_certificate.concepts_payment_pjnd = payment_concept
-
-        # Act
-        valid_islr_certificate.save()
-
-        # Assert
-        assert valid_islr_certificate.base_imponible == expected_base
-        assert valid_islr_certificate.islr_withheld_amount == expected_islr
-        assert valid_islr_certificate.sustraendo == expected_sustraendo
-
-    @pytest.mark.parametrize(
-        (
-            "code",
-            "payment_concept",
-            "subtotal",
-            "expected_base",
-            "expected_islr",
-        ),
-        [
-            ("004", 1, Decimal("1000"), Decimal("1000"), Decimal("50")),
-            ("072", 13, Decimal("1000"), Decimal("1000"), Decimal("30")),
-        ],
-        ids=["code_004", "code_072"],
-    )
-    def test_concepts_payment_pjd(
-        self,
-        valid_islr_certificate: Any,
-        code: str,
-        payment_concept: int,
-        subtotal: Decimal,
-        expected_base: Decimal,
-        expected_islr: Decimal,
-    ) -> None:
-        """Prueba los cálculos de retención para Personas Jurídicas Domiciliadas (PJD)."""
-        # Arrange
-        valid_islr_certificate.invoice.subtotal = subtotal
-        valid_islr_certificate.invoice.save()
-        valid_islr_certificate.concepts_payment_pjd = payment_concept
-
-        # Act
-        valid_islr_certificate.save()
-
-        # Assert
-        assert valid_islr_certificate.base_imponible == expected_base
-        assert valid_islr_certificate.islr_withheld_amount == expected_islr
-
-
-@pytest.mark.django_db
 class TestConceptsPayment:
     """Suite de pruebas automatizadas para el concepto de pago PNR."""
 
@@ -523,7 +355,6 @@ class TestConceptsPayment:
             ("012", 3, "4000.00", "4000.00", "12.50", "107.50"),
             ("041", 7, "1000.00", "1000.00", "340.00", "0.00"),
         ],
-        #ids=["code_002", "code_012", "code_041"],
     )
     def test_concepts_payment_pnr_happy_path(
         self,
@@ -556,6 +387,91 @@ class TestConceptsPayment:
         assert certificate.islr_withheld_amount == Decimal(expected_islr)
         assert certificate.subtracting == Decimal(expected_sust)
 
+
+    """Suite de pruebas automatizadas para el concepto de pago PNNR."""
+
+    @pytest.mark.parametrize(
+        "code, concept_val, subtotal, expected_base, expected_islr",
+        [
+            ("003", 1, "1000.00", "900.00", "306.00"),
+            ("015", 4, "1000.00", "1000.00", "340.00"),
+            ("022", 6, "1000.00", "950.00", "323.00"),
+            ("032", 8, "1000.00", "250.00", "85.00"),
+            ("036", 10, "1000.00", "300.00", "102.00"),
+            ("038", 11, "1000.00", "500.00", "170.00"),
+        ],
+        ids=["code_003", "code_015", "code_022", "code_032", "code_036", "code_038"],
+    )
+    def test_concepts_payment_pnnr_happy_path(
+        self,
+        preliminary_invoice: Any,
+        base_fiscal_profile: Any,
+        code: str,
+        concept_val: int,
+        subtotal: str,
+        expected_base: str,
+        expected_islr: str,
+    ) -> None:
+        """Verifica que el modelo calcule correctamente la retención según el código SENIAT."""
+        # Arrange
+        preliminary_invoice.subtotal = Decimal(subtotal)
+        preliminary_invoice.save()
+
+        certificate = IslrWithholdingCertificate(
+            purchase_invoice=preliminary_invoice,
+            document_number="2026080001",
+            application_date=date(2026, 8, 15),
+            fiscal_profile=base_fiscal_profile,
+            concepts_payment_pnnr=concept_val,
+        )
+
+        # Act
+        certificate.save()
+
+        # Assert
+        assert certificate.islr_withheld_amount == Decimal(expected_islr)
+
+
+    """Suite de pruebas automatizadas para el concepto de pago PJD."""
+
+    @pytest.mark.parametrize(
+        "code, concept_val, subtotal, expected_base, expected_islr",
+        [
+            ("004", 1, "1000.00", "1000.00", "50.00"),
+            ("072", 13, "1000.00", "1000.00", "30.00"),
+        ],
+        ids=["code_004", "code_072"],
+    )
+    def test_concepts_payment_pjd_happy_path(
+        self,
+        preliminary_invoice: Any,
+        base_fiscal_profile: Any,
+        code: str,
+        concept_val: int,
+        subtotal: str,
+        expected_base: str,
+        expected_islr: str,
+    ) -> None:
+        """Verifica el enrutamiento y cálculo matemático simple sobre PJD."""
+        # Arrange
+        preliminary_invoice.subtotal = Decimal(subtotal)
+        preliminary_invoice.save()
+
+        certificate = IslrWithholdingCertificate(
+            purchase_invoice=preliminary_invoice,
+            document_number="2026080007",
+            application_date=date(2026, 8, 15),
+            fiscal_profile=base_fiscal_profile,
+            concepts_payment_pjd=concept_val,
+        )
+
+        # Act
+        certificate.save()
+
+        # Assert
+        assert certificate.islr_withheld_amount == Decimal(expected_islr)
+
+
     """Suite de pruebas automatizadas para el concepto de pago PJND."""
 
     @pytest.mark.parametrize(
@@ -567,7 +483,6 @@ class TestConceptsPayment:
             ("024", 5, "1000.00", "1000.00", "49.50", "0.00"),
             ("028", 6, "200000.00", "190000.00", "43100.00", "21500.00"),
         ],
-        #ids=["code_005", "code_017", "code_023", "code_024", "code_028"],
     )
     def test_concepts_payment_pjnd_happy_path(
         self,
