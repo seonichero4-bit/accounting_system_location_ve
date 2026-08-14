@@ -24,6 +24,6 @@ class IslrWithholdingCertificateForm(forms.ModelForm):
 
         ]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['fiscal_period'].required = False
+    # def __init__(self, *args, **kwargs):
+    #     super().__init__(*args, **kwargs)
+    #     self.fields['fiscal_period'].required = False

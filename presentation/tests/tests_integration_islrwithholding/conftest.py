@@ -47,7 +47,8 @@ def fiscal_profile(admin_user: User) -> FiscalProfile:
 @pytest.fixture
 def fiscal_period(fiscal_profile: FiscalProfile) -> date:
     """Retorna el periodo fiscal inicial del perfil fiscal creado."""
-    return fiscal_profile.initial_fiscal_period.start_period
+    #fiscal_profile = fiscal_profile
+    return fiscal_profile.initial_fiscal_period
 
 
 @pytest.fixture
@@ -69,7 +70,7 @@ def request_factory() -> RequestFactory:
 
 
 @pytest.fixture
-def logged_client(admin_user: User, fiscal_profile: FiscalProfile) -> Client:
+def logged_client(admin_user: User, fiscal_profile: FiscalProfile, fiscal_period: FiscalPeriod ) -> Client:
     """Retorna un cliente de pruebas de Django autenticado con el usuario admin."""
     client = Client()
     client.force_login(admin_user)
@@ -77,6 +78,7 @@ def logged_client(admin_user: User, fiscal_profile: FiscalProfile) -> Client:
     # Inyectar la clave de sesión que el middleware utiliza para resolver request.fiscal_profile
     session = client.session
     session['active_fiscal_profile_id'] = fiscal_profile.pk
+    session['active_fiscal_period_id'] = fiscal_period.pk
     session.save()
 
     return client

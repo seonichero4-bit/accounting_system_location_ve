@@ -5,158 +5,236 @@ django: version: 6.0.7, settings: accounting_system_ve.settings (from ini)
 rootdir: /workspaces/accounting_system_location_ve
 configfile: pytest.ini
 plugins: django-4.14.0, Faker-40.15.0
-collecting ... collected 7 items / 5 deselected / 2 selected
-run-last-failure: rerun previous 2 failures
+collecting ... collected 7 items
 
-presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_05_view_create_valid_certificate_success ERROR [ 50%]
-presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_06_view_create_duplicate_certificate_handles_integrity_error ERROR [100%]
+presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_01_model_clean_raises_error_with_multiple_concepts PASSED [ 14%]
+presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_02_model_clean_raises_error_with_invalid_correlative_structure PASSED [ 28%]
+presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_03_model_clean_raises_error_on_retroactive_date PASSED [ 42%]
+presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_04_model_delete_raises_error_when_processed PASSED [ 57%]
+presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_05_view_create_valid_certificate_success FAILED [ 71%]
+presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_06_view_create_duplicate_certificate_handles_integrity_error FAILED [ 85%]
+presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_07_view_delete_certificate_success PASSED [100%]
 
-==================================== ERRORS ====================================
-___ ERROR at setup of test_TC_ISLR_05_view_create_valid_certificate_success ____
+=================================== FAILURES ===================================
+____________ test_TC_ISLR_05_view_create_valid_certificate_success _____________
 
-admin_user = <User: test_admin>
+logged_client = <django.test.client.Client object at 0x7628da12ec00>
+preliminary_invoice = <PurchaseLedgerInvoice: Factura N° INV-100 (CTRL-100) - ID: 251>
 
-    @pytest.fixture
-    def logged_client(admin_user: User) -> Client:
-        """Retorna un cliente de pruebas de Django autenticado con el usuario admin."""
-        client = Client()
-        client.force_login(admin_user)
+    @pytest.mark.django_db
+    def test_TC_ISLR_05_view_create_valid_certificate_success(
+        logged_client: Client, preliminary_invoice: PurchaseLedgerInvoice
+    ) -> None:
+        """Verifica que el flujo de vista procesa y guarda exitosamente un comprobante."""
     
-        # Inyectar la clave de sesión que el middleware utiliza para resolver request.fiscal_profile
-        session = client.session
-        session['active_fiscal_profile_id'] = fiscal_profile
->       session.save()
+        # Arrange
+        url = reverse(
+            "islr-withholding-create", kwargs={"invoice_pk": preliminary_invoice.pk}
+        )
+        post_data = {
+            "document_number": "20260800001",
+            "application_date": "2026-08-15",
+            "concepts_payment_pjd": 1,
+        }
+    
+        # Act
+>       response = logged_client.post(url, data=post_data)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-presentation/tests/tests_integration_islrwithholding/conftest.py:79: 
+presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py:117: 
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-venv/lib/python3.12/site-packages/django/contrib/sessions/backends/db.py:123: in save
-    obj = self.create_model_instance(data)
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/contrib/sessions/backends/db.py:102: in create_model_instance
-    session_data=self.encode(data),
-                 ^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/contrib/sessions/backends/base.py:126: in encode
-    return signing.dumps(
-venv/lib/python3.12/site-packages/django/core/signing.py:175: in dumps
-    return TimestampSigner(key=key, salt=salt).sign_object(
-venv/lib/python3.12/site-packages/django/core/signing.py:250: in sign_object
-    data = serializer().dumps(obj)
-           ^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/core/signing.py:150: in dumps
-    return json.dumps(obj, separators=(",", ":")).encode("latin-1")
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/home/codespace/.python/current/lib/python3.12/json/__init__.py:238: in dumps
-    **kw).encode(obj)
-          ^^^^^^^^^^^
-/home/codespace/.python/current/lib/python3.12/json/encoder.py:200: in encode
-    chunks = self.iterencode(o, _one_shot=True)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/home/codespace/.python/current/lib/python3.12/json/encoder.py:258: in iterencode
-    return _iterencode(o, 0)
+venv/lib/python3.12/site-packages/django/test/client.py:1156: in post
+    response = super().post(
+venv/lib/python3.12/site-packages/django/test/client.py:499: in post
+    return self.generic(
+venv/lib/python3.12/site-packages/django/test/client.py:671: in generic
+    return self.request(**r)
            ^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <json.encoder.JSONEncoder object at 0x70539ba24440>
-o = <pytest_fixture(<function fiscal_profile at 0x70539bd560c0>)>
-
-    def default(self, o):
-        """Implement this method in a subclass such that it returns
-        a serializable object for ``o``, or calls the base implementation
-        (to raise a ``TypeError``).
-    
-        For example, to support arbitrary iterators, you could
-        implement default like this::
-    
-            def default(self, o):
-                try:
-                    iterable = iter(o)
-                except TypeError:
-                    pass
-                else:
-                    return list(iterable)
-                # Let the base class default method raise the TypeError
-                return JSONEncoder.default(self, o)
-    
-        """
->       raise TypeError(f'Object of type {o.__class__.__name__} '
-                        f'is not JSON serializable')
-E       TypeError: Object of type FixtureFunctionDefinition is not JSON serializable
-
-/home/codespace/.python/current/lib/python3.12/json/encoder.py:180: TypeError
----------------------------- Captured stderr setup -----------------------------
-Using existing test database for alias 'default'...
-_ ERROR at setup of test_TC_ISLR_06_view_create_duplicate_certificate_handles_integrity_error _
-
-admin_user = <User: test_admin>
-
-    @pytest.fixture
-    def logged_client(admin_user: User) -> Client:
-        """Retorna un cliente de pruebas de Django autenticado con el usuario admin."""
-        client = Client()
-        client.force_login(admin_user)
-    
-        # Inyectar la clave de sesión que el middleware utiliza para resolver request.fiscal_profile
-        session = client.session
-        session['active_fiscal_profile_id'] = fiscal_profile
->       session.save()
-
-presentation/tests/tests_integration_islrwithholding/conftest.py:79: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-venv/lib/python3.12/site-packages/django/contrib/sessions/backends/db.py:123: in save
-    obj = self.create_model_instance(data)
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/contrib/sessions/backends/db.py:102: in create_model_instance
-    session_data=self.encode(data),
-                 ^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/contrib/sessions/backends/base.py:126: in encode
-    return signing.dumps(
-venv/lib/python3.12/site-packages/django/core/signing.py:175: in dumps
-    return TimestampSigner(key=key, salt=salt).sign_object(
-venv/lib/python3.12/site-packages/django/core/signing.py:250: in sign_object
-    data = serializer().dumps(obj)
-           ^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/core/signing.py:150: in dumps
-    return json.dumps(obj, separators=(",", ":")).encode("latin-1")
+venv/lib/python3.12/site-packages/django/test/client.py:1090: in request
+    self.check_exception(response)
+venv/lib/python3.12/site-packages/django/test/client.py:805: in check_exception
+    raise exc_value
+venv/lib/python3.12/site-packages/django/core/handlers/exception.py:55: in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/core/handlers/base.py:198: in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/views/generic/base.py:106: in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/views/generic/base.py:145: in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/views/generic/edit.py:182: in post
+    return super().post(request, *args, **kwargs)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/home/codespace/.python/current/lib/python3.12/json/__init__.py:238: in dumps
-    **kw).encode(obj)
-          ^^^^^^^^^^^
-/home/codespace/.python/current/lib/python3.12/json/encoder.py:200: in encode
-    chunks = self.iterencode(o, _one_shot=True)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/home/codespace/.python/current/lib/python3.12/json/encoder.py:258: in iterencode
-    return _iterencode(o, 0)
-           ^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/views/generic/edit.py:149: in post
+    form = self.get_form()
+           ^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/views/generic/edit.py:37: in get_form
+    return form_class(**self.get_form_kwargs())
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <json.encoder.JSONEncoder object at 0x70539bf448c0>
-o = <pytest_fixture(<function fiscal_profile at 0x70539bd560c0>)>
+self = <IslrWithholdingCertificateForm bound=True, valid=Unknown, fields=(document_number;application_date;concepts_payment_pnnr;concepts_payment_pnr;concepts_payment_pjnd;concepts_payment_pjd)>
+args = ()
+kwargs = {'initial': {}, 'prefix': None, 'data': <QueryDict: {'document_number': ['20260800001'], 'application_date': ['2026-08-15'], 'concepts_payment_pjd': ['1']}>, 'files': <MultiValueDict: {}>, ...}
 
-    def default(self, o):
-        """Implement this method in a subclass such that it returns
-        a serializable object for ``o``, or calls the base implementation
-        (to raise a ``TypeError``).
-    
-        For example, to support arbitrary iterators, you could
-        implement default like this::
-    
-            def default(self, o):
-                try:
-                    iterable = iter(o)
-                except TypeError:
-                    pass
-                else:
-                    return list(iterable)
-                # Let the base class default method raise the TypeError
-                return JSONEncoder.default(self, o)
-    
-        """
->       raise TypeError(f'Object of type {o.__class__.__name__} '
-                        f'is not JSON serializable')
-E       TypeError: Object of type FixtureFunctionDefinition is not JSON serializable
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+>       self.fields['fiscal_period'].required = False
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'fiscal_period'
 
-/home/codespace/.python/current/lib/python3.12/json/encoder.py:180: TypeError
+presentation/forms/islr_withholding.py:29: KeyError
+------------------------------ Captured log call -------------------------------
+ERROR    django.request:log.py:249 Internal Server Error: /purchase-invoices/251/islr-withholding/new/
+Traceback (most recent call last):
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/core/handlers/base.py", line 198, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/base.py", line 106, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/base.py", line 145, in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/edit.py", line 182, in post
+    return super().post(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/edit.py", line 149, in post
+    form = self.get_form()
+           ^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/edit.py", line 37, in get_form
+    return form_class(**self.get_form_kwargs())
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/presentation/forms/islr_withholding.py", line 29, in __init__
+    self.fields['fiscal_period'].required = False
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'fiscal_period'
+__ test_TC_ISLR_06_view_create_duplicate_certificate_handles_integrity_error ___
+
+logged_client = <django.test.client.Client object at 0x7628d89abda0>
+preliminary_invoice = <PurchaseLedgerInvoice: Factura N° INV-100 (CTRL-100) - ID: 252>
+secondary_preliminary_invoice = <PurchaseLedgerInvoice: Factura N° INV-101 (CTRL-101) - ID: 253>
+fiscal_profile = <FiscalProfile: Empresa de Pruebas CA (J123456789)>
+
+    @pytest.mark.django_db
+    def test_TC_ISLR_06_view_create_duplicate_certificate_handles_integrity_error(
+        logged_client: Client,
+        preliminary_invoice: PurchaseLedgerInvoice,
+        secondary_preliminary_invoice: PurchaseLedgerInvoice,
+        fiscal_profile: FiscalProfile
+    ) -> None:
+        """Verifica que la vista captura IntegrityError y lo añade al formulario por duplicidad."""
+    
+        # Arrange
+        document_number = "20260800099"
+    
+        # Creamos previamente el comprobante para disparar el UniqueConstraint
+        IslrWithholdingCertificate.objects.create(
+            purchase_invoice=preliminary_invoice,
+            document_number=document_number,
+            application_date=date(2026, 8, 10),
+            fiscal_profile=fiscal_profile,
+            concepts_payment_pjd=1,
+            islr_withheld_amount=Decimal("0.00")
+        )
+    
+        # Preparamos una petición POST para la *segunda* factura con el mismo número
+        url = reverse(
+            "islr-withholding-create", kwargs={"invoice_pk": secondary_preliminary_invoice.pk}
+        )
+        post_data = {
+            "document_number": document_number,  # Mismo número, disparará IntegrityError
+            "application_date": "2026-08-15",
+            "concepts_payment_pjd": 1,
+        }
+    
+        # Act
+>       response = logged_client.post(url, data=post_data)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py:166: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+venv/lib/python3.12/site-packages/django/test/client.py:1156: in post
+    response = super().post(
+venv/lib/python3.12/site-packages/django/test/client.py:499: in post
+    return self.generic(
+venv/lib/python3.12/site-packages/django/test/client.py:671: in generic
+    return self.request(**r)
+           ^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/test/client.py:1090: in request
+    self.check_exception(response)
+venv/lib/python3.12/site-packages/django/test/client.py:805: in check_exception
+    raise exc_value
+venv/lib/python3.12/site-packages/django/core/handlers/exception.py:55: in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/core/handlers/base.py:198: in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/views/generic/base.py:106: in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/views/generic/base.py:145: in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/views/generic/edit.py:182: in post
+    return super().post(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/views/generic/edit.py:149: in post
+    form = self.get_form()
+           ^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/views/generic/edit.py:37: in get_form
+    return form_class(**self.get_form_kwargs())
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <IslrWithholdingCertificateForm bound=True, valid=Unknown, fields=(document_number;application_date;concepts_payment_pnnr;concepts_payment_pnr;concepts_payment_pjnd;concepts_payment_pjd)>
+args = ()
+kwargs = {'initial': {}, 'prefix': None, 'data': <QueryDict: {'document_number': ['20260800099'], 'application_date': ['2026-08-15'], 'concepts_payment_pjd': ['1']}>, 'files': <MultiValueDict: {}>, ...}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+>       self.fields['fiscal_period'].required = False
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'fiscal_period'
+
+presentation/forms/islr_withholding.py:29: KeyError
+------------------------------ Captured log call -------------------------------
+ERROR    django.request:log.py:249 Internal Server Error: /purchase-invoices/253/islr-withholding/new/
+Traceback (most recent call last):
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/core/handlers/base.py", line 198, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/base.py", line 106, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/base.py", line 145, in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/edit.py", line 182, in post
+    return super().post(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/edit.py", line 149, in post
+    form = self.get_form()
+           ^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/edit.py", line 37, in get_form
+    return form_class(**self.get_form_kwargs())
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/presentation/forms/islr_withholding.py", line 29, in __init__
+    self.fields['fiscal_period'].required = False
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'fiscal_period'
 =========================== short test summary info ============================
-ERROR presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_05_view_create_valid_certificate_success
-ERROR presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_06_view_create_duplicate_certificate_handles_integrity_error
-======================= 5 deselected, 2 errors in 9.49s ========================
+FAILED presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_05_view_create_valid_certificate_success
+FAILED presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_06_view_create_duplicate_certificate_handles_integrity_error
+========================= 2 failed, 5 passed in 25.71s =========================

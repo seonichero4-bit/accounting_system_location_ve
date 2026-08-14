@@ -28,7 +28,7 @@ def get_fiscal_period(request) -> FiscalPeriod | None:
 
 
 class FiscalPeriodMiddleware:
-    """Middleware para inyectar `request.fiscal_profile` y `request.fiscal_period` en cada petición."""
+    """Middleware para inyectar  y `request.fiscal_period` en cada petición."""
 
     def __init__(self, get_response):
         self.get_response = get_response
