@@ -1,11 +1,14 @@
 """Módulo de presentación para la gestión de retenciones de ISLR.
 
 Define el formulario basado en ModelForm y las vistas genéricas del CRUD
-para el modelo IslrWithholdingCertificate, aplicando aislamiento multi-tenant.
+para el modelo IslrWithholdingCertificate, aplicando aislamiento multi-tenant
+y manejo de excepciones de modelo y base de datos.
 """
 
 from typing import Any
-from django.db.models import QuerySet
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError
+from django.db.models import ProtectedError
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponseRedirect, HttpResponse
 from django.urls import reverse, reverse_lazy
@@ -61,10 +64,35 @@ class IslrWithholdingCertificateCreateView(RequestScopedQuerySetMixin, CreateVie
         # Al pasar esto, el Form tomará esta instancia en lugar de crear una vacía
         kwargs["instance"] = IslrWithholdingCertificate(
             purchase_invoice=purchase_invoice,
-            fiscal_profile=self.request.fiscal_profile
-            fiscal_period=self.request.fiscal_peroid
+            fiscal_profile=self.request.fiscal_profile,
+            fiscal_period=getattr(self.request, "fiscal_period", None)
         )
         return kwargs
+
+    def form_valid(self, form: Any) -> HttpResponse:
+        """Procesa el guardado capturando validaciones de save() y restricciones DB."""
+        try:
+            return super().form_valid(form)
+        except ValidationError as e:
+            if hasattr(e, "error_dict"):
+                for field, errors in e.error_dict.items():
+                    form.add_error(None if field == "__all__" else field, errors)
+            else:
+                form.add_error(None, e)
+            return self.form_invalid(form)
+        except IntegrityError as e:
+            err_msg = str(e)
+            if "unique_document_per_fiscal_profile" in err_msg or "document_number" in err_msg:
+                form.add_error(
+                    "document_number",
+                    "Ya existe un comprobante con este número de documento para el perfil fiscal actual."
+                )
+            else:
+                form.add_error(
+                    None,
+                    "Error de integridad en la base de datos al guardar el comprobante."
+                )
+            return self.form_invalid(form)
 
     def get_success_url(self) -> str:
         """Define la ruta de redirección al detalle tras guardar exitosamente."""
@@ -78,6 +106,31 @@ class IslrWithholdingCertificateUpdateView(RequestScopedQuerySetMixin, UpdateVie
     form_class = IslrWithholdingCertificateForm
     template_name = "certificate_form.html"
 
+    def form_valid(self, form: Any) -> HttpResponse:
+        """Procesa la actualización capturando bloqueos de modificación y restricciones DB."""
+        try:
+            return super().form_valid(form)
+        except ValidationError as e:
+            if hasattr(e, "error_dict"):
+                for field, errors in e.error_dict.items():
+                    form.add_error(None if field == "__all__" else field, errors)
+            else:
+                form.add_error(None, e)
+            return self.form_invalid(form)
+        except IntegrityError as e:
+            err_msg = str(e)
+            if "unique_document_per_fiscal_profile" in err_msg or "document_number" in err_msg:
+                form.add_error(
+                    "document_number",
+                    "Ya existe un comprobante con este número de documento para el perfil fiscal actual."
+                )
+            else:
+                form.add_error(
+                    None,
+                    "Error de integridad en la base de datos al actualizar el comprobante."
+                )
+            return self.form_invalid(form)
+
     def get_success_url(self) -> str:
         """Define la ruta de redirección al detalle tras la actualización."""
         return reverse("islr-withholding-detail", kwargs={"pk": self.object.pk})
@@ -89,3 +142,29 @@ class IslrWithholdingCertificateDeleteView(RequestScopedQuerySetMixin, DeleteVie
     model = IslrWithholdingCertificate
     template_name = "certificate_confirm_delete.html"
     success_url = reverse_lazy("islr-withholding-list")
+
+    def form_valid(self, form: Any) -> HttpResponse:
+        """Maneja la eliminación basada en formularios (Django 4.0+)."""
+        try:
+            return super().form_valid(form)
+        except ValidationError as e:
+            if hasattr(e, "error_dict"):
+                for field, errors in e.error_dict.items():
+                    form.add_error(None if field == "__all__" else field, errors)
+            else:
+                form.add_error(None, e)
+            return self.form_invalid(form)
+        except ProtectedError:
+            form.add_error(
+                None,
+                "No se puede eliminar este comprobante porque posee registros asociados protegidos."
+            )
+            return self.form_invalid(form)
+        except IntegrityError:
+            form.add_error(
+                None,
+                "Error de integridad en la base de datos al intentar eliminar el comprobante."
+            )
+            return self.form_invalid(form)
+
+   

@@ -400,7 +400,6 @@ class TestConceptsPayment:
             ("036", 10, "1000.00", "300.00", "102.00"),
             ("038", 11, "1000.00", "500.00", "170.00"),
         ],
-        ids=["code_003", "code_015", "code_022", "code_032", "code_036", "code_038"],
     )
     def test_concepts_payment_pnnr_happy_path(
         self,
@@ -440,7 +439,6 @@ class TestConceptsPayment:
             ("004", 1, "1000.00", "1000.00", "50.00"),
             ("072", 13, "1000.00", "1000.00", "30.00"),
         ],
-        ids=["code_004", "code_072"],
     )
     def test_concepts_payment_pjd_happy_path(
         self,

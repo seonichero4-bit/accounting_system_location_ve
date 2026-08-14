@@ -5,132 +5,158 @@ django: version: 6.0.7, settings: accounting_system_ve.settings (from ini)
 rootdir: /workspaces/accounting_system_location_ve
 configfile: pytest.ini
 plugins: django-4.14.0, Faker-40.15.0
-collecting ... collected 5 items
+collecting ... collected 7 items / 5 deselected / 2 selected
+run-last-failure: rerun previous 2 failures
 
-data_access/tests/islr_withholding_test/test_islr_withholding_certificate.py::TestConceptsPaymentPnr::test_concepts_payment_pjnd_happy_path[code_005] PASSED [ 20%]
-data_access/tests/islr_withholding_test/test_islr_withholding_certificate.py::TestConceptsPaymentPnr::test_concepts_payment_pjnd_happy_path[code_017] PASSED [ 40%]
-data_access/tests/islr_withholding_test/test_islr_withholding_certificate.py::TestConceptsPaymentPnr::test_concepts_payment_pjnd_happy_path[code_023] FAILED [ 60%]
-data_access/tests/islr_withholding_test/test_islr_withholding_certificate.py::TestConceptsPaymentPnr::test_concepts_payment_pjnd_happy_path[code_024] PASSED [ 80%]
-data_access/tests/islr_withholding_test/test_islr_withholding_certificate.py::TestConceptsPaymentPnr::test_concepts_payment_pjnd_happy_path[code_028] FAILED [100%]
+presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_05_view_create_valid_certificate_success ERROR [ 50%]
+presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_06_view_create_duplicate_certificate_handles_integrity_error ERROR [100%]
 
-=================================== FAILURES ===================================
-____ TestConceptsPaymentPnr.test_concepts_payment_pjnd_happy_path[code_023] ____
+==================================== ERRORS ====================================
+___ ERROR at setup of test_TC_ISLR_05_view_create_valid_certificate_success ____
 
-self = <test_islr_withholding_certificate.TestConceptsPaymentPnr object at 0x7eee6a286a50>
-preliminary_invoice = <PurchaseLedgerInvoice: Factura N° fact-001 (CTRL-001) - ID: 143>
-base_fiscal_profile = <FiscalProfile: Comercializadora Alfa C.A. (J123456789)>
-code = '023', concept_val = 4, subtotal = '128000.00'
-expected_base = '121600.00', expected_islr = '20732.00'
-expected_sust = '6020.00'
+admin_user = <User: test_admin>
 
-    @pytest.mark.parametrize(
-        "code, concept_val, subtotal, expected_base, expected_islr, expected_sust",
-        [
-            ("005", 1, "1000.00", "900.00", "135.00", "0.00"),
-            ("017", 2, "1000.00", "1000.00", "50.00", "0.00"),
-            ("023", 4, "128000.00", "121600.00", "20732.00", "6020.00"),
-            ("024", 5, "1000.00", "1000.00", "49.50", "0.00"),
-            ("028", 6, "200000.00", "190000.00", "43100.00", "21500.00"),
-        ],
-        ids=["code_005", "code_017", "code_023", "code_024", "code_028"],
-    )
-    def test_concepts_payment_pjnd_happy_path(
-        self,
-        preliminary_invoice: Any,
-        base_fiscal_profile: Any,
-        code: str,
-        concept_val: int,
-        subtotal: str,
-        expected_base: str,
-        expected_islr: str,
-        expected_sust: str,
-    ) -> None:
-        """Verifica retención progresiva (Tarifa N° 2) y tasas fijas para PJND."""
-        # Arrange
-        preliminary_invoice.subtotal = Decimal(subtotal)
-        preliminary_invoice.save()
+    @pytest.fixture
+    def logged_client(admin_user: User) -> Client:
+        """Retorna un cliente de pruebas de Django autenticado con el usuario admin."""
+        client = Client()
+        client.force_login(admin_user)
     
-        # Ajuste de UT a 43.00 en base de datos para encajar el cálculo matemático con el test plan
-        #base_fiscal_profile.ut = Decimal("43.00")
-        #base_fiscal_profile.save()
-    
-        certificate = IslrWithholdingCertificate(
-            purchase_invoice=preliminary_invoice,
-            document_number="2026080005",
-            application_date=date(2026, 8, 15),
-            fiscal_profile=base_fiscal_profile,
-            concepts_payment_pjnd=concept_val,
-        )
-    
-        # Act
-        certificate.save()
-    
-        # Assert
->       assert certificate.islr_withheld_amount == Decimal(expected_islr)
-E       AssertionError: assert Decimal('36844.00') == Decimal('20732.00')
-E        +  where Decimal('36844.00') = <IslrWithholdingCertificate: 2026080005 - Comercializadora Alfa C.A. (J123456789)>.islr_withheld_amount
-E        +  and   Decimal('20732.00') = Decimal('20732.00')
+        # Inyectar la clave de sesión que el middleware utiliza para resolver request.fiscal_profile
+        session = client.session
+        session['active_fiscal_profile_id'] = fiscal_profile
+>       session.save()
 
-data_access/tests/islr_withholding_test/test_islr_withholding_certificate.py:605: AssertionError
-____ TestConceptsPaymentPnr.test_concepts_payment_pjnd_happy_path[code_028] ____
+presentation/tests/tests_integration_islrwithholding/conftest.py:79: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+venv/lib/python3.12/site-packages/django/contrib/sessions/backends/db.py:123: in save
+    obj = self.create_model_instance(data)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/contrib/sessions/backends/db.py:102: in create_model_instance
+    session_data=self.encode(data),
+                 ^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/contrib/sessions/backends/base.py:126: in encode
+    return signing.dumps(
+venv/lib/python3.12/site-packages/django/core/signing.py:175: in dumps
+    return TimestampSigner(key=key, salt=salt).sign_object(
+venv/lib/python3.12/site-packages/django/core/signing.py:250: in sign_object
+    data = serializer().dumps(obj)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/core/signing.py:150: in dumps
+    return json.dumps(obj, separators=(",", ":")).encode("latin-1")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/codespace/.python/current/lib/python3.12/json/__init__.py:238: in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+/home/codespace/.python/current/lib/python3.12/json/encoder.py:200: in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/codespace/.python/current/lib/python3.12/json/encoder.py:258: in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <test_islr_withholding_certificate.TestConceptsPaymentPnr object at 0x7eee6a286c00>
-preliminary_invoice = <PurchaseLedgerInvoice: Factura N° fact-001 (CTRL-001) - ID: 145>
-base_fiscal_profile = <FiscalProfile: Comercializadora Alfa C.A. (J123456789)>
-code = '028', concept_val = 6, subtotal = '200000.00'
-expected_base = '190000.00', expected_islr = '43100.00'
-expected_sust = '21500.00'
+self = <json.encoder.JSONEncoder object at 0x70539ba24440>
+o = <pytest_fixture(<function fiscal_profile at 0x70539bd560c0>)>
 
-    @pytest.mark.parametrize(
-        "code, concept_val, subtotal, expected_base, expected_islr, expected_sust",
-        [
-            ("005", 1, "1000.00", "900.00", "135.00", "0.00"),
-            ("017", 2, "1000.00", "1000.00", "50.00", "0.00"),
-            ("023", 4, "128000.00", "121600.00", "20732.00", "6020.00"),
-            ("024", 5, "1000.00", "1000.00", "49.50", "0.00"),
-            ("028", 6, "200000.00", "190000.00", "43100.00", "21500.00"),
-        ],
-        ids=["code_005", "code_017", "code_023", "code_024", "code_028"],
-    )
-    def test_concepts_payment_pjnd_happy_path(
-        self,
-        preliminary_invoice: Any,
-        base_fiscal_profile: Any,
-        code: str,
-        concept_val: int,
-        subtotal: str,
-        expected_base: str,
-        expected_islr: str,
-        expected_sust: str,
-    ) -> None:
-        """Verifica retención progresiva (Tarifa N° 2) y tasas fijas para PJND."""
-        # Arrange
-        preliminary_invoice.subtotal = Decimal(subtotal)
-        preliminary_invoice.save()
+    def default(self, o):
+        """Implement this method in a subclass such that it returns
+        a serializable object for ``o``, or calls the base implementation
+        (to raise a ``TypeError``).
     
-        # Ajuste de UT a 43.00 en base de datos para encajar el cálculo matemático con el test plan
-        #base_fiscal_profile.ut = Decimal("43.00")
-        #base_fiscal_profile.save()
+        For example, to support arbitrary iterators, you could
+        implement default like this::
     
-        certificate = IslrWithholdingCertificate(
-            purchase_invoice=preliminary_invoice,
-            document_number="2026080005",
-            application_date=date(2026, 8, 15),
-            fiscal_profile=base_fiscal_profile,
-            concepts_payment_pjnd=concept_val,
-        )
+            def default(self, o):
+                try:
+                    iterable = iter(o)
+                except TypeError:
+                    pass
+                else:
+                    return list(iterable)
+                # Let the base class default method raise the TypeError
+                return JSONEncoder.default(self, o)
     
-        # Act
-        certificate.save()
-    
-        # Assert
->       assert certificate.islr_withheld_amount == Decimal(expected_islr)
-E       AssertionError: assert Decimal('60100.00') == Decimal('43100.00')
-E        +  where Decimal('60100.00') = <IslrWithholdingCertificate: 2026080005 - Comercializadora Alfa C.A. (J123456789)>.islr_withheld_amount
-E        +  and   Decimal('43100.00') = Decimal('43100.00')
+        """
+>       raise TypeError(f'Object of type {o.__class__.__name__} '
+                        f'is not JSON serializable')
+E       TypeError: Object of type FixtureFunctionDefinition is not JSON serializable
 
-data_access/tests/islr_withholding_test/test_islr_withholding_certificate.py:605: AssertionError
+/home/codespace/.python/current/lib/python3.12/json/encoder.py:180: TypeError
+---------------------------- Captured stderr setup -----------------------------
+Using existing test database for alias 'default'...
+_ ERROR at setup of test_TC_ISLR_06_view_create_duplicate_certificate_handles_integrity_error _
+
+admin_user = <User: test_admin>
+
+    @pytest.fixture
+    def logged_client(admin_user: User) -> Client:
+        """Retorna un cliente de pruebas de Django autenticado con el usuario admin."""
+        client = Client()
+        client.force_login(admin_user)
+    
+        # Inyectar la clave de sesión que el middleware utiliza para resolver request.fiscal_profile
+        session = client.session
+        session['active_fiscal_profile_id'] = fiscal_profile
+>       session.save()
+
+presentation/tests/tests_integration_islrwithholding/conftest.py:79: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+venv/lib/python3.12/site-packages/django/contrib/sessions/backends/db.py:123: in save
+    obj = self.create_model_instance(data)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/contrib/sessions/backends/db.py:102: in create_model_instance
+    session_data=self.encode(data),
+                 ^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/contrib/sessions/backends/base.py:126: in encode
+    return signing.dumps(
+venv/lib/python3.12/site-packages/django/core/signing.py:175: in dumps
+    return TimestampSigner(key=key, salt=salt).sign_object(
+venv/lib/python3.12/site-packages/django/core/signing.py:250: in sign_object
+    data = serializer().dumps(obj)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/core/signing.py:150: in dumps
+    return json.dumps(obj, separators=(",", ":")).encode("latin-1")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/codespace/.python/current/lib/python3.12/json/__init__.py:238: in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+/home/codespace/.python/current/lib/python3.12/json/encoder.py:200: in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/codespace/.python/current/lib/python3.12/json/encoder.py:258: in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <json.encoder.JSONEncoder object at 0x70539bf448c0>
+o = <pytest_fixture(<function fiscal_profile at 0x70539bd560c0>)>
+
+    def default(self, o):
+        """Implement this method in a subclass such that it returns
+        a serializable object for ``o``, or calls the base implementation
+        (to raise a ``TypeError``).
+    
+        For example, to support arbitrary iterators, you could
+        implement default like this::
+    
+            def default(self, o):
+                try:
+                    iterable = iter(o)
+                except TypeError:
+                    pass
+                else:
+                    return list(iterable)
+                # Let the base class default method raise the TypeError
+                return JSONEncoder.default(self, o)
+    
+        """
+>       raise TypeError(f'Object of type {o.__class__.__name__} '
+                        f'is not JSON serializable')
+E       TypeError: Object of type FixtureFunctionDefinition is not JSON serializable
+
+/home/codespace/.python/current/lib/python3.12/json/encoder.py:180: TypeError
 =========================== short test summary info ============================
-FAILED data_access/tests/islr_withholding_test/test_islr_withholding_certificate.py::TestConceptsPaymentPnr::test_concepts_payment_pjnd_happy_path[code_023]
-FAILED data_access/tests/islr_withholding_test/test_islr_withholding_certificate.py::TestConceptsPaymentPnr::test_concepts_payment_pjnd_happy_path[code_028]
-========================= 2 failed, 3 passed in 23.18s =========================
+ERROR presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_05_view_create_valid_certificate_success
+ERROR presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_06_view_create_duplicate_certificate_handles_integrity_error
+======================= 5 deselected, 2 errors in 9.49s ========================
