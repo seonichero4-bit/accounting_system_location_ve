@@ -20,12 +20,12 @@ from django.views.generic import (
     UpdateView,
 )
 
+from ..utils import unwrap_lazy_object
 from presentation.forms.islr_withholding import IslrWithholdingCertificateForm
 from data_access.models.base import FiscalProfile
 from data_access.models.islr_withholding import IslrWithholdingCertificate
 from data_access.models.purchase_book import PurchaseLedgerInvoice
 from ..mixins.requestscopedquerysetmixin import RequestScopedQuerySetMixin 
-
 
 class IslrWithholdingCertificateListView(RequestScopedQuerySetMixin, ListView):
     """Vista genérica para listar los comprobantes de retención de ISLR."""
@@ -61,12 +61,14 @@ class IslrWithholdingCertificateCreateView(RequestScopedQuerySetMixin, CreateVie
         invoice_pk = self.kwargs.get("invoice_pk")
         purchase_invoice = get_object_or_404(PurchaseLedgerInvoice, pk=invoice_pk)
         
-        # Al pasar esto, el Form tomará esta instancia en lugar de crear una vacía
+        # Extraemos el datetime.date real envuelto en el SimpleLazyObject
+        fiscal_period_date = unwrap_lazy_object(getattr(self.request, "fiscal_period", None))
+        fiscal_profile_obj = unwrap_lazy_object(getattr(self.request, "fiscal_profile", None))
+
         kwargs["instance"] = IslrWithholdingCertificate(
             purchase_invoice=purchase_invoice,
-            fiscal_profile=self.request.fiscal_profile,
-            fiscal_period=getattr(self.request, "fiscal_period", None)
-        )
+            fiscal_profile=fiscal_profile_obj,
+            fiscal_period=fiscal_period_date)
         return kwargs
 
     def form_valid(self, form: Any) -> HttpResponse:
@@ -166,5 +168,3 @@ class IslrWithholdingCertificateDeleteView(RequestScopedQuerySetMixin, DeleteVie
                 "Error de integridad en la base de datos al intentar eliminar el comprobante."
             )
             return self.form_invalid(form)
-
-   

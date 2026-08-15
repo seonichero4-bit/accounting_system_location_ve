@@ -5,236 +5,107 @@ django: version: 6.0.7, settings: accounting_system_ve.settings (from ini)
 rootdir: /workspaces/accounting_system_location_ve
 configfile: pytest.ini
 plugins: django-4.14.0, Faker-40.15.0
-collecting ... collected 7 items
+collecting ... collected 8 items / 5 deselected / 3 selected
+run-last-failure: rerun previous 3 failures
 
-presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_01_model_clean_raises_error_with_multiple_concepts PASSED [ 14%]
-presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_02_model_clean_raises_error_with_invalid_correlative_structure PASSED [ 28%]
-presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_03_model_clean_raises_error_on_retroactive_date PASSED [ 42%]
-presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_04_model_delete_raises_error_when_processed PASSED [ 57%]
-presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_05_view_create_valid_certificate_success FAILED [ 71%]
-presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_06_view_create_duplicate_certificate_handles_integrity_error FAILED [ 85%]
-presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_07_view_delete_certificate_success PASSED [100%]
+presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::TestIslrWithholdingCertificateIntegration::test_ID_HP_001_create_certificate_via_view FAILED [ 33%]
+presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::TestIslrWithholdingCertificateIntegration::test_ID_HP_003_contextual_isolation_detail_view FAILED [ 66%]
+presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::TestIslrWithholdingCertificateIntegration::test_ID_EC_002_integrity_error_duplicate_correlative_caught_in_view FAILED [100%]
 
 =================================== FAILURES ===================================
-____________ test_TC_ISLR_05_view_create_valid_certificate_success _____________
+_ TestIslrWithholdingCertificateIntegration.test_ID_HP_001_create_certificate_via_view _
 
-logged_client = <django.test.client.Client object at 0x7628da12ec00>
-preliminary_invoice = <PurchaseLedgerInvoice: Factura N° INV-100 (CTRL-100) - ID: 251>
+self = <test_islr_withholding.TestIslrWithholdingCertificateIntegration object at 0x7d2e97a19bb0>
+logged_client = <django.test.client.Client object at 0x7d2e978840e0>
+preliminary_invoice = <PurchaseLedgerInvoice: Factura N° INV-100 (CTRL-100) - ID: 305>
 
-    @pytest.mark.django_db
-    def test_TC_ISLR_05_view_create_valid_certificate_success(
-        logged_client: Client, preliminary_invoice: PurchaseLedgerInvoice
-    ) -> None:
-        """Verifica que el flujo de vista procesa y guarda exitosamente un comprobante."""
-    
+    def test_ID_HP_001_create_certificate_via_view(self, logged_client, preliminary_invoice):
+        """Valida la creación exitosa de un comprobante desde la vista contextual."""
         # Arrange
-        url = reverse(
-            "islr-withholding-create", kwargs={"invoice_pk": preliminary_invoice.pk}
-        )
-        post_data = {
-            "document_number": "20260800001",
-            "application_date": "2026-08-15",
-            "concepts_payment_pjd": 1,
+        url = reverse("islr-withholding-create", kwargs={"invoice_pk": preliminary_invoice.pk})
+        form_data = {
+            "document_number": "2026080001",
+            "application_date": "2026-08-10",
+            "concepts_payment_pnr": 1,
         }
     
         # Act
->       response = logged_client.post(url, data=post_data)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py:117: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-venv/lib/python3.12/site-packages/django/test/client.py:1156: in post
-    response = super().post(
-venv/lib/python3.12/site-packages/django/test/client.py:499: in post
-    return self.generic(
-venv/lib/python3.12/site-packages/django/test/client.py:671: in generic
-    return self.request(**r)
-           ^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/test/client.py:1090: in request
-    self.check_exception(response)
-venv/lib/python3.12/site-packages/django/test/client.py:805: in check_exception
-    raise exc_value
-venv/lib/python3.12/site-packages/django/core/handlers/exception.py:55: in inner
-    response = get_response(request)
-               ^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/core/handlers/base.py:198: in _get_response
-    response = wrapped_callback(request, *callback_args, **callback_kwargs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/base.py:106: in view
-    return self.dispatch(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/base.py:145: in dispatch
-    return handler(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/edit.py:182: in post
-    return super().post(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/edit.py:149: in post
-    form = self.get_form()
-           ^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/edit.py:37: in get_form
-    return form_class(**self.get_form_kwargs())
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <IslrWithholdingCertificateForm bound=True, valid=Unknown, fields=(document_number;application_date;concepts_payment_pnnr;concepts_payment_pnr;concepts_payment_pjnd;concepts_payment_pjd)>
-args = ()
-kwargs = {'initial': {}, 'prefix': None, 'data': <QueryDict: {'document_number': ['20260800001'], 'application_date': ['2026-08-15'], 'concepts_payment_pjd': ['1']}>, 'files': <MultiValueDict: {}>, ...}
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
->       self.fields['fiscal_period'].required = False
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       KeyError: 'fiscal_period'
-
-presentation/forms/islr_withholding.py:29: KeyError
------------------------------- Captured log call -------------------------------
-ERROR    django.request:log.py:249 Internal Server Error: /purchase-invoices/251/islr-withholding/new/
-Traceback (most recent call last):
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
-    response = get_response(request)
-               ^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/core/handlers/base.py", line 198, in _get_response
-    response = wrapped_callback(request, *callback_args, **callback_kwargs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/base.py", line 106, in view
-    return self.dispatch(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/base.py", line 145, in dispatch
-    return handler(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/edit.py", line 182, in post
-    return super().post(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/edit.py", line 149, in post
-    form = self.get_form()
-           ^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/edit.py", line 37, in get_form
-    return form_class(**self.get_form_kwargs())
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/presentation/forms/islr_withholding.py", line 29, in __init__
-    self.fields['fiscal_period'].required = False
-    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-KeyError: 'fiscal_period'
-__ test_TC_ISLR_06_view_create_duplicate_certificate_handles_integrity_error ___
-
-logged_client = <django.test.client.Client object at 0x7628d89abda0>
-preliminary_invoice = <PurchaseLedgerInvoice: Factura N° INV-100 (CTRL-100) - ID: 252>
-secondary_preliminary_invoice = <PurchaseLedgerInvoice: Factura N° INV-101 (CTRL-101) - ID: 253>
-fiscal_profile = <FiscalProfile: Empresa de Pruebas CA (J123456789)>
-
-    @pytest.mark.django_db
-    def test_TC_ISLR_06_view_create_duplicate_certificate_handles_integrity_error(
-        logged_client: Client,
-        preliminary_invoice: PurchaseLedgerInvoice,
-        secondary_preliminary_invoice: PurchaseLedgerInvoice,
-        fiscal_profile: FiscalProfile
-    ) -> None:
-        """Verifica que la vista captura IntegrityError y lo añade al formulario por duplicidad."""
+        response = logged_client.post(url, data=form_data)
     
+        # Assert
+        assert response.status_code == 302
+        assert IslrWithholdingCertificate.objects.count() == 1
+        certificate = IslrWithholdingCertificate.objects.first()
+        assert certificate.document_number == "2026080001"
+>       assert response.url == reverse("invoice-islr-withholding-detail", kwargs={
+            "invoice_pk": preliminary_invoice.pk,
+            "pk": certificate.pk
+        })
+E       AssertionError: assert '/islr-withholdings/157/' == '/purchase-in...hholding/157/'
+E         
+E         - /purchase-invoices/305/islr-withholding/157/
+E         + /islr-withholdings/157/
+
+presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py:36: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+Using existing test database for alias 'default'...
+_ TestIslrWithholdingCertificateIntegration.test_ID_HP_003_contextual_isolation_detail_view _
+
+self = <test_islr_withholding.TestIslrWithholdingCertificateIntegration object at 0x7d2e97a1a690>
+other_logged_client = <django.test.client.Client object at 0x7d2e9760de50>
+processed_islr_certificate = <IslrWithholdingCertificate: 2026080001 - Empresa de Pruebas CA (J123456789)>
+
+    def test_ID_HP_003_contextual_isolation_detail_view(
+        self, other_logged_client, processed_islr_certificate
+    ):
+        """Asegura que comprobantes de un perfil fiscal no sean accesibles por otro."""
         # Arrange
-        document_number = "20260800099"
+        invoice_pk = processed_islr_certificate.purchase_invoice.pk
+        url = reverse("invoice-islr-withholding-detail", kwargs={
+            "invoice_pk": invoice_pk,
+            "pk": processed_islr_certificate.pk
+        })
     
-        # Creamos previamente el comprobante para disparar el UniqueConstraint
-        IslrWithholdingCertificate.objects.create(
-            purchase_invoice=preliminary_invoice,
-            document_number=document_number,
-            application_date=date(2026, 8, 10),
-            fiscal_profile=fiscal_profile,
-            concepts_payment_pjd=1,
-            islr_withheld_amount=Decimal("0.00")
-        )
+        # Act
+        response = other_logged_client.get(url)
     
-        # Preparamos una petición POST para la *segunda* factura con el mismo número
-        url = reverse(
-            "islr-withholding-create", kwargs={"invoice_pk": secondary_preliminary_invoice.pk}
-        )
-        post_data = {
-            "document_number": document_number,  # Mismo número, disparará IntegrityError
+        # Assert
+>       assert response.status_code == 404
+E       assert 200 == 404
+E        +  where 200 = <TemplateResponse status_code=200, "text/html; charset=utf-8">.status_code
+
+presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py:90: AssertionError
+_ TestIslrWithholdingCertificateIntegration.test_ID_EC_002_integrity_error_duplicate_correlative_caught_in_view _
+
+self = <test_islr_withholding.TestIslrWithholdingCertificateIntegration object at 0x7d2e97a1b230>
+logged_client = <django.test.client.Client object at 0x7d2e964b27e0>
+processed_islr_certificate = <IslrWithholdingCertificate: 2026080001 - Empresa de Pruebas CA (J123456789)>
+
+    def test_ID_EC_002_integrity_error_duplicate_correlative_caught_in_view(
+        self, logged_client, processed_islr_certificate
+    ):
+        """Verifica que la vista intercepte violaciones de unicidad en base de datos."""
+        # Arrange
+        invoice = processed_islr_certificate.purchase_invoice
+        url = reverse("islr-withholding-create", kwargs={"invoice_pk": invoice.pk})
+        form_data = {
+            "document_number": processed_islr_certificate.document_number,  # Duplicado
             "application_date": "2026-08-15",
-            "concepts_payment_pjd": 1,
+            "concepts_payment_pnr": 1,
         }
     
         # Act
->       response = logged_client.post(url, data=post_data)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        response = logged_client.post(url, data=form_data)
+    
+        # Assert
+        assert response.status_code == 200
+>       assert "document_number" in response.context["form"].errors
+E       AssertionError: assert 'document_number' in {'__all__': ['Error de integridad en la base de datos al guardar el comprobante.']}
+E        +  where {'__all__': ['Error de integridad en la base de datos al guardar el comprobante.']} = <IslrWithholdingCertificateForm bound=True, valid=False, fields=(document_number;application_date;concepts_payment_pnnr;concepts_payment_pnr;concepts_payment_pjnd;concepts_payment_pjd)>.errors
 
-presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py:166: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-venv/lib/python3.12/site-packages/django/test/client.py:1156: in post
-    response = super().post(
-venv/lib/python3.12/site-packages/django/test/client.py:499: in post
-    return self.generic(
-venv/lib/python3.12/site-packages/django/test/client.py:671: in generic
-    return self.request(**r)
-           ^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/test/client.py:1090: in request
-    self.check_exception(response)
-venv/lib/python3.12/site-packages/django/test/client.py:805: in check_exception
-    raise exc_value
-venv/lib/python3.12/site-packages/django/core/handlers/exception.py:55: in inner
-    response = get_response(request)
-               ^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/core/handlers/base.py:198: in _get_response
-    response = wrapped_callback(request, *callback_args, **callback_kwargs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/base.py:106: in view
-    return self.dispatch(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/base.py:145: in dispatch
-    return handler(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/edit.py:182: in post
-    return super().post(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/edit.py:149: in post
-    form = self.get_form()
-           ^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/edit.py:37: in get_form
-    return form_class(**self.get_form_kwargs())
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <IslrWithholdingCertificateForm bound=True, valid=Unknown, fields=(document_number;application_date;concepts_payment_pnnr;concepts_payment_pnr;concepts_payment_pjnd;concepts_payment_pjd)>
-args = ()
-kwargs = {'initial': {}, 'prefix': None, 'data': <QueryDict: {'document_number': ['20260800099'], 'application_date': ['2026-08-15'], 'concepts_payment_pjd': ['1']}>, 'files': <MultiValueDict: {}>, ...}
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
->       self.fields['fiscal_period'].required = False
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       KeyError: 'fiscal_period'
-
-presentation/forms/islr_withholding.py:29: KeyError
------------------------------- Captured log call -------------------------------
-ERROR    django.request:log.py:249 Internal Server Error: /purchase-invoices/253/islr-withholding/new/
-Traceback (most recent call last):
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
-    response = get_response(request)
-               ^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/core/handlers/base.py", line 198, in _get_response
-    response = wrapped_callback(request, *callback_args, **callback_kwargs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/base.py", line 106, in view
-    return self.dispatch(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/base.py", line 145, in dispatch
-    return handler(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/edit.py", line 182, in post
-    return super().post(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/edit.py", line 149, in post
-    form = self.get_form()
-           ^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/edit.py", line 37, in get_form
-    return form_class(**self.get_form_kwargs())
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/presentation/forms/islr_withholding.py", line 29, in __init__
-    self.fields['fiscal_period'].required = False
-    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-KeyError: 'fiscal_period'
+presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py:128: AssertionError
 =========================== short test summary info ============================
-FAILED presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_05_view_create_valid_certificate_success
-FAILED presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::test_TC_ISLR_06_view_create_duplicate_certificate_handles_integrity_error
-========================= 2 failed, 5 passed in 25.71s =========================
+FAILED presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::TestIslrWithholdingCertificateIntegration::test_ID_HP_001_create_certificate_via_view
+FAILED presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::TestIslrWithholdingCertificateIntegration::test_ID_HP_003_contextual_isolation_detail_view
+FAILED presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::TestIslrWithholdingCertificateIntegration::test_ID_EC_002_integrity_error_duplicate_correlative_caught_in_view
+======================= 3 failed, 5 deselected in 19.35s =======================

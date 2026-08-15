@@ -10,7 +10,7 @@ from decimal import Decimal
 
 import pytest
 from django.contrib.auth.models import User
-from django.test import Client, RequestFactory
+from django.test import Client
 
 from data_access.models.supplier import LocalSupplier
 from data_access.models.base import FiscalProfile
@@ -47,7 +47,6 @@ def fiscal_profile(admin_user: User) -> FiscalProfile:
 @pytest.fixture
 def fiscal_period(fiscal_profile: FiscalProfile) -> date:
     """Retorna el periodo fiscal inicial del perfil fiscal creado."""
-    #fiscal_profile = fiscal_profile
     return fiscal_profile.initial_fiscal_period
 
 
@@ -64,18 +63,16 @@ def supplier(fiscal_profile: FiscalProfile) -> LocalSupplier:
 
 
 @pytest.fixture
-def request_factory() -> RequestFactory:
-    """Retorna una instancia de RequestFactory para simular peticiones HTTP."""
-    return RequestFactory()
-
-
-@pytest.fixture
-def logged_client(admin_user: User, fiscal_profile: FiscalProfile, fiscal_period: FiscalPeriod ) -> Client:
+def logged_client(
+    admin_user: User, 
+    fiscal_profile: FiscalProfile, 
+    fiscal_period: FiscalPeriod
+) -> Client:
     """Retorna un cliente de pruebas de Django autenticado con el usuario admin."""
     client = Client()
     client.force_login(admin_user)
 
-    # Inyectar la clave de sesión que el middleware utiliza para resolver request.fiscal_profile
+    # Inyectar la clave de sesión que el middleware utiliza
     session = client.session
     session['active_fiscal_profile_id'] = fiscal_profile.pk
     session['active_fiscal_period_id'] = fiscal_period.pk
@@ -88,7 +85,7 @@ def logged_client(admin_user: User, fiscal_profile: FiscalProfile, fiscal_period
 def preliminary_invoice(
     fiscal_profile: FiscalProfile, supplier: LocalSupplier
 ) -> PurchaseLedgerInvoice:
-    """Provee una factura de compra en estado PRELIMINARY para vinculación de ISLR."""
+    """Provee una factura de compra en estado PRELIMINARY."""
     return PurchaseLedgerInvoice.objects.create(
         fiscal_profile=fiscal_profile,
         supplier=supplier,
@@ -105,32 +102,10 @@ def preliminary_invoice(
 
 
 @pytest.fixture
-def secondary_preliminary_invoice(
-    fiscal_profile: FiscalProfile, supplier: LocalSupplier
-) -> PurchaseLedgerInvoice:
-    """Provee una segunda factura de compra para probar restricciones OneToOne."""
-    return PurchaseLedgerInvoice.objects.create(
-        fiscal_profile=fiscal_profile,
-        supplier=supplier,
-        number="INV-101",
-        invoice_control="CTRL-101",
-        document_type="INVOICE",
-        purchase_type="INTERNAL",
-        date=date(2026, 8, 5),
-        taxable_base=Decimal("200.00"),
-        vat_amount=Decimal("32.00"),
-        total_purchase=Decimal("232.00"),
-        status="PRELIMINARY"
-    )
-
-
-@pytest.fixture
 def processed_islr_certificate(
     preliminary_invoice: PurchaseLedgerInvoice, fiscal_profile: FiscalProfile
 ) -> IslrWithholdingCertificate:
     """Provee un comprobante de retención de ISLR en estado PROCESSED."""
-    # Se ajusta la factura a estado compatible si la lógica lo requiriese, 
-    # pero el test asume validación de ciclo de vida del propio comprobante.
     certificate = IslrWithholdingCertificate(
         purchase_invoice=preliminary_invoice,
         document_number="2026080001",
@@ -141,6 +116,32 @@ def processed_islr_certificate(
         subtracting=Decimal("0.00"),
         status=IslrWithholdingCertificate.CertificateStatus.PROCESSED
     )
-    # Se omite clean() para forzar el estado PROCESSED directo en base de datos
     certificate.save()
     return certificate
+
+
+@pytest.fixture
+def other_logged_client() -> Client:
+    """Retorna un cliente autenticado para simular aislamiento multi-tenant."""
+    other_user = User.objects.create_user(
+        username="other_tenant",
+        password="testpassword123"
+    )
+    service = FiscalProfileService(admin_user=other_user)
+    other_profile = service.create_fiscal_profile(
+        entity_name="Otra Empresa CA",
+        use_accrual_method=True,
+        fy_start_month=1,
+        rif="J999999999",
+        taxpayer_type="ORDINARY",
+        start_period=date(2026, 1, 1)
+    )
+    
+    client = Client()
+    client.force_login(other_user)
+    session = client.session
+    session['active_fiscal_profile_id'] = other_profile.pk
+    session['active_fiscal_period_id'] = other_profile.initial_fiscal_period.pk
+    session.save()
+    
+    return client

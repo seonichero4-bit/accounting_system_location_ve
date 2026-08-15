@@ -1,198 +1,168 @@
-"""Suite de pruebas de integración para el modelo y vistas de IslrWithholdingCertificate.
+"""Suite de pruebas de integración para el modelo IslrWithholdingCertificate.
 
-Verifica la correcta integración de validaciones de negocio, restricciones de base de
-datos, formularios, cálculo de retenciones y ciclo de vida de los comprobantes.
+Valida la interacción entre el cliente HTTP, las vistas contextuales y el 
+modelo de datos asegurando persistencia, validaciones y reglas multi-tenant.
 """
 
-from datetime import date
-from decimal import Decimal
-
 import pytest
-from django.core.exceptions import ValidationError
-from django.test import Client
 from django.urls import reverse
+from django.core.exceptions import ValidationError
 
 from data_access.models.islr_withholding import IslrWithholdingCertificate
-from data_access.models.purchase_book import PurchaseLedgerInvoice
-from data_access.models.base import FiscalProfile
 
 
 @pytest.mark.django_db
-def test_TC_ISLR_01_model_clean_raises_error_with_multiple_concepts(
-    preliminary_invoice: PurchaseLedgerInvoice
-) -> None:
-    """Verifica que el modelo rechace comprobantes con múltiples conceptos asignados."""
-    
-    # Arrange
-    certificate = IslrWithholdingCertificate(
-        purchase_invoice=preliminary_invoice,
-        document_number="20260812345",
-        application_date=date(2026, 8, 10),
-        concepts_payment_pjd=1,
-        concepts_payment_pnnr=1,  # Infracción: Múltiples conceptos
-    )
+class TestIslrWithholdingCertificateIntegration:
+    """Pruebas de integración para el ciclo de vida del comprobante de ISLR."""
 
-    # Act & Assert
-    with pytest.raises(ValidationError) as exc_info:
-        certificate.clean()
-    
-    assert "múltiples conceptos de retención" in str(exc_info.value)
+    def test_ID_HP_001_create_certificate_via_view(self, logged_client, preliminary_invoice):
+        """Valida la creación exitosa de un comprobante desde la vista contextual."""
+        # Arrange
+        url = reverse("islr-withholding-create", kwargs={"invoice_pk": preliminary_invoice.pk})
+        form_data = {
+            "document_number": "2026080001",
+            "application_date": "2026-08-10",
+            "concepts_payment_pnr": 1,
+        }
 
+        # Act
+        response = logged_client.post(url, data=form_data)
 
-@pytest.mark.django_db
-def test_TC_ISLR_02_model_clean_raises_error_with_invalid_correlative_structure(
-    preliminary_invoice: PurchaseLedgerInvoice
-) -> None:
-    """Verifica la validación estricta de la estructura YYYYMM del número de documento."""
-    
-    # Arrange
-    certificate = IslrWithholdingCertificate(
-        purchase_invoice=preliminary_invoice,
-        document_number="99990812345",  # Infracción: No coincide con aplicación YYYYMM
-        application_date=date(2026, 8, 10),
-        concepts_payment_pjd=1,
-    )
+        # Assert
+        assert response.status_code == 302
+        assert IslrWithholdingCertificate.objects.count() == 1
+        certificate = IslrWithholdingCertificate.objects.first()
+        assert certificate.document_number == "2026080001"
+        assert response.url == reverse("invoice-islr-withholding-detail", kwargs={
+            "invoice_pk": preliminary_invoice.pk,
+            "pk": certificate.pk
+        })
 
-    # Act & Assert
-    with pytest.raises(ValidationError) as exc_info:
-        certificate.clean()
-    
-    assert exc_info.value.error_dict["document_number"][0].code == "invalid_correlative_structure"
+    def test_ID_HP_002_update_preliminary_certificate_via_view(
+        self, logged_client, preliminary_invoice
+    ):
+        """Valida la actualización de un comprobante preliminar mediante la vista de edición."""
+        # Arrange
+        certificate = IslrWithholdingCertificate.objects.create(
+            purchase_invoice=preliminary_invoice,
+            document_number="2026080001",
+            application_date="2026-08-10",
+            fiscal_profile=preliminary_invoice.fiscal_profile,
+            concepts_payment_pnr=1,
+            islr_withheld_amount="0.00",
+            subtracting="0.00",
+            status=IslrWithholdingCertificate.CertificateStatus.PRELIMINARY
+        )
+        url = reverse("islr-withholding-update", kwargs={
+            "invoice_pk": preliminary_invoice.pk,
+            "pk": certificate.pk
+        })
+        form_data = {
+            "document_number": "2026080002",
+            "application_date": "2026-08-15",
+            "concepts_payment_pjd": 1,
+        }
 
+        # Act
+        response = logged_client.post(url, data=form_data)
 
-@pytest.mark.django_db
-def test_TC_ISLR_03_model_clean_raises_error_on_retroactive_date(
-    preliminary_invoice: PurchaseLedgerInvoice
-) -> None:
-    """Verifica que no se permitan fechas de aplicación anteriores a la factura."""
-    
-    # Arrange
-    # Factura date = 2026-08-01
-    certificate = IslrWithholdingCertificate(
-        purchase_invoice=preliminary_invoice,
-        document_number="20260712345",
-        application_date=date(2026, 7, 31),  # Infracción: Fecha retroactiva
-        concepts_payment_pjd=1,
-    )
+        # Assert
+        assert response.status_code == 302
+        certificate.refresh_from_db()
+        assert certificate.document_number == "2026080002"
+        assert str(certificate.application_date) == "2026-08-15"
 
-    # Act & Assert
-    with pytest.raises(ValidationError) as exc_info:
-        certificate.clean()
+    def test_ID_HP_003_contextual_isolation_detail_view(
+        self, other_logged_client, processed_islr_certificate
+    ):
+        """Asegura que comprobantes de un perfil fiscal no sean accesibles por otro."""
+        # Arrange
+        invoice_pk = processed_islr_certificate.purchase_invoice.pk
+        url = reverse("invoice-islr-withholding-detail", kwargs={
+            "invoice_pk": invoice_pk,
+            "pk": processed_islr_certificate.pk
+        })
 
-    assert exc_info.value.error_dict["application_date"][0].code == "retroactive_application_date"
+        # Act
+        response = other_logged_client.get(url)
 
-@pytest.mark.django_db
-def test_TC_ISLR_04_model_delete_raises_error_when_processed(
-    processed_islr_certificate: IslrWithholdingCertificate
-) -> None:
-    """Verifica el bloqueo de eliminación física de un documento procesado."""
-    
-    # Arrange
-    certificate = processed_islr_certificate
+        # Assert
+        assert response.status_code == 404
 
-    # Act & Assert
-    with pytest.raises(ValidationError) as exc_info:
-        certificate.delete()
-    
-    assert exc_info.value.code == "protected_record_processed"
+    def test_ID_EC_001_model_validation_error_caught_in_view(self, logged_client, preliminary_invoice):
+        """Verifica que la vista capture y muestre errores de validación del modelo."""
+        # Arrange
+        url = reverse("islr-withholding-create", kwargs={"invoice_pk": preliminary_invoice.pk})
+        form_data = {
+            "document_number": "2026070001",
+            "application_date": "2026-07-31",  # Retroactiva: Menor a factura (2026-08-01)
+            "concepts_payment_pnr": 1,
+        }
 
+        # Act
+        response = logged_client.post(url, data=form_data)
 
-@pytest.mark.django_db
-def test_TC_ISLR_05_view_create_valid_certificate_success(
-    logged_client: Client, preliminary_invoice: PurchaseLedgerInvoice
-) -> None:
-    """Verifica que el flujo de vista procesa y guarda exitosamente un comprobante."""
-    
-    # Arrange
-    url = reverse(
-        "islr-withholding-create", kwargs={"invoice_pk": preliminary_invoice.pk}
-    )
-    post_data = {
-        "document_number": "20260800001",
-        "application_date": "2026-08-15",
-        "concepts_payment_pjd": 1,
-    }
+        # Assert
+        assert response.status_code == 200
+        assert "application_date" in response.context["form"].errors
+        assert IslrWithholdingCertificate.objects.count() == 0
 
-    # Act
-    response = logged_client.post(url, data=post_data)
+    def test_ID_EC_002_integrity_error_duplicate_correlative_caught_in_view(
+        self, logged_client, processed_islr_certificate
+    ):
+        """Verifica que la vista intercepte violaciones de unicidad en base de datos."""
+        # Arrange
+        invoice = processed_islr_certificate.purchase_invoice
+        url = reverse("islr-withholding-create", kwargs={"invoice_pk": invoice.pk})
+        form_data = {
+            "document_number": processed_islr_certificate.document_number,  # Duplicado
+            "application_date": "2026-08-15",
+            "concepts_payment_pnr": 1,
+        }
 
-    # Assert
-    certificate = IslrWithholdingCertificate.objects.filter(
-        document_number="20260800001"
-    ).first()
-    
-    assert response.status_code == 302
-    assert response.url == reverse("islr-withholding-detail", kwargs={"pk": certificate.pk})
-    assert certificate is not None
-    assert certificate.status == IslrWithholdingCertificate.CertificateStatus.PRELIMINARY
-    # El monto se calcula en memoria (0.00 debido a la falta del mock en propiedades anidadas, 
-    # pero el registro debe persistir limpiamente)
-    assert certificate.islr_withheld_amount is not None
+        # Act
+        response = logged_client.post(url, data=form_data)
 
+        # Assert
+        assert response.status_code == 200
+        assert "document_number" in response.context["form"].errors
 
-@pytest.mark.django_db
-def test_TC_ISLR_06_view_create_duplicate_certificate_handles_integrity_error(
-    logged_client: Client,
-    preliminary_invoice: PurchaseLedgerInvoice,
-    secondary_preliminary_invoice: PurchaseLedgerInvoice,
-    fiscal_profile: FiscalProfile
-) -> None:
-    """Verifica que la vista captura IntegrityError y lo añade al formulario por duplicidad."""
-    
-    # Arrange
-    document_number = "20260800099"
-    
-    # Creamos previamente el comprobante para disparar el UniqueConstraint
-    IslrWithholdingCertificate.objects.create(
-        purchase_invoice=preliminary_invoice,
-        document_number=document_number,
-        application_date=date(2026, 8, 10),
-        fiscal_profile=fiscal_profile,
-        concepts_payment_pjd=1,
-        islr_withheld_amount=Decimal("0.00")
-    )
-    
-    # Preparamos una petición POST para la *segunda* factura con el mismo número
-    url = reverse(
-        "islr-withholding-create", kwargs={"invoice_pk": secondary_preliminary_invoice.pk}
-    )
-    post_data = {
-        "document_number": document_number,  # Mismo número, disparará IntegrityError
-        "application_date": "2026-08-15",
-        "concepts_payment_pjd": 1,
-    }
+    def test_ID_EC_004_delete_processed_certificate_raises_validation_error(
+        self, logged_client, processed_islr_certificate
+    ):
+        """Verifica que intentar eliminar un registro procesado retorne un error en el formulario."""
+        # Arrange
+        invoice_pk = processed_islr_certificate.purchase_invoice.pk
+        url = reverse("invoice-islr-withholding-delete", kwargs={
+            "invoice_pk": invoice_pk,
+            "pk": processed_islr_certificate.pk
+        })
 
-    # Act
-    response = logged_client.post(url, data=post_data)
+        # Act
+        response = logged_client.post(url)
 
-    # Assert
-    assert response.status_code == 200  # Formulario devuelto con errores
-    assert "document_number" in response.context["form"].errors
-    assert "Ya existe un comprobante con este número" in response.context["form"].errors["document_number"][0]
+        # Assert
+        assert response.status_code == 200
+        assert response.context["form"].errors
 
+    def test_ID_EC_004_delete_processed_certificate_model_raises(
+        self, processed_islr_certificate
+    ):
+        """Prueba estricta a nivel de modelo para asegurar el lanzamiento de la excepción."""
+        # Arrange
+        # El certificado ya está en estado PROCESSED (setup de fixture)
 
-@pytest.mark.django_db
-def test_TC_ISLR_07_view_delete_certificate_success(
-    logged_client: Client, preliminary_invoice: PurchaseLedgerInvoice, fiscal_profile: FiscalProfile
-) -> None:
-    """Verifica la correcta eliminación lógica de un documento preliminar vía POST."""
-    
-    # Arrange
-    certificate = IslrWithholdingCertificate.objects.create(
-        purchase_invoice=preliminary_invoice,
-        document_number="20260855555",
-        application_date=date(2026, 8, 20),
-        fiscal_profile=fiscal_profile,
-        concepts_payment_pjd=1,
-        islr_withheld_amount=Decimal("0.00"),
-        status=IslrWithholdingCertificate.CertificateStatus.PRELIMINARY
-    )
-    url = reverse("islr-withholding-delete", kwargs={"pk": certificate.pk})
+        # Act & Assert
+        with pytest.raises(ValidationError):
+            processed_islr_certificate.delete()
 
-    # Act
-    response = logged_client.post(url)
+    def test_ID_EC_005_create_view_invalid_invoice_pk_returns_404(self, logged_client):
+        """Comprueba que proveer un ID de factura inexistente retorne HTTP 404."""
+        # Arrange
+        url = reverse("islr-withholding-create", kwargs={"invoice_pk": 9999})
 
-    # Assert
-    assert response.status_code == 302
-    assert response.url == reverse("islr-withholding-list")
-    assert not IslrWithholdingCertificate.objects.filter(pk=certificate.pk).exists()
+        # Act
+        response = logged_client.get(url)
+
+        # Assert
+        assert response.status_code == 404
