@@ -100,6 +100,25 @@ def preliminary_invoice(
         status="PRELIMINARY"
     )
 
+@pytest.fixture
+def alternative_preliminary_invoice(
+    fiscal_profile: FiscalProfile, supplier: LocalSupplier
+) -> PurchaseLedgerInvoice:
+    """Provee una factura de compra en estado PRELIMINARY."""
+    return PurchaseLedgerInvoice.objects.create(
+        fiscal_profile=fiscal_profile,
+        supplier=supplier,
+        number="INV-200",
+        invoice_control="CTRL-200",
+        document_type="INVOICE",
+        purchase_type="INTERNAL",
+        date=date(2026, 8, 1),
+        taxable_base=Decimal("100.00"),
+        vat_amount=Decimal("16.00"),
+        total_purchase=Decimal("116.00"),
+        status="PRELIMINARY"
+    )
+
 
 @pytest.fixture
 def processed_islr_certificate(

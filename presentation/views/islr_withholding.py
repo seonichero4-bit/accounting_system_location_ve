@@ -97,8 +97,13 @@ class IslrWithholdingCertificateCreateView(RequestScopedQuerySetMixin, CreateVie
             return self.form_invalid(form)
 
     def get_success_url(self) -> str:
-        """Define la ruta de redirección al detalle tras guardar exitosamente."""
-        return reverse("islr-withholding-detail", kwargs={"pk": self.object.pk})
+        return reverse(
+            "invoice-islr-withholding-detail", 
+            kwargs={
+                "invoice_pk": self.object.purchase_invoice.pk,
+                "pk": self.object.pk
+            }
+        )
 
 
 class IslrWithholdingCertificateUpdateView(RequestScopedQuerySetMixin, UpdateView):

@@ -108,11 +108,11 @@ class TestIslrWithholdingCertificateIntegration:
         assert IslrWithholdingCertificate.objects.count() == 0
 
     def test_ID_EC_002_integrity_error_duplicate_correlative_caught_in_view(
-        self, logged_client, processed_islr_certificate
+        self, logged_client, processed_islr_certificate, alternative_preliminary_invoice
     ):
         """Verifica que la vista intercepte violaciones de unicidad en base de datos."""
         # Arrange
-        invoice = processed_islr_certificate.purchase_invoice
+        invoice = alternative_preliminary_invoice
         url = reverse("islr-withholding-create", kwargs={"invoice_pk": invoice.pk})
         form_data = {
             "document_number": processed_islr_certificate.document_number,  # Duplicado
