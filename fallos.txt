@@ -5,107 +5,86 @@ django: version: 6.0.7, settings: accounting_system_ve.settings (from ini)
 rootdir: /workspaces/accounting_system_location_ve
 configfile: pytest.ini
 plugins: django-4.14.0, Faker-40.15.0
-collecting ... collected 8 items / 5 deselected / 3 selected
-run-last-failure: rerun previous 3 failures
+collecting ... collected 8 items / 6 deselected / 2 selected
+run-last-failure: rerun previous 2 failures
 
-presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::TestIslrWithholdingCertificateIntegration::test_ID_HP_001_create_certificate_via_view FAILED [ 33%]
-presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::TestIslrWithholdingCertificateIntegration::test_ID_HP_003_contextual_isolation_detail_view FAILED [ 66%]
-presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::TestIslrWithholdingCertificateIntegration::test_ID_EC_002_integrity_error_duplicate_correlative_caught_in_view FAILED [100%]
+presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::TestIslrWithholdingCertificateIntegration::test_ID_HP_002_update_preliminary_certificate_via_view FAILED [ 50%]
+presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::TestIslrWithholdingCertificateIntegration::test_ID_EC_004_delete_processed_certificate_raises_validation_error FAILED [100%]
 
 =================================== FAILURES ===================================
-_ TestIslrWithholdingCertificateIntegration.test_ID_HP_001_create_certificate_via_view _
+_ TestIslrWithholdingCertificateIntegration.test_ID_HP_002_update_preliminary_certificate_via_view _
 
-self = <test_islr_withholding.TestIslrWithholdingCertificateIntegration object at 0x7d2e97a19bb0>
-logged_client = <django.test.client.Client object at 0x7d2e978840e0>
-preliminary_invoice = <PurchaseLedgerInvoice: Factura N° INV-100 (CTRL-100) - ID: 305>
+self = <test_islr_withholding.TestIslrWithholdingCertificateIntegration object at 0x70ae8ee8e0c0>
+logged_client = <django.test.client.Client object at 0x70ae8ee354c0>
+preliminary_invoice = <PurchaseLedgerInvoice: Factura N° INV-100 (CTRL-100) - ID: 358>
 
-    def test_ID_HP_001_create_certificate_via_view(self, logged_client, preliminary_invoice):
-        """Valida la creación exitosa de un comprobante desde la vista contextual."""
+    def test_ID_HP_002_update_preliminary_certificate_via_view(
+        self, logged_client, preliminary_invoice
+    ):
+        """Valida la actualización de un comprobante preliminar mediante la vista de edición."""
         # Arrange
-        url = reverse("islr-withholding-create", kwargs={"invoice_pk": preliminary_invoice.pk})
+        certificate = IslrWithholdingCertificate.objects.create(
+            purchase_invoice=preliminary_invoice,
+            document_number="2026080001",
+            application_date="2026-08-10",
+            fiscal_profile=preliminary_invoice.fiscal_profile,
+            concepts_payment_pnr=1,
+            islr_withheld_amount="0.00",
+            subtracting="0.00",
+            status=IslrWithholdingCertificate.CertificateStatus.PRELIMINARY
+        )
+        url = reverse("islr-withholding-update", kwargs={
+            "invoice_pk": preliminary_invoice.pk,
+            "pk": certificate.pk
+        })
         form_data = {
-            "document_number": "2026080001",
-            "application_date": "2026-08-10",
-            "concepts_payment_pnr": 1,
+            "document_number": "2026080002",
+            "application_date": "2026-08-15",
+            "concepts_payment_pjd": 1,
         }
     
         # Act
         response = logged_client.post(url, data=form_data)
     
         # Assert
-        assert response.status_code == 302
-        assert IslrWithholdingCertificate.objects.count() == 1
-        certificate = IslrWithholdingCertificate.objects.first()
-        assert certificate.document_number == "2026080001"
->       assert response.url == reverse("invoice-islr-withholding-detail", kwargs={
-            "invoice_pk": preliminary_invoice.pk,
-            "pk": certificate.pk
-        })
-E       AssertionError: assert '/islr-withholdings/157/' == '/purchase-in...hholding/157/'
-E         
-E         - /purchase-invoices/305/islr-withholding/157/
-E         + /islr-withholdings/157/
+>       assert response.status_code == 302
+E       assert 404 == 302
+E        +  where 404 = <HttpResponseNotFound status_code=404, "text/html; charset=utf-8">.status_code
 
-presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py:36: AssertionError
+presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py:70: AssertionError
 ---------------------------- Captured stderr setup -----------------------------
 Using existing test database for alias 'default'...
-_ TestIslrWithholdingCertificateIntegration.test_ID_HP_003_contextual_isolation_detail_view _
+------------------------------ Captured log call -------------------------------
+WARNING  django.request:log.py:249 Not Found: /purchase-invoices/358/islr-withholding/210/edit/
+_ TestIslrWithholdingCertificateIntegration.test_ID_EC_004_delete_processed_certificate_raises_validation_error _
 
-self = <test_islr_withholding.TestIslrWithholdingCertificateIntegration object at 0x7d2e97a1a690>
-other_logged_client = <django.test.client.Client object at 0x7d2e9760de50>
+self = <test_islr_withholding.TestIslrWithholdingCertificateIntegration object at 0x70ae8ee8f7a0>
+logged_client = <django.test.client.Client object at 0x70ae8db0a030>
 processed_islr_certificate = <IslrWithholdingCertificate: 2026080001 - Empresa de Pruebas CA (J123456789)>
 
-    def test_ID_HP_003_contextual_isolation_detail_view(
-        self, other_logged_client, processed_islr_certificate
+    def test_ID_EC_004_delete_processed_certificate_raises_validation_error(
+        self, logged_client, processed_islr_certificate
     ):
-        """Asegura que comprobantes de un perfil fiscal no sean accesibles por otro."""
+        """Verifica que intentar eliminar un registro procesado retorne un error en el formulario."""
         # Arrange
         invoice_pk = processed_islr_certificate.purchase_invoice.pk
-        url = reverse("invoice-islr-withholding-detail", kwargs={
+        url = reverse("invoice-islr-withholding-delete", kwargs={
             "invoice_pk": invoice_pk,
             "pk": processed_islr_certificate.pk
         })
     
         # Act
-        response = other_logged_client.get(url)
+        response = logged_client.post(url)
     
         # Assert
->       assert response.status_code == 404
-E       assert 200 == 404
-E        +  where 200 = <TemplateResponse status_code=200, "text/html; charset=utf-8">.status_code
+>       assert response.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <HttpResponseNotFound status_code=404, "text/html; charset=utf-8">.status_code
 
-presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py:90: AssertionError
-_ TestIslrWithholdingCertificateIntegration.test_ID_EC_002_integrity_error_duplicate_correlative_caught_in_view _
-
-self = <test_islr_withholding.TestIslrWithholdingCertificateIntegration object at 0x7d2e97a1b230>
-logged_client = <django.test.client.Client object at 0x7d2e964b27e0>
-processed_islr_certificate = <IslrWithholdingCertificate: 2026080001 - Empresa de Pruebas CA (J123456789)>
-
-    def test_ID_EC_002_integrity_error_duplicate_correlative_caught_in_view(
-        self, logged_client, processed_islr_certificate
-    ):
-        """Verifica que la vista intercepte violaciones de unicidad en base de datos."""
-        # Arrange
-        invoice = processed_islr_certificate.purchase_invoice
-        url = reverse("islr-withholding-create", kwargs={"invoice_pk": invoice.pk})
-        form_data = {
-            "document_number": processed_islr_certificate.document_number,  # Duplicado
-            "application_date": "2026-08-15",
-            "concepts_payment_pnr": 1,
-        }
-    
-        # Act
-        response = logged_client.post(url, data=form_data)
-    
-        # Assert
-        assert response.status_code == 200
->       assert "document_number" in response.context["form"].errors
-E       AssertionError: assert 'document_number' in {'__all__': ['Error de integridad en la base de datos al guardar el comprobante.']}
-E        +  where {'__all__': ['Error de integridad en la base de datos al guardar el comprobante.']} = <IslrWithholdingCertificateForm bound=True, valid=False, fields=(document_number;application_date;concepts_payment_pnnr;concepts_payment_pnr;concepts_payment_pjnd;concepts_payment_pjd)>.errors
-
-presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py:128: AssertionError
+presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py:145: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  django.request:log.py:249 Not Found: /purchase-invoices/359/islr-withholding/211/delete/
 =========================== short test summary info ============================
-FAILED presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::TestIslrWithholdingCertificateIntegration::test_ID_HP_001_create_certificate_via_view
-FAILED presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::TestIslrWithholdingCertificateIntegration::test_ID_HP_003_contextual_isolation_detail_view
-FAILED presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::TestIslrWithholdingCertificateIntegration::test_ID_EC_002_integrity_error_duplicate_correlative_caught_in_view
-======================= 3 failed, 5 deselected in 19.35s =======================
+FAILED presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::TestIslrWithholdingCertificateIntegration::test_ID_HP_002_update_preliminary_certificate_via_view
+FAILED presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::TestIslrWithholdingCertificateIntegration::test_ID_EC_004_delete_processed_certificate_raises_validation_error
+======================= 2 failed, 6 deselected in 13.61s =======================

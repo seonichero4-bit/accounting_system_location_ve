@@ -141,7 +141,6 @@ class FiscalProfile(models.Model):
         help_text="Cuenta contable de pasivo fiscal para IVA Retenido por Enterar al SENIAT.",
     )
 
-    objects = RequestScopedManager()
 
     def get_supplier_by_rif(self, rif: str) -> Optional["LocalSupplier"]:
         """Obtiene un proveedor local asociado a esta instancia mediante su RIF.
@@ -280,6 +279,8 @@ class FiscalModuleAbstractModel(models.Model):
         related_name="%(class)s_models",
         verbose_name="Tenant / Associated Fiscal Profile",
     )
+
+    objects = RequestScopedManager()
 
     class Meta:
         """Configuración de metadatos para el modelo abstracto."""

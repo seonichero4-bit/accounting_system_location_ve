@@ -20,7 +20,7 @@ from django.views.generic import (
     UpdateView,
 )
 
-from ..utils import unwrap_lazy_object
+from utils import unwrap_lazy_object
 from presentation.forms.islr_withholding import IslrWithholdingCertificateForm
 from data_access.models.base import FiscalProfile
 from data_access.models.islr_withholding import IslrWithholdingCertificate

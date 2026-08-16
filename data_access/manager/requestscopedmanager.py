@@ -1,5 +1,7 @@
 from django.db import models
 
+from utils import unwrap_lazy_object
+
 class RequestScopedQuerySet(models.QuerySet):
     def for_request(self, request):
         """
@@ -10,8 +12,12 @@ class RequestScopedQuerySet(models.QuerySet):
             return self.none()
 
         # Extracción segura de atributos del request
-        req_fiscal_profile = getattr(request, 'fiscal_profile', None)
-        req_fiscal_period = getattr(request, 'fiscal_period', None)
+        req_fiscal_period = unwrap_lazy_object(getattr(request, "fiscal_period", None))
+        req_fiscal_profile = unwrap_lazy_object(getattr(request, "fiscal_profile", None))
+
+        # req_fiscal_period = getattr(request, "fiscal_period", None)
+        # req_fiscal_profile = getattr(request, "fiscal_profile", None)
+                
 
         # 1. Si el modelo posee 'fiscal_period' (filtra por profile y period)
         if hasattr(self.model, 'fiscal_period'):

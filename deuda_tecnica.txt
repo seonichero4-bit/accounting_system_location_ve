@@ -1,5 +1,5 @@
 TESTING [
-1. Modelo "FiscalProfile": falta implementar test unitarios a las validaciones y restriccion (clean() y save())
-2. Modelo "LocalSupplier": falta implementar test unitarios a las validaciones y restriccion (clean() y save())
-3. Modelo "VatWithholdingCertificate": falta implementar test unitarios a las validaciones y restriccion (clean() y save() y delete())
+1. Modelo "FiscalProfile": falta implementar test unitarios e integracion, a las validaciones y restriccion (clean() y save())
+2. Modelo "LocalSupplier": falta implementar test unitarios e integracion, a las validaciones y restriccion (clean() y save())
+3. Modelo "VatWithholdingCertificate": falta implementar test unitarios e integracion, a las validaciones y restriccion (clean() y save() y delete())
 ]

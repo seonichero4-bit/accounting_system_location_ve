@@ -130,6 +130,7 @@ def processed_islr_certificate(
         document_number="2026080001",
         application_date=date(2026, 8, 10),
         fiscal_profile=fiscal_profile,
+        fiscal_period="2026-8-1",
         concepts_payment_pjd=1,
         islr_withheld_amount=Decimal("0.00"),
         subtracting=Decimal("0.00"),
@@ -137,6 +138,27 @@ def processed_islr_certificate(
     )
     certificate.save()
     return certificate
+
+
+@pytest.fixture
+def alternative_processed_islr_certificate(
+    alternative_preliminary_invoice: PurchaseLedgerInvoice, fiscal_profile: FiscalProfile
+) -> IslrWithholdingCertificate:
+    """Provee un comprobante de retención de ISLR en estado PROCESSED."""
+    certificate = IslrWithholdingCertificate(
+        purchase_invoice=alternative_preliminary_invoice,
+        document_number="2026010001",
+        application_date=date(2026, 1, 10),
+        fiscal_profile=fiscal_profile,
+        fiscal_period="2026-1-1",
+        concepts_payment_pjd=1,
+        islr_withheld_amount=Decimal("0.00"),
+        subtracting=Decimal("0.00"),
+        status=IslrWithholdingCertificate.CertificateStatus.PROCESSED
+    )
+    certificate.save()
+    return certificate
+
 
 
 @pytest.fixture
