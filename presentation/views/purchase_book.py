@@ -11,7 +11,7 @@ from django.db.models.query import QuerySet
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.views.generic import (
     ListView,
     DetailView,
@@ -20,6 +20,7 @@ from django.views.generic import (
     DeleteView,
 )
 
+from utils import unwrap_lazy_object
 from data_access.models.purchase_book import PurchaseLedgerInvoice
 from presentation.forms.purchase_book import PurchaseLedgerInvoiceForm
 from data_access.models.base import FiscalProfile
@@ -52,14 +53,21 @@ class PurchaseLedgerInvoiceCreateView(RequestScopedQuerySetMixin, CreateView):
     def get_form(self, form_class=None):
         """Inyecta de forma temprana el perfil fiscal activo en la instancia del formulario[cite: 1]."""
         form = super().get_form(form_class)
-        form.instance.fiscal_profile = self.request.fiscal_profile
-        form.instance.fiscal_period = self.request.fiscal_period
+
+        #Extraemos el datetime.date real envuelto en el SimpleLazyObject
+
+        fiscal_period_date = unwrap_lazy_object(getattr(self.request, "fiscal_period", None))
+        fiscal_profile_obj = unwrap_lazy_object(getattr(self.request, "fiscal_profile", None))  
+
+        form.instance.fiscal_profile = fiscal_profile_obj
+        form.instance.fiscal_period = fiscal_period_date
         return form
 
     def form_valid(self, form):
         """Intercepta las excepciones del modelo o la BD al intentar guardar."""
         try:
-            return super().form_valid(form)
+            with transaction.atomic():
+                return super().form_valid(form)
         except ValidationError as e:
             form.add_error(None, e)
             return self.form_invalid(form)

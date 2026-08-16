@@ -10,10 +10,11 @@ from decimal import Decimal
 
 import pytest
 from django.contrib.auth.models import User
-from django.test import RequestFactory
+from django.test import Client
 
 from data_access.models.supplier import LocalSupplier
 from data_access.models.base import FiscalProfile
+from data_access.models.fiscalperiod import FiscalPeriod
 from business_logic.services.fiscal_profile_service import FiscalProfileService
 
 
@@ -44,7 +45,7 @@ def fiscal_profile(admin_user: User) -> FiscalProfile:
 @pytest.fixture
 def fiscal_period(fiscal_profile: FiscalProfile):
     """Retorna el periodo fiscal inicial del perfil fiscal creado."""
-    return fiscal_profile.initial_fiscal_period.start_period
+    return fiscal_profile.initial_fiscal_period
 
 
 @pytest.fixture
@@ -60,9 +61,22 @@ def supplier(fiscal_profile: FiscalProfile) -> LocalSupplier:
 
 
 @pytest.fixture
-def request_factory() -> RequestFactory:
-    """Retorna una instancia de RequestFactory para simular peticiones HTTP."""
-    return RequestFactory()
+def logged_client(
+    admin_user: User, 
+    fiscal_profile: FiscalProfile, 
+    fiscal_period: FiscalPeriod
+) -> Client:
+    """Retorna un cliente de pruebas de Django autenticado con el usuario admin."""
+    client = Client()
+    client.force_login(admin_user)
+
+    # Inyectar la clave de sesión que el middleware utiliza
+    session = client.session
+    session['active_fiscal_profile_id'] = fiscal_profile.pk
+    session['active_fiscal_period_id'] = fiscal_period.pk
+    session.save()
+
+    return client
 
 
 @pytest.fixture

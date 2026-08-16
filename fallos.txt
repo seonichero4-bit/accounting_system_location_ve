@@ -5,86 +5,521 @@ django: version: 6.0.7, settings: accounting_system_ve.settings (from ini)
 rootdir: /workspaces/accounting_system_location_ve
 configfile: pytest.ini
 plugins: django-4.14.0, Faker-40.15.0
-collecting ... collected 8 items / 6 deselected / 2 selected
-run-last-failure: rerun previous 2 failures
+collecting ... collected 7 items
 
-presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::TestIslrWithholdingCertificateIntegration::test_ID_HP_002_update_preliminary_certificate_via_view FAILED [ 50%]
-presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::TestIslrWithholdingCertificateIntegration::test_ID_EC_004_delete_processed_certificate_raises_validation_error FAILED [100%]
+presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_create_view_injects_tenant_context PASSED [ 14%]
+presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_form_initializes_default_decimal_values PASSED [ 28%]
+presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_create_view_intercepts_validation_error PASSED [ 42%]
+presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_create_view_intercepts_integrity_error FAILED [ 57%]
+presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_update_view_intercepts_fiscal_immutability_error PASSED [ 71%]
+presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_delete_view_intercepts_fiscal_deletion_lock PASSED [ 85%]
+presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_delete_view_intercepts_referential_integrity_error FAILED [100%]
 
 =================================== FAILURES ===================================
-_ TestIslrWithholdingCertificateIntegration.test_ID_HP_002_update_preliminary_certificate_via_view _
+_________________ test_create_view_intercepts_integrity_error __________________
 
-self = <test_islr_withholding.TestIslrWithholdingCertificateIntegration object at 0x70ae8ee8e0c0>
-logged_client = <django.test.client.Client object at 0x70ae8ee354c0>
-preliminary_invoice = <PurchaseLedgerInvoice: Factura N° INV-100 (CTRL-100) - ID: 358>
+self = <django.db.backends.utils.CursorWrapper object at 0x75904d15ad80>
+sql = 'INSERT INTO "data_access_purchaseledgerinvoice" ("fiscal_profile_id", "transaction_type", "document_type", "number", ...%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_purchaseledgerinvoice"."id"'
+params = (518, PurchaseLedgerInvoice.TransactionType.REGISTRO, 'INVOICE', 'INV-100', 'CTRL-100', 434, ...)
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x75904d15ad80>})
 
-    def test_ID_HP_002_update_preliminary_certificate_via_view(
-        self, logged_client, preliminary_invoice
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        # Raise a warning during app initialization (stored_app_configs is only
+        # ever set during testing).
+        if not apps.ready and not apps.stored_app_configs:
+            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+                return self.cursor.execute(sql)
+            else:
+>               return self.cursor.execute(sql, params)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x75904d138a10>
+query = 'INSERT INTO "data_access_purchaseledgerinvoice" ("fiscal_profile_id", "transaction_type", "document_type", "number", ...%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_purchaseledgerinvoice"."id"'
+params = (518, PurchaseLedgerInvoice.TransactionType.REGISTRO, 'INVOICE', 'INV-100', 'CTRL-100', 434, ...)
+prepare = None, binary = None
+
+    def execute(
+        self,
+        query: Query,
+        params: Params | None = None,
+        *,
+        prepare: bool | None = None,
+        binary: bool | None = None,
+    ) -> Self:
+        """
+        Execute a query or command to the database.
+        """
+        try:
+            with self._conn.lock:
+                self._conn.wait(
+                    self._execute_gen(query, params, prepare=prepare, binary=binary)
+                )
+        except e._NO_TRACEBACK as ex:
+>           raise ex.with_traceback(None)
+E           psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "unique_supplier_control_document"
+E           DETAIL:  Key (supplier_id, invoice_control, document_type, fiscal_profile_id)=(434, CTRL-100, INVOICE, 518) already exists.
+
+venv/lib/python3.12/site-packages/psycopg/cursor.py:117: UniqueViolation
+
+The above exception was the direct cause of the following exception:
+
+self = <presentation.views.purchase_book.PurchaseLedgerInvoiceCreateView object at 0x75904d159d60>
+form = <PurchaseLedgerInvoiceForm bound=True, valid=False, fields=(supplier;number;invoice_control;document_type;purchase_typ...ot_subject;amount_without_right_to_credit;taxable_base;vat_percentage;vat_amount;igtf_base;igtf_amount;total_purchase)>
+
+    def form_valid(self, form):
+        """Intercepta las excepciones del modelo o la BD al intentar guardar."""
+        try:
+>           return super().form_valid(form)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^
+
+presentation/views/purchase_book.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+venv/lib/python3.12/site-packages/django/views/generic/edit.py:133: in form_valid
+    self.object = form.save()
+                  ^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/forms/models.py:574: in save
+    self.instance.save()
+data_access/models/purchase_book.py:397: in save
+    super().save(*args, **kwargs)
+venv/lib/python3.12/site-packages/django/db/models/base.py:874: in save
+    self.save_base(
+venv/lib/python3.12/site-packages/django/db/models/base.py:966: in save_base
+    updated = self._save_table(
+venv/lib/python3.12/site-packages/django/db/models/base.py:1169: in _save_table
+    results = self._do_insert(
+venv/lib/python3.12/site-packages/django/db/models/base.py:1220: in _do_insert
+    return manager._insert(
+venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:1918: in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1925: in execute_sql
+    cursor.execute(sql, params)
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
+    return self._execute_with_wrappers(
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
+    with self.db.wrap_database_errors:
+venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x75904d138a10>
+query = 'INSERT INTO "data_access_purchaseledgerinvoice" ("fiscal_profile_id", "transaction_type", "document_type", "number", ...%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_purchaseledgerinvoice"."id"'
+params = (518, PurchaseLedgerInvoice.TransactionType.REGISTRO, 'INVOICE', 'INV-100', 'CTRL-100', 434, ...)
+prepare = None, binary = None
+
+    def execute(
+        self,
+        query: Query,
+        params: Params | None = None,
+        *,
+        prepare: bool | None = None,
+        binary: bool | None = None,
+    ) -> Self:
+        """
+        Execute a query or command to the database.
+        """
+        try:
+            with self._conn.lock:
+                self._conn.wait(
+                    self._execute_gen(query, params, prepare=prepare, binary=binary)
+                )
+        except e._NO_TRACEBACK as ex:
+>           raise ex.with_traceback(None)
+E           django.db.utils.IntegrityError: duplicate key value violates unique constraint "unique_supplier_control_document"
+E           DETAIL:  Key (supplier_id, invoice_control, document_type, fiscal_profile_id)=(434, CTRL-100, INVOICE, 518) already exists.
+
+venv/lib/python3.12/site-packages/psycopg/cursor.py:117: IntegrityError
+
+The above exception was the direct cause of the following exception:
+
+logged_client = <django.test.client.Client object at 0x75904d0f42c0>
+fiscal_profile = <FiscalProfile: Empresa de Pruebas CA (J123456789)>
+fiscal_period = <FiscalPeriod: 2026-01-01 (Preliminar)>
+base_invoice_data = {'supplier': 434, 'number': 'INV-100', 'invoice_control': 'CTRL-100', 'document_type': 'INVOICE', ...}
+supplier = <LocalSupplier: Proveedor de Pruebas (J987654321) - 434>
+
+    @pytest.mark.django_db
+    def test_create_view_intercepts_integrity_error(
+        logged_client, fiscal_profile, fiscal_period, base_invoice_data, supplier
     ):
-        """Valida la actualización de un comprobante preliminar mediante la vista de edición."""
+        """[ID_EC_002] Verifica el manejo de excepciones de unicidad por la base de datos."""
         # Arrange
-        certificate = IslrWithholdingCertificate.objects.create(
-            purchase_invoice=preliminary_invoice,
-            document_number="2026080001",
-            application_date="2026-08-10",
-            fiscal_profile=preliminary_invoice.fiscal_profile,
-            concepts_payment_pnr=1,
-            islr_withheld_amount="0.00",
-            subtracting="0.00",
-            status=IslrWithholdingCertificate.CertificateStatus.PRELIMINARY
+        # Creamos un registro previo para forzar colisión de unicidad
+        PurchaseLedgerInvoice.objects.create(
+            fiscal_profile=fiscal_profile,
+            fiscal_period=fiscal_period.start_period,
+            supplier=supplier,
+            number="INV-100",
+            invoice_control="CTRL-100",
+            document_type="INVOICE",
+            date=date.today(),
+            taxable_base=Decimal("100.00"),
+            vat_percentage=1,
+            vat_amount=Decimal("16.00"),
+            total_purchase=Decimal("116.00")
         )
-        url = reverse("islr-withholding-update", kwargs={
-            "invoice_pk": preliminary_invoice.pk,
-            "pk": certificate.pk
-        })
-        form_data = {
-            "document_number": "2026080002",
-            "application_date": "2026-08-15",
-            "concepts_payment_pjd": 1,
-        }
     
         # Act
-        response = logged_client.post(url, data=form_data)
-    
-        # Assert
->       assert response.status_code == 302
-E       assert 404 == 302
-E        +  where 404 = <HttpResponseNotFound status_code=404, "text/html; charset=utf-8">.status_code
+>       response = logged_client.post("/purchase-invoices/new/", data=base_invoice_data)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py:70: AssertionError
----------------------------- Captured stderr setup -----------------------------
-Using existing test database for alias 'default'...
+presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py:97: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+venv/lib/python3.12/site-packages/django/test/client.py:1156: in post
+    response = super().post(
+venv/lib/python3.12/site-packages/django/test/client.py:499: in post
+    return self.generic(
+venv/lib/python3.12/site-packages/django/test/client.py:671: in generic
+    return self.request(**r)
+           ^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/test/client.py:1090: in request
+    self.check_exception(response)
+venv/lib/python3.12/site-packages/django/test/client.py:805: in check_exception
+    raise exc_value
+venv/lib/python3.12/site-packages/django/core/handlers/exception.py:55: in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/core/handlers/base.py:221: in _get_response
+    response = response.render()
+               ^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/template/response.py:114: in render
+    self.content = self.rendered_content
+                   ^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/template/response.py:92: in rendered_content
+    return template.render(context, self._request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/template/backends/django.py:107: in render
+    return self.template.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/template/base.py:174: in render
+    return self._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/test/utils.py:114: in instrumented_test_render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/template/base.py:1091: in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/template/base.py:1052: in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/template/loader_tags.py:56: in render
+    result = self.nodelist.render(context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/template/base.py:1091: in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/template/base.py:1052: in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/template/base.py:1156: in render
+    return render_value_in_context(output, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/template/base.py:1133: in render_value_in_context
+    value = str(value)
+            ^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/forms/utils.py:79: in __str__
+    return self.as_widget()
+           ^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/forms/boundfield.py:108: in as_widget
+    return widget.render(
+venv/lib/python3.12/site-packages/django/forms/widgets.py:330: in render
+    context = self.get_context(name, value, attrs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/forms/widgets.py:833: in get_context
+    context = super().get_context(name, value, attrs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/forms/widgets.py:784: in get_context
+    context["widget"]["optgroups"] = self.optgroups(
+venv/lib/python3.12/site-packages/django/forms/widgets.py:724: in optgroups
+    for index, (option_value, option_label) in enumerate(self.choices):
+venv/lib/python3.12/site-packages/django/forms/models.py:1448: in __iter__
+    for obj in queryset:
+venv/lib/python3.12/site-packages/django/db/models/query.py:508: in _iterator
+    yield from iterable
+venv/lib/python3.12/site-packages/django/db/models/query.py:95: in __iter__
+    results = compiler.execute_sql(
+venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1624: in execute_sql
+    cursor.execute(sql, params)
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
+    return self._execute_with_wrappers(
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:99: in _execute
+    self.db.validate_no_broken_transaction()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <DatabaseWrapper vendor='postgresql' alias='default'>
+
+    def validate_no_broken_transaction(self):
+        if self.needs_rollback:
+>           raise TransactionManagementError(
+                "An error occurred in the current transaction. You can't "
+                "execute queries until the end of the 'atomic' block."
+            ) from self.rollback_exc
+E           django.db.transaction.TransactionManagementError: An error occurred in the current transaction. You can't execute queries until the end of the 'atomic' block.
+
+venv/lib/python3.12/site-packages/django/db/backends/base/base.py:521: TransactionManagementError
 ------------------------------ Captured log call -------------------------------
-WARNING  django.request:log.py:249 Not Found: /purchase-invoices/358/islr-withholding/210/edit/
-_ TestIslrWithholdingCertificateIntegration.test_ID_EC_004_delete_processed_certificate_raises_validation_error _
+ERROR    django.request:log.py:249 Internal Server Error: /purchase-invoices/new/
+Traceback (most recent call last):
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/psycopg/cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "unique_supplier_control_document"
+DETAIL:  Key (supplier_id, invoice_control, document_type, fiscal_profile_id)=(434, CTRL-100, INVOICE, 518) already exists.
 
-self = <test_islr_withholding.TestIslrWithholdingCertificateIntegration object at 0x70ae8ee8f7a0>
-logged_client = <django.test.client.Client object at 0x70ae8db0a030>
-processed_islr_certificate = <IslrWithholdingCertificate: 2026080001 - Empresa de Pruebas CA (J123456789)>
+The above exception was the direct cause of the following exception:
 
-    def test_ID_EC_004_delete_processed_certificate_raises_validation_error(
-        self, logged_client, processed_islr_certificate
+Traceback (most recent call last):
+  File "/workspaces/accounting_system_location_ve/presentation/views/purchase_book.py", line 69, in form_valid
+    return super().form_valid(form)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/edit.py", line 133, in form_valid
+    self.object = form.save()
+                  ^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/forms/models.py", line 574, in save
+    self.instance.save()
+  File "/workspaces/accounting_system_location_ve/data_access/models/purchase_book.py", line 397, in save
+    super().save(*args, **kwargs)
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/base.py", line 874, in save
+    self.save_base(
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/base.py", line 966, in save_base
+    updated = self._save_table(
+              ^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/base.py", line 1169, in _save_table
+    results = self._do_insert(
+              ^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/base.py", line 1220, in _do_insert
+    return manager._insert(
+           ^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/query.py", line 1918, in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py", line 1925, in execute_sql
+    cursor.execute(sql, params)
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/utils.py", line 94, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/psycopg/cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+django.db.utils.IntegrityError: duplicate key value violates unique constraint "unique_supplier_control_document"
+DETAIL:  Key (supplier_id, invoice_control, document_type, fiscal_profile_id)=(434, CTRL-100, INVOICE, 518) already exists.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/core/handlers/base.py", line 221, in _get_response
+    response = response.render()
+               ^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/template/response.py", line 114, in render
+    self.content = self.rendered_content
+                   ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/template/response.py", line 92, in rendered_content
+    return template.render(context, self._request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/template/backends/django.py", line 107, in render
+    return self.template.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/template/base.py", line 174, in render
+    return self._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/test/utils.py", line 114, in instrumented_test_render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/template/base.py", line 1091, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/template/base.py", line 1052, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/template/loader_tags.py", line 56, in render
+    result = self.nodelist.render(context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/template/base.py", line 1091, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/template/base.py", line 1052, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/template/base.py", line 1156, in render
+    return render_value_in_context(output, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/template/base.py", line 1133, in render_value_in_context
+    value = str(value)
+            ^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/forms/utils.py", line 79, in __str__
+    return self.as_widget()
+           ^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/forms/boundfield.py", line 108, in as_widget
+    return widget.render(
+           ^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/forms/widgets.py", line 330, in render
+    context = self.get_context(name, value, attrs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/forms/widgets.py", line 833, in get_context
+    context = super().get_context(name, value, attrs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/forms/widgets.py", line 784, in get_context
+    context["widget"]["optgroups"] = self.optgroups(
+                                     ^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/forms/widgets.py", line 724, in optgroups
+    for index, (option_value, option_label) in enumerate(self.choices):
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/forms/models.py", line 1448, in __iter__
+    for obj in queryset:
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/query.py", line 508, in _iterator
+    yield from iterable
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/query.py", line 95, in __iter__
+    results = compiler.execute_sql(
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py", line 1624, in execute_sql
+    cursor.execute(sql, params)
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 99, in _execute
+    self.db.validate_no_broken_transaction()
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/base/base.py", line 521, in validate_no_broken_transaction
+    raise TransactionManagementError(
+django.db.transaction.TransactionManagementError: An error occurred in the current transaction. You can't execute queries until the end of the 'atomic' block.
+___________ test_delete_view_intercepts_referential_integrity_error ____________
+
+logged_client = <django.test.client.Client object at 0x75904d1088f0>
+fiscal_profile = <FiscalProfile: Empresa de Pruebas CA (J123456789)>
+fiscal_period = <FiscalPeriod: 2026-01-01 (Preliminar)>
+supplier = <LocalSupplier: Proveedor de Pruebas (J987654321) - 437>
+
+    @pytest.mark.django_db
+    def test_delete_view_intercepts_referential_integrity_error(
+        logged_client, fiscal_profile, fiscal_period, supplier
     ):
-        """Verifica que intentar eliminar un registro procesado retorne un error en el formulario."""
+        """[ID_EC_005] Verifica el manejo de errores de base de datos por dependencias referenciales."""
         # Arrange
-        invoice_pk = processed_islr_certificate.purchase_invoice.pk
-        url = reverse("invoice-islr-withholding-delete", kwargs={
-            "invoice_pk": invoice_pk,
-            "pk": processed_islr_certificate.pk
-        })
+        parent_invoice = PurchaseLedgerInvoice.objects.create(
+            fiscal_profile=fiscal_profile,
+            fiscal_period=fiscal_period.start_period,
+            supplier=supplier,
+            number="INV-100",
+            invoice_control="CTRL-100",
+            document_type="INVOICE",
+            date=date.today(),
+            taxable_base=Decimal("100.00"),
+            vat_percentage=1,
+            vat_amount=Decimal("16.00"),
+            total_purchase=Decimal("116.00")
+        )
     
-        # Act
-        response = logged_client.post(url)
-    
-        # Assert
->       assert response.status_code == 200
-E       assert 404 == 200
-E        +  where 404 = <HttpResponseNotFound status_code=404, "text/html; charset=utf-8">.status_code
+        # Crear nota de crédito dependiente (Restricción PROTECTED)
+>       PurchaseLedgerInvoice.objects.create(
+            fiscal_profile=fiscal_profile,
+            fiscal_period=fiscal_period,
+            supplier=supplier,
+            number="NC-001",
+            invoice_control="CTRL-101",
+            document_type="CREDIT_NOTE",
+            affected_invoice=parent_invoice,
+            date=date.today(),
+        )
 
-presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py:145: AssertionError
------------------------------- Captured log call -------------------------------
-WARNING  django.request:log.py:249 Not Found: /purchase-invoices/359/islr-withholding/211/delete/
+presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py:193: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:669: in create
+    obj.save(force_insert=True, using=self.db)
+data_access/models/purchase_book.py:397: in save
+    super().save(*args, **kwargs)
+venv/lib/python3.12/site-packages/django/db/models/base.py:874: in save
+    self.save_base(
+venv/lib/python3.12/site-packages/django/db/models/base.py:966: in save_base
+    updated = self._save_table(
+venv/lib/python3.12/site-packages/django/db/models/base.py:1169: in _save_table
+    results = self._do_insert(
+venv/lib/python3.12/site-packages/django/db/models/base.py:1220: in _do_insert
+    return manager._insert(
+venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:1918: in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1924: in execute_sql
+    for sql, params in self.as_sql():
+                       ^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1813: in as_sql
+    field_prepare(field_pre_save(obj)) for obj in self.query.objs
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1742: in prepare_value
+    return field.get_db_prep_save(value, connection=self.connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/fields/__init__.py:1011: in get_db_prep_save
+    return self.get_db_prep_value(value, connection=connection, prepared=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/fields/__init__.py:1541: in get_db_prep_value
+    value = self.get_prep_value(value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/fields/__init__.py:1536: in get_prep_value
+    return self.to_python(value)
+           ^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/fields/__init__.py:1492: in to_python
+    parsed = parse_date(value)
+             ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+value = <FiscalPeriod: 2026-01-01 (Preliminar)>
+
+    def parse_date(value):
+        """Parse a string and return a datetime.date.
+    
+        Raise ValueError if the input is well formatted but not a valid date.
+        Return None if the input isn't well formatted.
+        """
+        try:
+>           return datetime.date.fromisoformat(value)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           TypeError: fromisoformat: argument must be str
+
+venv/lib/python3.12/site-packages/django/utils/dateparse.py:74: TypeError
 =========================== short test summary info ============================
-FAILED presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::TestIslrWithholdingCertificateIntegration::test_ID_HP_002_update_preliminary_certificate_via_view
-FAILED presentation/tests/tests_integration_islrwithholding/test_islr_withholding.py::TestIslrWithholdingCertificateIntegration::test_ID_EC_004_delete_processed_certificate_raises_validation_error
-======================= 2 failed, 6 deselected in 13.61s =======================
+FAILED presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_create_view_intercepts_integrity_error
+FAILED presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_delete_view_intercepts_referential_integrity_error
+========================= 2 failed, 5 passed in 44.74s =========================
