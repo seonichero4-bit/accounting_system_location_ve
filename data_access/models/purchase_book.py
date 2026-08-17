@@ -236,7 +236,10 @@ class PurchaseLedgerInvoice(FiscalModuleAbstractModel):
         default=InvoiceCategory.INVENTARIO,
         verbose_name="Invoice category",
     )
-    
+    affected_account = models.JSONField(
+        default=list,
+        verbose_name="Cuentas de gasto imputadas",                                     
+    )
     def clean(self) -> None:
         """Realiza las validaciones cruzadas y de temporalidad fiscal del documento.
 

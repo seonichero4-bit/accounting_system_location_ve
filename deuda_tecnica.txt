@@ -1,5 +1,16 @@
 TESTING [
-1. Modelo "FiscalProfile": falta implementar test unitarios e integracion, a las validaciones y restriccion (clean() y save())
-2. Modelo "LocalSupplier": falta implementar test unitarios e integracion, a las validaciones y restriccion (clean() y save())
-3. Modelo "VatWithholdingCertificate": falta implementar test unitarios e integracion, a las validaciones y restriccion (clean() y save() y delete())
+
+    1. Modelo "FiscalProfile": falta implementar test unitarios e integracion, a las validaciones y restriccion (clean() y save())
+    2. Modelo "LocalSupplier": falta implementar test unitarios e integracion, a las validaciones y restriccion (clean() y save())
+    3. Modelo "VatWithholdingCertificate": falta implementar test unitarios e integracion, a las validaciones y restriccion (clean() y save() y delete())
+]
+
+MODELOS[
+
+    1. Modelo "PurchaseLedgerInvoice": falta implementar soporte para compra gravadas con multiples 
+    alicuotas (detallar alicuotas).
+    2. Modelo "PurchaseLedgerInvoice": falta implementar validaciones, sanetizacion y restricciones
+    para el nuevo campo "affected_account", Tambien implenmentar logica de presentacion y actualizar
+    test (unitario e integracion).
+    
 ]
