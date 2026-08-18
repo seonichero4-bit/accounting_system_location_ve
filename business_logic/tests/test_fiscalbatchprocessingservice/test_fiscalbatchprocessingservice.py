@@ -118,9 +118,13 @@ def test_id_hp_003_process_batch_with_credit_notes(
     fiscal_profile: FiscalProfile,
     local_supplier,
     purchase_ledger_invoice: PurchaseLedgerInvoice,
+    setup_accounts
 ) -> None:
     """Validar que el componente aplique ajuste por signo negativo con Notas de Crédito."""
     # Arrange
+    created_accounts = setup_accounts
+    account = created_accounts["61203"]
+
     PurchaseLedgerInvoice.objects.create(
         fiscal_profile=fiscal_profile,
         supplier=local_supplier,
@@ -138,7 +142,7 @@ def test_id_hp_003_process_batch_with_credit_notes(
         total_purchase=Decimal("232.00"),
         status=PurchaseLedgerInvoice.InvoiceStatus.PRELIMINARY,
         invoicecategory=PurchaseLedgerInvoice.InvoiceCategory.SERVICIO,
-        affected_account=[{"61203": 200}]
+        affected_account=[{"account_id": str(account.uuid), "amount": 200}]
     )
 
     service = FiscalBatchProcessingService(

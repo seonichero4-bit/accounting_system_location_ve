@@ -122,6 +122,10 @@ def local_supplier(db, fiscal_profile) -> LocalSupplier:
 @pytest.fixture
 def purchase_ledger_invoice(db, fiscal_profile, local_supplier, setup_accounts) -> PurchaseLedgerInvoice:
     """Instancia la factura de compra asignando cuentas afectadas válidas."""
+
+    created_accounts = setup_accounts
+    account = created_accounts["61203"]
+    
     return PurchaseLedgerInvoice.objects.create(
         fiscal_profile=fiscal_profile,
         supplier=local_supplier,
@@ -137,7 +141,7 @@ def purchase_ledger_invoice(db, fiscal_profile, local_supplier, setup_accounts) 
         subtotal=Decimal("1000.00"),
         total_purchase=Decimal("1160.00"),
         status=PurchaseLedgerInvoice.InvoiceStatus.PRELIMINARY,
-        affected_account=[{"61203": 1000}],
+        affected_account=[{"account_id": str(account.uuid), "amount": 1000.00}],
         invoicecategory=PurchaseLedgerInvoice.InvoiceCategory.SERVICIO
     )
 

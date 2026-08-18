@@ -342,7 +342,7 @@ class FiscalBatchProcessingService:
         # ---------------------------------------------------------------------
         # FASE FINAL: Transición de Estados
         # ---------------------------------------------------------------------
-        batch_invoices.update(status=PurchaseLedgerInvoice.InvoiceStatus.PROCESSED)
+        
 
         IslrWithholdingCertificate.objects.filter(
             purchase_invoice__in=batch_invoices
@@ -351,6 +351,8 @@ class FiscalBatchProcessingService:
         VatWithholdingCertificate.objects.filter(
             purchase_invoice__in=batch_invoices
         ).update(status=VatWithholdingCertificate.CertificateStatus.PROCESSED)
+
+        batch_invoices.update(status=PurchaseLedgerInvoice.InvoiceStatus.PROCESSED)
         
         # Filtro y actualización de documentos con estatus ANULLED
         PurchaseLedgerInvoice.objects.filter(
