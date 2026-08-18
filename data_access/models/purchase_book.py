@@ -35,7 +35,7 @@ class PurchaseLedgerInvoice(FiscalModuleAbstractModel):
     class InvoiceCategory(models.TextChoices):
         """Opciones de porcentaje de IVA según la legislación venezolana[cite: 1]."""
         INVENTARIO = "INVENTARIO", "Adquisicion de mercancia para el inventario"
-        BIENE = "BIENE", "Adquisicion de bienes (Gastos)"
+        BIENES = "BIENES", "Adquisicion de bienes (Gastos)"
         SERVICIO = "SERVICIO", "Adquisicion de servicio"
         SERVICIO_MIXTO = "SERVICIO_MIXTO", "Adquisicion de servicio bienes (Misma factura)"
 

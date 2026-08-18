@@ -5,498 +5,359 @@ django: version: 6.0.7, settings: accounting_system_ve.settings (from ini)
 rootdir: /workspaces/accounting_system_location_ve
 configfile: pytest.ini
 plugins: django-4.14.0, Faker-40.15.0
-collecting ... collected 7 items
+collecting ... collected 12 items
 
-presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_create_view_injects_tenant_context PASSED [ 14%]
-presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_form_initializes_default_decimal_values PASSED [ 28%]
-presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_create_view_intercepts_validation_error PASSED [ 42%]
-presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_create_view_intercepts_integrity_error FAILED [ 57%]
-presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_update_view_intercepts_fiscal_immutability_error PASSED [ 71%]
-presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_delete_view_intercepts_fiscal_deletion_lock PASSED [ 85%]
-presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_delete_view_intercepts_referential_integrity_error FAILED [100%]
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_hp_001_process_batch_ordinary_taxpayer_inventory_and_services FAILED [  8%]
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_hp_002_process_batch_special_taxpayer_withholdings FAILED [ 16%]
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_hp_003_process_batch_with_credit_notes FAILED [ 25%]
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_hp_004_process_batch_annulled_invoices_transition FAILED [ 33%]
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_ec_001_init_missing_accounts_raises_validation_error PASSED [ 41%]
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_ec_002_process_batch_empty_raises_validation_error FAILED [ 50%]
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_ec_003_service_invoice_missing_affected_accounts_raises_validation_error FAILED [ 58%]
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_ec_004_unbalanced_entry_raises_validation_error FAILED [ 66%]
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_ec_005_special_taxpayer_missing_vat_cert_raises_validation_error FAILED [ 75%]
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_ec_006_orm_verify_returns_false_raises_validation_error FAILED [ 83%]
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_ec_007_cert_not_preliminary_raises_validation_error FAILED [ 91%]
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_ec_008_db_exception_triggers_transaction_rollback FAILED [100%]
 
 =================================== FAILURES ===================================
-_________________ test_create_view_intercepts_integrity_error __________________
+____ test_id_hp_001_process_batch_ordinary_taxpayer_inventory_and_services _____
 
-self = <django.db.backends.utils.CursorWrapper object at 0x75904d15ad80>
-sql = 'INSERT INTO "data_access_purchaseledgerinvoice" ("fiscal_profile_id", "transaction_type", "document_type", "number", ...%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_purchaseledgerinvoice"."id"'
-params = (518, PurchaseLedgerInvoice.TransactionType.REGISTRO, 'INVOICE', 'INV-100', 'CTRL-100', 434, ...)
-ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x75904d15ad80>})
-
-    def _execute(self, sql, params, *ignored_wrapper_args):
-        # Raise a warning during app initialization (stored_app_configs is only
-        # ever set during testing).
-        if not apps.ready and not apps.stored_app_configs:
-            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
-        self.db.validate_no_broken_transaction()
-        with self.db.wrap_database_errors:
-            if params is None:
-                # params default might be backend specific.
-                return self.cursor.execute(sql)
-            else:
->               return self.cursor.execute(sql, params)
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x75904d138a10>
-query = 'INSERT INTO "data_access_purchaseledgerinvoice" ("fiscal_profile_id", "transaction_type", "document_type", "number", ...%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_purchaseledgerinvoice"."id"'
-params = (518, PurchaseLedgerInvoice.TransactionType.REGISTRO, 'INVOICE', 'INV-100', 'CTRL-100', 434, ...)
-prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "unique_supplier_control_document"
-E           DETAIL:  Key (supplier_id, invoice_control, document_type, fiscal_profile_id)=(434, CTRL-100, INVOICE, 518) already exists.
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: UniqueViolation
-
-The above exception was the direct cause of the following exception:
-
-self = <presentation.views.purchase_book.PurchaseLedgerInvoiceCreateView object at 0x75904d159d60>
-form = <PurchaseLedgerInvoiceForm bound=True, valid=False, fields=(supplier;number;invoice_control;document_type;purchase_typ...ot_subject;amount_without_right_to_credit;taxable_base;vat_percentage;vat_amount;igtf_base;igtf_amount;total_purchase)>
-
-    def form_valid(self, form):
-        """Intercepta las excepciones del modelo o la BD al intentar guardar."""
-        try:
->           return super().form_valid(form)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^
-
-presentation/views/purchase_book.py:69: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-venv/lib/python3.12/site-packages/django/views/generic/edit.py:133: in form_valid
-    self.object = form.save()
-                  ^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/forms/models.py:574: in save
-    self.instance.save()
-data_access/models/purchase_book.py:397: in save
-    super().save(*args, **kwargs)
-venv/lib/python3.12/site-packages/django/db/models/base.py:874: in save
-    self.save_base(
-venv/lib/python3.12/site-packages/django/db/models/base.py:966: in save_base
-    updated = self._save_table(
-venv/lib/python3.12/site-packages/django/db/models/base.py:1169: in _save_table
-    results = self._do_insert(
-venv/lib/python3.12/site-packages/django/db/models/base.py:1220: in _do_insert
-    return manager._insert(
-venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:1918: in _insert
-    return query.get_compiler(using=using).execute_sql(returning_fields)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1925: in execute_sql
-    cursor.execute(sql, params)
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
-    return self._execute_with_wrappers(
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
-    with self.db.wrap_database_errors:
-venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
-    raise dj_exc_value.with_traceback(traceback) from exc_value
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
-    return self.cursor.execute(sql, params)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x75904d138a10>
-query = 'INSERT INTO "data_access_purchaseledgerinvoice" ("fiscal_profile_id", "transaction_type", "document_type", "number", ...%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_purchaseledgerinvoice"."id"'
-params = (518, PurchaseLedgerInvoice.TransactionType.REGISTRO, 'INVOICE', 'INV-100', 'CTRL-100', 434, ...)
-prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           django.db.utils.IntegrityError: duplicate key value violates unique constraint "unique_supplier_control_document"
-E           DETAIL:  Key (supplier_id, invoice_control, document_type, fiscal_profile_id)=(434, CTRL-100, INVOICE, 518) already exists.
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: IntegrityError
-
-The above exception was the direct cause of the following exception:
-
-logged_client = <django.test.client.Client object at 0x75904d0f42c0>
-fiscal_profile = <FiscalProfile: Empresa de Pruebas CA (J123456789)>
-fiscal_period = <FiscalPeriod: 2026-01-01 (Preliminar)>
-base_invoice_data = {'supplier': 434, 'number': 'INV-100', 'invoice_control': 'CTRL-100', 'document_type': 'INVOICE', ...}
-supplier = <LocalSupplier: Proveedor de Pruebas (J987654321) - 434>
+fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
+local_supplier = <LocalSupplier: Proveedor Servicios Generales S.A. (J987654321) - 539>
+purchase_ledger_invoice = <PurchaseLedgerInvoice: Factura N° FAC-2026-001 (CTRL-001) - ID: 468>
+islr_withholding_certificate = <IslrWithholdingCertificate: 20260800000002 - Empresa de Prueba C.A. (J123456789)>
+fiscal_period_alternative = <FiscalPeriod: 2026-01-01 (Preliminar)>
 
     @pytest.mark.django_db
-    def test_create_view_intercepts_integrity_error(
-        logged_client, fiscal_profile, fiscal_period, base_invoice_data, supplier
-    ):
-        """[ID_EC_002] Verifica el manejo de excepciones de unicidad por la base de datos."""
+    def test_id_hp_001_process_batch_ordinary_taxpayer_inventory_and_services(
+        fiscal_profile: FiscalProfile,
+        local_supplier,
+        purchase_ledger_invoice: PurchaseLedgerInvoice,
+        islr_withholding_certificate: IslrWithholdingCertificate,
+        fiscal_period_alternative,
+    ) -> None:
+        """Validar procesamiento de lote para Contribuyente Ordinario con Inventario y Servicios.
+    
+        Verifica la generación de la tupla contable (asiento_1, None, asiento_3) para
+        facturas mixtas y la mutación de estado a PROCESSED.
+        """
         # Arrange
-        # Creamos un registro previo para forzar colisión de unicidad
-        PurchaseLedgerInvoice.objects.create(
+        fiscal_profile.taxpayer_type = "ORDINARY"
+        fiscal_profile.initial_fiscal_period = fiscal_period_alternative
+        fiscal_profile.save()
+    
+        # Factura 2: Inventario
+        inv_invoice = PurchaseLedgerInvoice.objects.create(
             fiscal_profile=fiscal_profile,
-            fiscal_period=fiscal_period.start_period,
-            supplier=supplier,
-            number="INV-100",
-            invoice_control="CTRL-100",
-            document_type="INVOICE",
-            date=date.today(),
-            taxable_base=Decimal("100.00"),
-            vat_percentage=1,
-            vat_amount=Decimal("16.00"),
-            total_purchase=Decimal("116.00")
+            supplier=local_supplier,
+            transaction_type=PurchaseLedgerInvoice.TransactionType.REGISTRO,
+            document_type=PurchaseLedgerInvoice.DocumentType.INVOICE,
+            number="FAC-INV-101",
+            invoice_control="CTRL-INV-101",
+            date=date(2026, 8, 15),
+            fiscal_period=date(2026, 8, 1),
+            taxable_base=Decimal("500.00"),
+            vat_percentage=PurchaseLedgerInvoice.VatPercentageChoices.GENERAL,
+            vat_amount=Decimal("80.00"),
+            subtotal=Decimal("500.00"),
+            total_purchase=Decimal("580.00"),
+            status=PurchaseLedgerInvoice.InvoiceStatus.PRELIMINARY,
+            invoicecategory=PurchaseLedgerInvoice.InvoiceCategory.INVENTARIO,
+            affected_account=[]
+        )
+    
+        service = FiscalBatchProcessingService(
+            fiscal_profile=fiscal_profile,
+            fiscal_period=date(2026, 8, 1)
         )
     
         # Act
->       response = logged_client.post("/purchase-invoices/new/", data=base_invoice_data)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        asiento_1, asiento_2, asiento_3 = service.execute_batch_processing()
+    
+        # Assert
+        assert asiento_1 is not None
+        assert asiento_2 is None
+>       assert asiento_3 is not None
+E       assert None is not None
 
-presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py:97: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-venv/lib/python3.12/site-packages/django/test/client.py:1156: in post
-    response = super().post(
-venv/lib/python3.12/site-packages/django/test/client.py:499: in post
-    return self.generic(
-venv/lib/python3.12/site-packages/django/test/client.py:671: in generic
-    return self.request(**r)
-           ^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/test/client.py:1090: in request
-    self.check_exception(response)
-venv/lib/python3.12/site-packages/django/test/client.py:805: in check_exception
-    raise exc_value
-venv/lib/python3.12/site-packages/django/core/handlers/exception.py:55: in inner
-    response = get_response(request)
-               ^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/core/handlers/base.py:221: in _get_response
-    response = response.render()
-               ^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/template/response.py:114: in render
-    self.content = self.rendered_content
-                   ^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/template/response.py:92: in rendered_content
-    return template.render(context, self._request)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/template/backends/django.py:107: in render
-    return self.template.render(context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/template/base.py:174: in render
-    return self._render(context)
-           ^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/test/utils.py:114: in instrumented_test_render
-    return self.nodelist.render(context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/template/base.py:1091: in render
-    return SafeString("".join([node.render_annotated(context) for node in self]))
-                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/template/base.py:1052: in render_annotated
-    return self.render(context)
-           ^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/template/loader_tags.py:56: in render
-    result = self.nodelist.render(context)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/template/base.py:1091: in render
-    return SafeString("".join([node.render_annotated(context) for node in self]))
-                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/template/base.py:1052: in render_annotated
-    return self.render(context)
-           ^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/template/base.py:1156: in render
-    return render_value_in_context(output, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/template/base.py:1133: in render_value_in_context
-    value = str(value)
-            ^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/forms/utils.py:79: in __str__
-    return self.as_widget()
-           ^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/forms/boundfield.py:108: in as_widget
-    return widget.render(
-venv/lib/python3.12/site-packages/django/forms/widgets.py:330: in render
-    context = self.get_context(name, value, attrs)
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/forms/widgets.py:833: in get_context
-    context = super().get_context(name, value, attrs)
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/forms/widgets.py:784: in get_context
-    context["widget"]["optgroups"] = self.optgroups(
-venv/lib/python3.12/site-packages/django/forms/widgets.py:724: in optgroups
-    for index, (option_value, option_label) in enumerate(self.choices):
-venv/lib/python3.12/site-packages/django/forms/models.py:1448: in __iter__
-    for obj in queryset:
-venv/lib/python3.12/site-packages/django/db/models/query.py:508: in _iterator
-    yield from iterable
-venv/lib/python3.12/site-packages/django/db/models/query.py:95: in __iter__
-    results = compiler.execute_sql(
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1624: in execute_sql
-    cursor.execute(sql, params)
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
-    return self._execute_with_wrappers(
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:99: in _execute
-    self.db.validate_no_broken_transaction()
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py:69: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+Using existing test database for alias 'default'...
+__________ test_id_hp_002_process_batch_special_taxpayer_withholdings __________
 
-self = <DatabaseWrapper vendor='postgresql' alias='default'>
-
-    def validate_no_broken_transaction(self):
-        if self.needs_rollback:
->           raise TransactionManagementError(
-                "An error occurred in the current transaction. You can't "
-                "execute queries until the end of the 'atomic' block."
-            ) from self.rollback_exc
-E           django.db.transaction.TransactionManagementError: An error occurred in the current transaction. You can't execute queries until the end of the 'atomic' block.
-
-venv/lib/python3.12/site-packages/django/db/backends/base/base.py:521: TransactionManagementError
------------------------------- Captured log call -------------------------------
-ERROR    django.request:log.py:249 Internal Server Error: /purchase-invoices/new/
-Traceback (most recent call last):
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 105, in _execute
-    return self.cursor.execute(sql, params)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/psycopg/cursor.py", line 117, in execute
-    raise ex.with_traceback(None)
-psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "unique_supplier_control_document"
-DETAIL:  Key (supplier_id, invoice_control, document_type, fiscal_profile_id)=(434, CTRL-100, INVOICE, 518) already exists.
-
-The above exception was the direct cause of the following exception:
-
-Traceback (most recent call last):
-  File "/workspaces/accounting_system_location_ve/presentation/views/purchase_book.py", line 69, in form_valid
-    return super().form_valid(form)
-           ^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/edit.py", line 133, in form_valid
-    self.object = form.save()
-                  ^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/forms/models.py", line 574, in save
-    self.instance.save()
-  File "/workspaces/accounting_system_location_ve/data_access/models/purchase_book.py", line 397, in save
-    super().save(*args, **kwargs)
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/base.py", line 874, in save
-    self.save_base(
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/base.py", line 966, in save_base
-    updated = self._save_table(
-              ^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/base.py", line 1169, in _save_table
-    results = self._do_insert(
-              ^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/base.py", line 1220, in _do_insert
-    return manager._insert(
-           ^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/query.py", line 1918, in _insert
-    return query.get_compiler(using=using).execute_sql(returning_fields)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py", line 1925, in execute_sql
-    cursor.execute(sql, params)
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 79, in execute
-    return self._execute_with_wrappers(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 92, in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 100, in _execute
-    with self.db.wrap_database_errors:
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/utils.py", line 94, in __exit__
-    raise dj_exc_value.with_traceback(traceback) from exc_value
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 105, in _execute
-    return self.cursor.execute(sql, params)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/psycopg/cursor.py", line 117, in execute
-    raise ex.with_traceback(None)
-django.db.utils.IntegrityError: duplicate key value violates unique constraint "unique_supplier_control_document"
-DETAIL:  Key (supplier_id, invoice_control, document_type, fiscal_profile_id)=(434, CTRL-100, INVOICE, 518) already exists.
-
-The above exception was the direct cause of the following exception:
-
-Traceback (most recent call last):
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
-    response = get_response(request)
-               ^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/core/handlers/base.py", line 221, in _get_response
-    response = response.render()
-               ^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/template/response.py", line 114, in render
-    self.content = self.rendered_content
-                   ^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/template/response.py", line 92, in rendered_content
-    return template.render(context, self._request)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/template/backends/django.py", line 107, in render
-    return self.template.render(context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/template/base.py", line 174, in render
-    return self._render(context)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/test/utils.py", line 114, in instrumented_test_render
-    return self.nodelist.render(context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/template/base.py", line 1091, in render
-    return SafeString("".join([node.render_annotated(context) for node in self]))
-                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/template/base.py", line 1052, in render_annotated
-    return self.render(context)
-           ^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/template/loader_tags.py", line 56, in render
-    result = self.nodelist.render(context)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/template/base.py", line 1091, in render
-    return SafeString("".join([node.render_annotated(context) for node in self]))
-                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/template/base.py", line 1052, in render_annotated
-    return self.render(context)
-           ^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/template/base.py", line 1156, in render
-    return render_value_in_context(output, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/template/base.py", line 1133, in render_value_in_context
-    value = str(value)
-            ^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/forms/utils.py", line 79, in __str__
-    return self.as_widget()
-           ^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/forms/boundfield.py", line 108, in as_widget
-    return widget.render(
-           ^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/forms/widgets.py", line 330, in render
-    context = self.get_context(name, value, attrs)
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/forms/widgets.py", line 833, in get_context
-    context = super().get_context(name, value, attrs)
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/forms/widgets.py", line 784, in get_context
-    context["widget"]["optgroups"] = self.optgroups(
-                                     ^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/forms/widgets.py", line 724, in optgroups
-    for index, (option_value, option_label) in enumerate(self.choices):
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/forms/models.py", line 1448, in __iter__
-    for obj in queryset:
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/query.py", line 508, in _iterator
-    yield from iterable
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/query.py", line 95, in __iter__
-    results = compiler.execute_sql(
-              ^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py", line 1624, in execute_sql
-    cursor.execute(sql, params)
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 79, in execute
-    return self._execute_with_wrappers(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 92, in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 99, in _execute
-    self.db.validate_no_broken_transaction()
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/base/base.py", line 521, in validate_no_broken_transaction
-    raise TransactionManagementError(
-django.db.transaction.TransactionManagementError: An error occurred in the current transaction. You can't execute queries until the end of the 'atomic' block.
-___________ test_delete_view_intercepts_referential_integrity_error ____________
-
-logged_client = <django.test.client.Client object at 0x75904d1088f0>
-fiscal_profile = <FiscalProfile: Empresa de Pruebas CA (J123456789)>
-fiscal_period = <FiscalPeriod: 2026-01-01 (Preliminar)>
-supplier = <LocalSupplier: Proveedor de Pruebas (J987654321) - 437>
+fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
+purchase_ledger_invoice = <PurchaseLedgerInvoice: Factura N° FAC-2026-001 (CTRL-001) - ID: 470>
+vat_withholding_certificate = <VatWithholdingCertificate: VAT Certificate No. 20260800000001>
+islr_withholding_certificate = <IslrWithholdingCertificate: 20260800000002 - Empresa de Prueba C.A. (J123456789)>
 
     @pytest.mark.django_db
-    def test_delete_view_intercepts_referential_integrity_error(
-        logged_client, fiscal_profile, fiscal_period, supplier
-    ):
-        """[ID_EC_005] Verifica el manejo de errores de base de datos por dependencias referenciales."""
+    def test_id_hp_002_process_batch_special_taxpayer_withholdings(
+        fiscal_profile: FiscalProfile,
+        purchase_ledger_invoice: PurchaseLedgerInvoice,
+        vat_withholding_certificate: VatWithholdingCertificate,
+        islr_withholding_certificate: IslrWithholdingCertificate,
+    ) -> None:
+        """Verificar la generación de asientos contables para Sujetos Pasivos Especiales.
+    
+        Asegura la creación de asiento_1, asiento_2 y asiento_3 con retenciones
+        de IVA e ISLR procesadas exitosamente.
+        """
         # Arrange
-        parent_invoice = PurchaseLedgerInvoice.objects.create(
+        fiscal_profile.taxpayer_type = "SPECIAL"
+        fiscal_profile.save()
+    
+        service = FiscalBatchProcessingService(
             fiscal_profile=fiscal_profile,
-            fiscal_period=fiscal_period.start_period,
-            supplier=supplier,
-            number="INV-100",
-            invoice_control="CTRL-100",
-            document_type="INVOICE",
-            date=date.today(),
-            taxable_base=Decimal("100.00"),
-            vat_percentage=1,
-            vat_amount=Decimal("16.00"),
-            total_purchase=Decimal("116.00")
+            fiscal_period=date(2026, 8, 15)
         )
     
-        # Crear nota de crédito dependiente (Restricción PROTECTED)
->       PurchaseLedgerInvoice.objects.create(
-            fiscal_profile=fiscal_profile,
-            fiscal_period=fiscal_period,
-            supplier=supplier,
-            number="NC-001",
-            invoice_control="CTRL-101",
-            document_type="CREDIT_NOTE",
-            affected_invoice=parent_invoice,
-            date=date.today(),
-        )
+        # Act
+>       asiento_1, asiento_2, asiento_3 = service.execute_batch_processing()
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py:193: 
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py:102: 
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/home/codespace/.python/current/lib/python3.12/contextlib.py:81: in inner
+    return func(*args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <business_logic.services.fiscalbatchprocessingservice.FiscalBatchProcessingService object at 0x7a973ea20890>
+
+    @transaction.atomic
+    def execute_batch_processing(self) -> Tuple[JournalEntryModel, JournalEntryModel | None, JournalEntryModel | None]:
+        """Ejecuta el procesamiento atómico del lote y genera los asientos contables."""
+        batch_invoices = PurchaseLedgerInvoice.objects.filter(
+            fiscal_profile=self.fiscal_profile,
+            fiscal_period=self.fiscal_period,
+            status=PurchaseLedgerInvoice.InvoiceStatus.PRELIMINARY,
+        )
+    
+        if not batch_invoices.exists():
+>           raise ValidationError(
+                f"No existen facturas preliminares para el período {self.fiscal_period}."
+            )
+E           django.core.exceptions.ValidationError: ['No existen facturas preliminares para el período 2026-08-15.']
+
+business_logic/services/fiscalbatchprocessingservice.py:72: ValidationError
+________________ test_id_hp_003_process_batch_with_credit_notes ________________
+
+fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
+local_supplier = <LocalSupplier: Proveedor Servicios Generales S.A. (J987654321) - 541>
+purchase_ledger_invoice = <PurchaseLedgerInvoice: Factura N° FAC-2026-001 (CTRL-001) - ID: 471>
+
+    @pytest.mark.django_db
+    def test_id_hp_003_process_batch_with_credit_notes(
+        fiscal_profile: FiscalProfile,
+        local_supplier,
+        purchase_ledger_invoice: PurchaseLedgerInvoice,
+    ) -> None:
+        """Validar que el componente aplique ajuste por signo negativo con Notas de Crédito."""
+        # Arrange
+        PurchaseLedgerInvoice.objects.create(
+            fiscal_profile=fiscal_profile,
+            supplier=local_supplier,
+            transaction_type=PurchaseLedgerInvoice.TransactionType.AJUSTE,
+            document_type=PurchaseLedgerInvoice.DocumentType.CREDIT_NOTE,
+            number="NC-2026-001",
+            invoice_control="CTRL-NC-001",
+            date=date(2026, 8, 16),
+            fiscal_period=date(2026, 8, 31),
+            affected_invoice=purchase_ledger_invoice,
+            taxable_base=Decimal("200.00"),
+            vat_percentage=PurchaseLedgerInvoice.VatPercentageChoices.GENERAL,
+            vat_amount=Decimal("32.00"),
+            subtotal=Decimal("200.00"),
+            total_purchase=Decimal("232.00"),
+            status=PurchaseLedgerInvoice.InvoiceStatus.PRELIMINARY,
+            invoicecategory=PurchaseLedgerInvoice.InvoiceCategory.SERVICIO,
+            affected_account=[{"61203": 200}]
+        )
+    
+        service = FiscalBatchProcessingService(
+            fiscal_profile=fiscal_profile,
+            fiscal_period=date(2026, 8, 31)
+        )
+    
+        # Act
+>       asientos = service.execute_batch_processing()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py:150: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/home/codespace/.python/current/lib/python3.12/contextlib.py:81: in inner
+    return func(*args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <business_logic.services.fiscalbatchprocessingservice.FiscalBatchProcessingService object at 0x7a973e472ae0>
+
+    @transaction.atomic
+    def execute_batch_processing(self) -> Tuple[JournalEntryModel, JournalEntryModel | None, JournalEntryModel | None]:
+        """Ejecuta el procesamiento atómico del lote y genera los asientos contables."""
+        batch_invoices = PurchaseLedgerInvoice.objects.filter(
+            fiscal_profile=self.fiscal_profile,
+            fiscal_period=self.fiscal_period,
+            status=PurchaseLedgerInvoice.InvoiceStatus.PRELIMINARY,
+        )
+    
+        if not batch_invoices.exists():
+            raise ValidationError(
+                f"No existen facturas preliminares para el período {self.fiscal_period}."
+            )
+    
+        # ---------------------------------------------------------------------
+        # FASE 1: Acumulación de Inventario
+        # ---------------------------------------------------------------------
+        t_inventario = Decimal("0.00")
+        t_iva_inv = Decimal("0.00")
+        t_igtf_inv = Decimal("0.00")
+        t_cxp_inv = Decimal("0.00")
+    
+        inventory_invoices = batch_invoices.filter(
+            invoicecategory=PurchaseLedgerInvoice.InvoiceCategory.INVENTARIO
+        )
+    
+        for inv in inventory_invoices:
+            sign = Decimal("1.00") if inv.document_type in [
+                PurchaseLedgerInvoice.DocumentType.INVOICE,
+                PurchaseLedgerInvoice.DocumentType.DEBIT_NOTE,
+            ] else Decimal("-1.00")
+    
+            costo_neto = sign * (
+                inv.taxable_base
+                + inv.exempt_amount
+                + inv.amount_exonerated
+                + inv.amount_not_subject
+                + inv.amount_without_right_to_credit
+            )
+            t_inventario += costo_neto
+            t_iva_inv += sign * inv.vat_amount
+            t_igtf_inv += sign * inv.igtf_amount
+            t_cxp_inv += sign * inv.total_purchase
+    
+        # ---------------------------------------------------------------------
+        # FASE 2: Acumulación de Bienes, Servicios
+        # ---------------------------------------------------------------------
+        t_gasto_by_account: Dict[str, Decimal] = {}
+        t_iva_rest = Decimal("0.00")
+        t_igtf_rest = Decimal("0.00")
+        t_cxp_rest = Decimal("0.00")
+    
+        remaining_categories = [
+            PurchaseLedgerInvoice.InvoiceCategory.BIENES,
+            PurchaseLedgerInvoice.InvoiceCategory.SERVICIO,
+            PurchaseLedgerInvoice.InvoiceCategory.SERVICIO_MIXTO,
+        ]
+        remaining_invoices = batch_invoices.filter(invoicecategory__in=remaining_categories)
+    
+        for inv in remaining_invoices:
+            # Validación estricta de affected_account
+            affected_list = inv.affected_account or []
+            if not affected_list:
+                raise ValidationError(
+                    f"Fallo de Imputación Contable: La factura N° {inv.number} "
+                    f"(Categoría: {inv.invoicecategory}) no posee cuentas afectadas (affected_accounts)."
+                )
+    
+            sign = Decimal("1.00") if inv.document_type in [
+                PurchaseLedgerInvoice.DocumentType.INVOICE,
+                PurchaseLedgerInvoice.DocumentType.DEBIT_NOTE,
+            ] else Decimal("-1.00")
+    
+            # Cálculo sin discriminar el IVA según derecho a crédito fiscal
+            costo_neto = sign * (
+                inv.taxable_base
+                + inv.exempt_amount
+                + inv.amount_exonerated
+                + inv.amount_not_subject
+                + inv.amount_without_right_to_credit
+            )
+    
+            t_iva_rest += sign * inv.vat_amount
+            t_igtf_rest += sign * inv.igtf_amount
+    
+            # Pasivo Proveedor Neto (Sin retención ISLR en esta fase)
+            t_cxp_rest += sign * inv.total_purchase
+    
+            # Imputación a cuentas contables específicas
+            for item in affected_list:
+>               acc_id = str(item["account_id"])
+                             ^^^^^^^^^^^^^^^^^^
+E               KeyError: 'account_id'
+
+business_logic/services/fiscalbatchprocessingservice.py:152: KeyError
+__________ test_id_hp_004_process_batch_annulled_invoices_transition ___________
+
+fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
+local_supplier = <LocalSupplier: Proveedor Servicios Generales S.A. (J987654321) - 542>
+purchase_ledger_invoice = <PurchaseLedgerInvoice: Factura N° FAC-2026-001 (CTRL-001) - ID: 473>
+
+    @pytest.mark.django_db
+    def test_id_hp_004_process_batch_annulled_invoices_transition(
+        fiscal_profile: FiscalProfile,
+        local_supplier,
+        purchase_ledger_invoice: PurchaseLedgerInvoice,
+    ) -> None:
+        """Confirmar la transición de estado para facturas anuladas en el período."""
+        # Arrange
+        annulled_invoice = PurchaseLedgerInvoice.objects.create(
+            fiscal_profile=fiscal_profile,
+            supplier=local_supplier,
+            document_type=PurchaseLedgerInvoice.DocumentType.INVOICE,
+            number="FAC-ANULADA-01",
+            invoice_control="CTRL-ANU-01",
+            date=date(2026, 8, 15),
+            fiscal_period=date(2026, 8, 31),
+            status=PurchaseLedgerInvoice.InvoiceStatus.ANULLED,
+        )
+    
+        service = FiscalBatchProcessingService(
+            fiscal_profile=fiscal_profile,
+            fiscal_period=(2026, 8, 31)
+        )
+    
+        # Act
+>       service.execute_batch_processing()
+
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py:186: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/home/codespace/.python/current/lib/python3.12/contextlib.py:81: in inner
+    return func(*args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^
+business_logic/services/fiscalbatchprocessingservice.py:65: in execute_batch_processing
+    batch_invoices = PurchaseLedgerInvoice.objects.filter(
 venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
     return getattr(self.get_queryset(), name)(*args, **kwargs)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:669: in create
-    obj.save(force_insert=True, using=self.db)
-data_access/models/purchase_book.py:397: in save
-    super().save(*args, **kwargs)
-venv/lib/python3.12/site-packages/django/db/models/base.py:874: in save
-    self.save_base(
-venv/lib/python3.12/site-packages/django/db/models/base.py:966: in save_base
-    updated = self._save_table(
-venv/lib/python3.12/site-packages/django/db/models/base.py:1169: in _save_table
-    results = self._do_insert(
-venv/lib/python3.12/site-packages/django/db/models/base.py:1220: in _do_insert
-    return manager._insert(
-venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:1918: in _insert
-    return query.get_compiler(using=using).execute_sql(returning_fields)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1924: in execute_sql
-    for sql, params in self.as_sql():
-                       ^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1813: in as_sql
-    field_prepare(field_pre_save(obj)) for obj in self.query.objs
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1742: in prepare_value
-    return field.get_db_prep_save(value, connection=self.connection)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/fields/__init__.py:1011: in get_db_prep_save
-    return self.get_db_prep_value(value, connection=connection, prepared=False)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/fields/__init__.py:1541: in get_db_prep_value
-    value = self.get_prep_value(value)
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:1542: in filter
+    return self._filter_or_exclude(False, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:1560: in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+venv/lib/python3.12/site-packages/django/db/models/query.py:1570: in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1676: in add_q
+    clause, _ = self._add_q(q_object, can_reuse)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1708: in _add_q
+    child_clause, needed_inner = self.build_filter(
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1618: in build_filter
+    condition = self.build_lookup(lookups, col, value)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1445: in build_lookup
+    lookup = lookup_class(lhs, rhs)
+             ^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/lookups.py:35: in __init__
+    self.rhs = self.get_prep_lookup()
+               ^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/lookups.py:391: in get_prep_lookup
+    return super().get_prep_lookup()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/lookups.py:93: in get_prep_lookup
+    return self.lhs.output_field.get_prep_value(self.rhs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 venv/lib/python3.12/site-packages/django/db/models/fields/__init__.py:1536: in get_prep_value
     return self.to_python(value)
            ^^^^^^^^^^^^^^^^^^^^^
@@ -505,7 +366,7 @@ venv/lib/python3.12/site-packages/django/db/models/fields/__init__.py:1492: in t
              ^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-value = <FiscalPeriod: 2026-01-01 (Preliminar)>
+value = (2026, 8, 31)
 
     def parse_date(value):
         """Parse a string and return a datetime.date.
@@ -519,7 +380,537 @@ value = <FiscalPeriod: 2026-01-01 (Preliminar)>
 E           TypeError: fromisoformat: argument must be str
 
 venv/lib/python3.12/site-packages/django/utils/dateparse.py:74: TypeError
+__________ test_id_ec_002_process_batch_empty_raises_validation_error __________
+
+fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
+
+    @pytest.mark.django_db
+    def test_id_ec_002_process_batch_empty_raises_validation_error(
+        fiscal_profile: FiscalProfile,
+    ) -> None:
+        """Verificar el comportamiento cuando no existen registros preliminares en el lote."""
+        # Arrange
+        # Borrar facturas existentes en estado PRELIMINARY
+        PurchaseLedgerInvoice.objects.filter(fiscal_profile=fiscal_profile).delete()
+    
+>       service = FiscalBatchProcessingService(
+            fiscal_profile=fiscal_profile,
+            fiscal_period=(2026, 8, 31)
+        )
+
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py:222: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+business_logic/services/fiscalbatchprocessingservice.py:43: in __init__
+    self._validate_profile_accounting_config()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <business_logic.services.fiscalbatchprocessingservice.FiscalBatchProcessingService object at 0x7a973e4ddbb0>
+
+    def _validate_profile_accounting_config(self) -> None:
+        """Verifica que el FiscalProfile contenga todas las cuentas de control necesarias."""
+        required_attrs = [
+            "ledger",
+            "inventory_account",
+            "vat_credit_account",
+            "igtf_expense_account",
+            "islr_payable_account",
+            "cxp_suppliers_account",
+            "vat_withheld_payable_account",
+        ]
+        missing = [attr for attr in required_attrs if getattr(self.fiscal_profile, attr, None) is None]
+        if missing:
+>           raise ValidationError(
+                f"El perfil fiscal {self.fiscal_profile} carece de la configuración contable: {', '.join(missing)}"
+            )
+E           django.core.exceptions.ValidationError: ['El perfil fiscal Empresa de Prueba C.A. (J123456789) carece de la configuración contable: ledger, inventory_account, vat_credit_account, igtf_expense_account, islr_payable_account, cxp_suppliers_account, vat_withheld_payable_account']
+
+business_logic/services/fiscalbatchprocessingservice.py:58: ValidationError
+_ test_id_ec_003_service_invoice_missing_affected_accounts_raises_validation_error _
+
+fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
+purchase_ledger_invoice = <PurchaseLedgerInvoice: Factura N° FAC-2026-001 (CTRL-001) - ID: 475>
+
+    @pytest.mark.django_db
+    def test_id_ec_003_service_invoice_missing_affected_accounts_raises_validation_error(
+        fiscal_profile: FiscalProfile,
+        purchase_ledger_invoice: PurchaseLedgerInvoice,
+    ) -> None:
+        """Validar que el sistema aborte si una factura de servicio carece de imputación."""
+        # Arrange
+        purchase_ledger_invoice.affected_account = []
+        # Saltamos el .clean() del modelo para forzar el escenario al nivel del servicio
+        purchase_ledger_invoice.save(update_fields=['affected_account'])
+    
+        service = FiscalBatchProcessingService(
+            fiscal_profile=fiscal_profile,
+            fiscal_period=(2026, 8, 31)
+        )
+    
+        # Act & Assert
+        with pytest.raises(ValidationError, match="Fallo de Imputación Contable"):
+>           service.execute_batch_processing()
+
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py:250: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/home/codespace/.python/current/lib/python3.12/contextlib.py:81: in inner
+    return func(*args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^
+business_logic/services/fiscalbatchprocessingservice.py:65: in execute_batch_processing
+    batch_invoices = PurchaseLedgerInvoice.objects.filter(
+venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:1542: in filter
+    return self._filter_or_exclude(False, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:1560: in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+venv/lib/python3.12/site-packages/django/db/models/query.py:1570: in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1676: in add_q
+    clause, _ = self._add_q(q_object, can_reuse)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1708: in _add_q
+    child_clause, needed_inner = self.build_filter(
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1618: in build_filter
+    condition = self.build_lookup(lookups, col, value)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1445: in build_lookup
+    lookup = lookup_class(lhs, rhs)
+             ^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/lookups.py:35: in __init__
+    self.rhs = self.get_prep_lookup()
+               ^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/lookups.py:391: in get_prep_lookup
+    return super().get_prep_lookup()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/lookups.py:93: in get_prep_lookup
+    return self.lhs.output_field.get_prep_value(self.rhs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/fields/__init__.py:1536: in get_prep_value
+    return self.to_python(value)
+           ^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/fields/__init__.py:1492: in to_python
+    parsed = parse_date(value)
+             ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+value = (2026, 8, 31)
+
+    def parse_date(value):
+        """Parse a string and return a datetime.date.
+    
+        Raise ValueError if the input is well formatted but not a valid date.
+        Return None if the input isn't well formatted.
+        """
+        try:
+>           return datetime.date.fromisoformat(value)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           TypeError: fromisoformat: argument must be str
+
+venv/lib/python3.12/site-packages/django/utils/dateparse.py:74: TypeError
+___________ test_id_ec_004_unbalanced_entry_raises_validation_error ____________
+
+fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
+purchase_ledger_invoice = <PurchaseLedgerInvoice: Factura N° FAC-2026-001 (CTRL-001) - ID: 476>
+
+    @pytest.mark.django_db
+    def test_id_ec_004_unbalanced_entry_raises_validation_error(
+        fiscal_profile: FiscalProfile,
+        purchase_ledger_invoice: PurchaseLedgerInvoice,
+    ) -> None:
+        """Forzar una ruptura de partida doble en memoria superior al umbral de tolerancia."""
+        # Arrange
+        # Corrompemos la consistencia aritmética de la factura a nivel de base de datos
+        PurchaseLedgerInvoice.objects.filter(pk=purchase_ledger_invoice.pk).update(
+            total_purchase=Decimal("9999.99")
+        )
+    
+        service = FiscalBatchProcessingService(
+            fiscal_profile=fiscal_profile,
+            fiscal_period=(2026, 8, 31)
+        )
+    
+        # Act & Assert
+        with pytest.raises(ValidationError, match="desbalance|Desbalance"):
+>           service.execute_batch_processing()
+
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py:272: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/home/codespace/.python/current/lib/python3.12/contextlib.py:81: in inner
+    return func(*args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^
+business_logic/services/fiscalbatchprocessingservice.py:65: in execute_batch_processing
+    batch_invoices = PurchaseLedgerInvoice.objects.filter(
+venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:1542: in filter
+    return self._filter_or_exclude(False, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:1560: in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+venv/lib/python3.12/site-packages/django/db/models/query.py:1570: in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1676: in add_q
+    clause, _ = self._add_q(q_object, can_reuse)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1708: in _add_q
+    child_clause, needed_inner = self.build_filter(
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1618: in build_filter
+    condition = self.build_lookup(lookups, col, value)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1445: in build_lookup
+    lookup = lookup_class(lhs, rhs)
+             ^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/lookups.py:35: in __init__
+    self.rhs = self.get_prep_lookup()
+               ^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/lookups.py:391: in get_prep_lookup
+    return super().get_prep_lookup()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/lookups.py:93: in get_prep_lookup
+    return self.lhs.output_field.get_prep_value(self.rhs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/fields/__init__.py:1536: in get_prep_value
+    return self.to_python(value)
+           ^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/fields/__init__.py:1492: in to_python
+    parsed = parse_date(value)
+             ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+value = (2026, 8, 31)
+
+    def parse_date(value):
+        """Parse a string and return a datetime.date.
+    
+        Raise ValueError if the input is well formatted but not a valid date.
+        Return None if the input isn't well formatted.
+        """
+        try:
+>           return datetime.date.fromisoformat(value)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           TypeError: fromisoformat: argument must be str
+
+venv/lib/python3.12/site-packages/django/utils/dateparse.py:74: TypeError
+___ test_id_ec_005_special_taxpayer_missing_vat_cert_raises_validation_error ___
+
+fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
+purchase_ledger_invoice = <PurchaseLedgerInvoice: Factura N° FAC-2026-001 (CTRL-001) - ID: 477>
+
+    @pytest.mark.django_db
+    def test_id_ec_005_special_taxpayer_missing_vat_cert_raises_validation_error(
+        fiscal_profile: FiscalProfile,
+        purchase_ledger_invoice: PurchaseLedgerInvoice,
+    ) -> None:
+        """Garantizar el aborto del proceso si un Especial no posee comprobante de IVA."""
+        # Arrange
+        fiscal_profile.taxpayer_type = "SPECIAL"
+        fiscal_profile.save()
+    
+        # Eliminamos el comprobante de IVA retenido asociado para fallar la auditoría
+        VatWithholdingCertificate.objects.filter(purchase_invoice=purchase_ledger_invoice).delete()
+    
+        service = FiscalBatchProcessingService(
+            fiscal_profile=fiscal_profile,
+            fiscal_period=(2026, 8, 31)
+        )
+    
+        # Act & Assert
+        with pytest.raises(ValidationError, match="Auditoría Fiscal Fallida"):
+>           service.execute_batch_processing()
+
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py:295: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/home/codespace/.python/current/lib/python3.12/contextlib.py:81: in inner
+    return func(*args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^
+business_logic/services/fiscalbatchprocessingservice.py:65: in execute_batch_processing
+    batch_invoices = PurchaseLedgerInvoice.objects.filter(
+venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:1542: in filter
+    return self._filter_or_exclude(False, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:1560: in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+venv/lib/python3.12/site-packages/django/db/models/query.py:1570: in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1676: in add_q
+    clause, _ = self._add_q(q_object, can_reuse)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1708: in _add_q
+    child_clause, needed_inner = self.build_filter(
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1618: in build_filter
+    condition = self.build_lookup(lookups, col, value)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1445: in build_lookup
+    lookup = lookup_class(lhs, rhs)
+             ^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/lookups.py:35: in __init__
+    self.rhs = self.get_prep_lookup()
+               ^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/lookups.py:391: in get_prep_lookup
+    return super().get_prep_lookup()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/lookups.py:93: in get_prep_lookup
+    return self.lhs.output_field.get_prep_value(self.rhs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/fields/__init__.py:1536: in get_prep_value
+    return self.to_python(value)
+           ^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/fields/__init__.py:1492: in to_python
+    parsed = parse_date(value)
+             ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+value = (2026, 8, 31)
+
+    def parse_date(value):
+        """Parse a string and return a datetime.date.
+    
+        Raise ValueError if the input is well formatted but not a valid date.
+        Return None if the input isn't well formatted.
+        """
+        try:
+>           return datetime.date.fromisoformat(value)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           TypeError: fromisoformat: argument must be str
+
+venv/lib/python3.12/site-packages/django/utils/dateparse.py:74: TypeError
+_______ test_id_ec_006_orm_verify_returns_false_raises_validation_error ________
+
+mock_journal_entry_model = <MagicMock name='JournalEntryModel' id='134790003921344'>
+fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
+purchase_ledger_invoice = <PurchaseLedgerInvoice: Factura N° FAC-2026-001 (CTRL-001) - ID: 478>
+
+    @pytest.mark.django_db
+    @patch("business_logic.services.fiscalbatchprocessingservice.JournalEntryModel")
+    def test_id_ec_006_orm_verify_returns_false_raises_validation_error(
+        mock_journal_entry_model: MagicMock,
+        fiscal_profile: FiscalProfile,
+        purchase_ledger_invoice: PurchaseLedgerInvoice,
+    ) -> None:
+        """Simular falla en la verificación de cuadratura del ORM JournalEntryModel."""
+        # Arrange
+        # Configuramos el mock para que el método verify() del ORM retorne cuadratura rota
+        mock_instance = MagicMock()
+        mock_instance.verify.return_value = (MagicMock(), False)
+        mock_journal_entry_model.objects.create.return_value = mock_instance
+    
+        service = FiscalBatchProcessingService(
+            fiscal_profile=fiscal_profile,
+            fiscal_period=(2026, 8, 31)
+        )
+    
+        # Act & Assert
+        with pytest.raises(ValidationError, match="Error de cuadratura en Asiento"):
+>           service.execute_batch_processing()
+
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py:319: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/home/codespace/.python/current/lib/python3.12/contextlib.py:81: in inner
+    return func(*args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^
+business_logic/services/fiscalbatchprocessingservice.py:65: in execute_batch_processing
+    batch_invoices = PurchaseLedgerInvoice.objects.filter(
+venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:1542: in filter
+    return self._filter_or_exclude(False, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:1560: in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+venv/lib/python3.12/site-packages/django/db/models/query.py:1570: in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1676: in add_q
+    clause, _ = self._add_q(q_object, can_reuse)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1708: in _add_q
+    child_clause, needed_inner = self.build_filter(
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1618: in build_filter
+    condition = self.build_lookup(lookups, col, value)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1445: in build_lookup
+    lookup = lookup_class(lhs, rhs)
+             ^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/lookups.py:35: in __init__
+    self.rhs = self.get_prep_lookup()
+               ^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/lookups.py:391: in get_prep_lookup
+    return super().get_prep_lookup()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/lookups.py:93: in get_prep_lookup
+    return self.lhs.output_field.get_prep_value(self.rhs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/fields/__init__.py:1536: in get_prep_value
+    return self.to_python(value)
+           ^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/fields/__init__.py:1492: in to_python
+    parsed = parse_date(value)
+             ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+value = (2026, 8, 31)
+
+    def parse_date(value):
+        """Parse a string and return a datetime.date.
+    
+        Raise ValueError if the input is well formatted but not a valid date.
+        Return None if the input isn't well formatted.
+        """
+        try:
+>           return datetime.date.fromisoformat(value)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           TypeError: fromisoformat: argument must be str
+
+venv/lib/python3.12/site-packages/django/utils/dateparse.py:74: TypeError
+_________ test_id_ec_007_cert_not_preliminary_raises_validation_error __________
+
+fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
+vat_withholding_certificate = <VatWithholdingCertificate: VAT Certificate No. 20260800000001>
+
+    @pytest.mark.django_db
+    def test_id_ec_007_cert_not_preliminary_raises_validation_error(
+        fiscal_profile: FiscalProfile,
+        vat_withholding_certificate: VatWithholdingCertificate,
+    ) -> None:
+        """Verificar que comprobantes en estado distinto a PRELIMINARY disparen error de auditoría."""
+        # Arrange
+        fiscal_profile.taxpayer_type = "SPECIAL"
+        fiscal_profile.save()
+    
+        # Alteramos el estado esquivando validaciones del modelo para forzar el escenario
+        VatWithholdingCertificate.objects.filter(pk=vat_withholding_certificate.pk).update(
+            status=VatWithholdingCertificate.CertificateStatus.PROCESSED
+        )
+    
+        service = FiscalBatchProcessingService(
+            fiscal_profile=fiscal_profile,
+            fiscal_period=(2026, 8, 31)
+        )
+    
+        # Act & Assert
+        with pytest.raises(ValidationError, match="Auditoría Fiscal Fallida"):
+>           service.execute_batch_processing()
+
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py:344: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/home/codespace/.python/current/lib/python3.12/contextlib.py:81: in inner
+    return func(*args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^
+business_logic/services/fiscalbatchprocessingservice.py:65: in execute_batch_processing
+    batch_invoices = PurchaseLedgerInvoice.objects.filter(
+venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:1542: in filter
+    return self._filter_or_exclude(False, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:1560: in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+venv/lib/python3.12/site-packages/django/db/models/query.py:1570: in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1676: in add_q
+    clause, _ = self._add_q(q_object, can_reuse)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1708: in _add_q
+    child_clause, needed_inner = self.build_filter(
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1618: in build_filter
+    condition = self.build_lookup(lookups, col, value)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/query.py:1445: in build_lookup
+    lookup = lookup_class(lhs, rhs)
+             ^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/lookups.py:35: in __init__
+    self.rhs = self.get_prep_lookup()
+               ^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/lookups.py:391: in get_prep_lookup
+    return super().get_prep_lookup()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/lookups.py:93: in get_prep_lookup
+    return self.lhs.output_field.get_prep_value(self.rhs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/fields/__init__.py:1536: in get_prep_value
+    return self.to_python(value)
+           ^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/fields/__init__.py:1492: in to_python
+    parsed = parse_date(value)
+             ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+value = (2026, 8, 31)
+
+    def parse_date(value):
+        """Parse a string and return a datetime.date.
+    
+        Raise ValueError if the input is well formatted but not a valid date.
+        Return None if the input isn't well formatted.
+        """
+        try:
+>           return datetime.date.fromisoformat(value)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           TypeError: fromisoformat: argument must be str
+
+venv/lib/python3.12/site-packages/django/utils/dateparse.py:74: TypeError
+__________ test_id_ec_008_db_exception_triggers_transaction_rollback ___________
+
+mock_filter = <MagicMock name='filter' id='134790002106944'>
+fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
+
+    @pytest.mark.django_db
+    @patch("business_logic.services.fiscalbatchprocessingservice.PurchaseLedgerInvoice.objects.filter")
+    def test_id_ec_008_db_exception_triggers_transaction_rollback(
+        mock_filter: MagicMock,
+        fiscal_profile: FiscalProfile,
+    ) -> None:
+        """Validar el comportamiento transaccional atómico frente a caídas de Base de Datos."""
+        # Arrange
+>       service = FiscalBatchProcessingService(
+            fiscal_profile=fiscal_profile,
+            fiscal_period=(2026, 8, 31)
+        )
+
+business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py:355: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+business_logic/services/fiscalbatchprocessingservice.py:43: in __init__
+    self._validate_profile_accounting_config()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <business_logic.services.fiscalbatchprocessingservice.FiscalBatchProcessingService object at 0x7a973e31e2d0>
+
+    def _validate_profile_accounting_config(self) -> None:
+        """Verifica que el FiscalProfile contenga todas las cuentas de control necesarias."""
+        required_attrs = [
+            "ledger",
+            "inventory_account",
+            "vat_credit_account",
+            "igtf_expense_account",
+            "islr_payable_account",
+            "cxp_suppliers_account",
+            "vat_withheld_payable_account",
+        ]
+        missing = [attr for attr in required_attrs if getattr(self.fiscal_profile, attr, None) is None]
+        if missing:
+>           raise ValidationError(
+                f"El perfil fiscal {self.fiscal_profile} carece de la configuración contable: {', '.join(missing)}"
+            )
+E           django.core.exceptions.ValidationError: ['El perfil fiscal Empresa de Prueba C.A. (J123456789) carece de la configuración contable: ledger, inventory_account, vat_credit_account, igtf_expense_account, islr_payable_account, cxp_suppliers_account, vat_withheld_payable_account']
+
+business_logic/services/fiscalbatchprocessingservice.py:58: ValidationError
 =========================== short test summary info ============================
-FAILED presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_create_view_intercepts_integrity_error
-FAILED presentation/tests/tests_integration_purchaseledgerinvoice/test_purchase_book_integration.py::test_delete_view_intercepts_referential_integrity_error
-========================= 2 failed, 5 passed in 44.74s =========================
+FAILED business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_hp_001_process_batch_ordinary_taxpayer_inventory_and_services
+FAILED business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_hp_002_process_batch_special_taxpayer_withholdings
+FAILED business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_hp_003_process_batch_with_credit_notes
+FAILED business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_hp_004_process_batch_annulled_invoices_transition
+FAILED business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_ec_002_process_batch_empty_raises_validation_error
+FAILED business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_ec_003_service_invoice_missing_affected_accounts_raises_validation_error
+FAILED business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_ec_004_unbalanced_entry_raises_validation_error
+FAILED business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_ec_005_special_taxpayer_missing_vat_cert_raises_validation_error
+FAILED business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_ec_006_orm_verify_returns_false_raises_validation_error
+FAILED business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_ec_007_cert_not_preliminary_raises_validation_error
+FAILED business_logic/tests/test_fiscalbatchprocessingservice/test_fiscalbatchprocessingservice.py::test_id_ec_008_db_exception_triggers_transaction_rollback
+=================== 11 failed, 1 passed in 165.51s (0:02:45) ===================

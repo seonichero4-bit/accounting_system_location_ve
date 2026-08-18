@@ -119,8 +119,8 @@ class FiscalBatchProcessingService:
         remaining_invoices = batch_invoices.filter(invoicecategory__in=remaining_categories)
 
         for inv in remaining_invoices:
-            # Validación estricta de affected_accounts
-            affected_list = inv.affected_accounts or []
+            # Validación estricta de affected_account
+            affected_list = inv.affected_account or []
             if not affected_list:
                 raise ValidationError(
                     f"Fallo de Imputación Contable: La factura N° {inv.number} "
