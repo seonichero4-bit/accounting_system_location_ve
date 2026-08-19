@@ -7,7 +7,7 @@ from presentation.views import fiscal_profile
 from presentation.views import purchase_book
 from presentation.views import vat_withholding
 from presentation.views import islr_withholding
-from presentation.views import processfiscalbatch
+from presentation.views.processfiscalbatch import FiscalBatchProcessingView
 from presentation.views import uploadchartofaccounts
 from presentation.views import selectfiscalprofile
 from presentation.views import selectfiscalperiod
@@ -35,10 +35,8 @@ urlpatterns = [
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
 
     # URLS de Procesamiento y contabilizacion de libros ficales por lotes
-    path("compras/procesar-lote/", processfiscalbatch.ProcessFiscalBatchView.as_view(), name="process-fiscal-batch",),
+    path('fiscal/batch-process/', FiscalBatchProcessingView.as_view(), name='fiscal-batch-process'),
 
-    # URLS de Proveedores
-    path("suppliers/", supplier.LocalSupplierListView.as_view(), name="supplier-list"),
     path("suppliers/new/", supplier.LocalSupplierCreateView.as_view(), name="supplier-create"),
     path("suppliers/<int:pk>/", supplier.LocalSupplierDetailView.as_view(), name="supplier-detail"),
     path("suppliers/<int:pk>/edit/", supplier.LocalSupplierUpdateView.as_view(), name="supplier-update"),

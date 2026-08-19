@@ -1,86 +1,38 @@
-{% block title %}Procesamiento en Lote - Libro de Compras{% endblock %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Procesamiento Fiscal en Lote</title>
+    <!-- Agrega aquí tus estilos (ej. Bootstrap) -->
+    <style>
+        body { font-family: sans-serif; margin: 2rem; }
+        .alert { padding: 15px; margin-bottom: 20px; border-radius: 4px; }
+        .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-error, .alert-danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .btn-process { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
 
-{% block content %}
-<div class="container py-4">
-    <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-6">
-            
-            <!-- Mensajes de Estado / Alertas -->
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
-                        {% if message.tags == 'error' or message.tags == 'danger' %}
-                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                        {% else %}
-                            <i class="bi bi-check-circle-fill me-2"></i>
-                        {% endif %}
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
+    <h1>Procesamiento en Lote del Libro de Compras</h1>
+    <p>Presiona el botón para contabilizar las facturas preliminares del período actual.</p>
 
-            <!-- Tarjeta Principal de Formulario -->
-            <div class="card border-0 shadow-sm rounded-3">
-                <div class="card-header bg-dark text-white py-3">
-                    <h5 class="card-title mb-0 d-flex align-items-center">
-                        <i class="bi bi-journal-arrow-down me-2"></i>
-                        Cierre y Contabilización del Libro de Compras
-                    </h5>
+    <!-- Sección de Mensajes (Éxito / Errores de Validación) -->
+    {% if messages %}
+        <div class="messages-container">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
                 </div>
-                
-                <div class="card-body p-4">
-                    <!-- Advertencia Auditoría -->
-                    <div class="alert alert-warning border-0 bg-warning-subtle text-warning-emphasis mb-4">
-                        <h6 class="fw-bold mb-1">
-                            <i class="bi bi-shield-exclamation me-1"></i> Consideraciones Importantes:
-                        </h6>
-                        <ul class="mb-0 small ps-3">
-                            <li>Se procesarán todas las facturas en estado <strong>PRELIMINAR</strong> del período indicado.</li>
-                            <li>Se verificarán los comprobantes de retención de IVA e ISLR asociados.</li>
-                            <li>Se generarán de forma automática los Asientos Contables de Resumen en Django Ledger.</li>
-                            <li>Las facturas pasará al estado <strong>PROCESADO</strong> y no podrán modificarse.</li>
-                        </ul>
-                    </div>
-
-                    <form method="post" novalidate>
-                        {% csrf_token %}
-                        
-                        <div class="mb-4 text-start">
-                            <label for="{{ form.application_month_year.id_for_label }}" class="form-label fw-semibold text-secondary">
-                                {{ form.application_month_year.label }}
-                            </label>
-                            
-                            {{ form.application_month_year }}
-                            
-                            {% if form.application_month_year.help_text %}
-                                <div class="form-text text-muted small mt-1">
-                                    {{ form.application_month_year.help_text }}
-                                </div>
-                            {% endif %}
-                            
-                            {% if form.application_month_year.errors %}
-                                <div class="invalid-feedback d-block mt-1">
-                                    {% for error in form.application_month_year.errors %}
-                                        <span>{{ error }}</span>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-end pt-2">
-                            <a href="{% url 'fiscal:purchase-invoice-list' %}" class="btn btn-outline-secondary px-4">
-                                Cancelar
-                            </a>
-                            <button type="submit" class="btn btn-primary px-4 fw-bold" onclick="return confirm('¿Está seguro de procesar y contabilizar el lote seleccionado? Esta acción cerrará el período.');">
-                                <i class="bi bi-gear-wide-connected me-1"></i> Procesar Lote
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
+            {% endfor %}
         </div>
-    </div>
-</div>
-{% endblock %}
+    {% endif %}
+
+    <!-- Formulario para disparar el método POST -->
+    <form method="POST" action="{% url 'fiscal-batch-process' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn-process">Ejecutar Procesamiento</button>
+    </form>
+
+</body>
+</html>

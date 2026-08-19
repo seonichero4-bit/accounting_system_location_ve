@@ -1,36 +1,49 @@
-from django.views.generic import FormView
+from django.shortcuts import render, redirect
+from django.views import View
 from django.contrib import messages
-from django.shortcuts import redirect
-from django.urls import reverse_lazy
 from django.core.exceptions import ValidationError
 
+# Asumiendo las rutas de importación de tu proyecto
 from business_logic.services.fiscalbatchprocessingservice import FiscalBatchProcessingService
+from utils import unwrap_lazy_object
 
-class ProcessFiscalBatchView(FormView):
-    """Vista para ejecutar el procesamiento en lote del Libro de Compras."""
-    
-    template_name = "purchase_book.html"
-    success_url = reverse_lazy("purchase-invoice-list")
+class FiscalBatchProcessingView(View):
+    template_name = 'purchase_book.html'
 
-    def form_valid(self, form):
-        fiscal_profile = self.request.fiscal_profile
-        period = form.cleaned_data["application_month_year"]
+    def get(self, request, *args, **kwargs):
+        """Renderiza la interfaz para iniciar el procesamiento."""
+        return render(request, self.template_name)
 
-        service = FiscalBatchProcessingService(
-            fiscal_profile=fiscal_profile,
-            application_month_year=period,
-        )
-
+    def post(self, request, *args, **kwargs):
+        """Maneja la invocación del servicio de procesamiento en lote."""
+        
+        # 1. Extraer y desenvolver los objetos perezosos del request
+        fiscal_profile = unwrap_lazy_object(request.fiscal_profile)
+        fiscal_period = unwrap_lazy_object(request.fiscal_period)
+        
         try:
-            asiento_1, asiento_2 = service.execute_batch_processing()
-            msg = f"Lote {period} procesado con éxito. Asiento Compras: {asiento_1.je_number}."
-            if asiento_2:
-                msg += f" Asiento Retenciones IVA: {asiento_2.je_number}."
-            messages.success(self.request, msg)
-
-        except ValidationError as ve:
-            messages.error(self.request, f"Error de validación: {ve.message}")
+            # 2. Instanciar el servicio con los parámetros extraídos
+            service = FiscalBatchProcessingService(
+                fiscal_profile=fiscal_profile, 
+                fiscal_period=fiscal_period
+            )
+            
+            # 3. Ejecutar el procesamiento (puede devolver hasta 3 asientos contables)
+            asiento_1, asiento_2, asiento_3 = service.execute_batch_processing()
+            
+            # Mensaje de éxito si todo salió bien
+            messages.success(
+                request, 
+                f"Procesamiento del lote fiscal para el período {fiscal_period} completado con éxito."
+            )
+            
+        except ValidationError as e:
+            # 4. Manejo de excepciones lanzadas por el servicio
+            # Se convierte la excepción a string para mostrarla de forma legible
+            messages.error(request, str(e.message if hasattr(e, 'message') else e.messages[0] if hasattr(e, 'messages') else e))
         except Exception as e:
-            messages.error(self.request, f"Error inesperado al procesar el lote: {str(e)}")
-
-        return redirect(self.success_url)
+            # Manejo de fallos inesperados
+            messages.error(request, f"Ocurrió un error inesperado: {str(e)}")
+            
+        # Refrescar la página después del procesamiento
+        return redirect('fiscal-batch-process')
