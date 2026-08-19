@@ -14,3 +14,9 @@ MODELOS[
     test (unitario e integracion).
     
 ]
+
+SERVICIO[
+    1.FiscalBatchProcessingService: falta implementar una validacion, para verificar que
+    documentos "PurchaseLedgerInvoice" del tipo "SERVICIO" y "SERVICIO_MIXTO", de cualquier 
+    tipo de contribuyente, posean un comprobante de rentencion de ISLR.
+]

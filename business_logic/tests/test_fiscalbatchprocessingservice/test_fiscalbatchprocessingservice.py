@@ -118,10 +118,16 @@ def test_id_hp_003_process_batch_with_credit_notes(
     fiscal_profile: FiscalProfile,
     local_supplier,
     purchase_ledger_invoice: PurchaseLedgerInvoice,
-    setup_accounts
+    setup_accounts,
+    fiscal_period_alternative
 ) -> None:
     """Validar que el componente aplique ajuste por signo negativo con Notas de Crédito."""
     # Arrange
+
+    fiscal_profile.taxpayer_type = "ORDINARY"
+    fiscal_profile.initial_fiscal_period = fiscal_period_alternative
+    fiscal_profile.save()
+    
     created_accounts = setup_accounts
     account = created_accounts["61203"]
 
@@ -167,9 +173,15 @@ def test_id_hp_004_process_batch_annulled_invoices_transition(
     fiscal_profile: FiscalProfile,
     local_supplier,
     purchase_ledger_invoice: PurchaseLedgerInvoice,
+    fiscal_period_alternative
 ) -> None:
     """Confirmar la transición de estado para facturas anuladas en el período."""
     # Arrange
+
+    fiscal_profile.taxpayer_type = "ORDINARY"
+    fiscal_profile.initial_fiscal_period = fiscal_period_alternative
+    fiscal_profile.save()
+    
     annulled_invoice = PurchaseLedgerInvoice.objects.create(
         fiscal_profile=fiscal_profile,
         supplier=local_supplier,
@@ -217,6 +229,7 @@ def test_id_ec_001_init_missing_accounts_raises_validation_error(
 @pytest.mark.django_db
 def test_id_ec_002_process_batch_empty_raises_validation_error(
     fiscal_profile: FiscalProfile,
+    setup_accounts,
 ) -> None:
     """Verificar el comportamiento cuando no existen registros preliminares en el lote."""
     # Arrange
@@ -229,7 +242,7 @@ def test_id_ec_002_process_batch_empty_raises_validation_error(
     )
 
     # Act & Assert
-    with pytest.raises(ValidationError, match="no existen facturas preliminares"):
+    with pytest.raises(ValidationError, match="No existen facturas preliminares"):
         service.execute_batch_processing()
 
 
@@ -353,6 +366,7 @@ def test_id_ec_007_cert_not_preliminary_raises_validation_error(
 def test_id_ec_008_db_exception_triggers_transaction_rollback(
     mock_filter: MagicMock,
     fiscal_profile: FiscalProfile,
+    setup_accounts,
 ) -> None:
     """Validar el comportamiento transaccional atómico frente a caídas de Base de Datos."""
     # Arrange
