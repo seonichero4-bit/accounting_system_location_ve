@@ -69,14 +69,15 @@ class PurchaseLedgerExcelBuilder:
     def _write_table_headers(self) -> int:
         """Construye dinámicamente los encabezados. Retorna la longitud de columnas[cite: 6]."""
         headers = [
-            "N° Operación", "Fecha Documento", "Fecha de Pago", "N° R.I.F.", 
+            "N° Operación", "Fecha Documento", "N° R.I.F.", 
             "Nombre o Razón Social", "Número de Documento", "Número de Control",
             "N° Control Nota Débito", "N° Control Nota Crédito"
         ]
         
         if self.is_special_taxpayer:
             headers.append("N° Comprobante Retención IVA")
-            
+            headers.append("Fecha de Aplicacion Retención IVA")
+
         headers.extend([
             "Tipo de Transacción", "N° Documento Afectado", "N° Planilla Importación",
             "N° Expediente Importación", "Total Compras Con IVA", "Compras Exentas",
@@ -101,8 +102,6 @@ class PurchaseLedgerExcelBuilder:
         row = [
             index,
             invoice.date.strftime('%d/%m/%Y') if invoice.date else "",
-            # El atributo payment_date sera sustituido del modelo por el atributo fiscal_period.
-            invoice.payment_date.strftime('%d/%m/%Y') if invoice.payment_date else "",
             invoice.supplier.rif,
             invoice.supplier.name,
             invoice.number,
@@ -115,6 +114,7 @@ class PurchaseLedgerExcelBuilder:
             # Obtener número de comprobante si existe y está procesado
             cert = getattr(invoice, 'vat_withholding_certificate', None)
             row.append(cert.document_number if cert else "")
+            row.append(cert.application_date if cert else "")
 
         row.extend([
             invoice.get_transaction_type_display(),
@@ -138,6 +138,50 @@ class PurchaseLedgerExcelBuilder:
         # Actualizar totales para el resumen
         self._update_summary_totals(invoice, is_adjustment)
         
+        return row
+
+    def _process_late_withholding_row(self, cert, index: int):
+        """
+        Mapea una instancia de VatWithholdingCertificate extemporáneo a una fila de Excel.
+        Acumula únicamente el monto de la retención para el período actual.
+        """
+        invoice = cert.purchase_invoice
+        
+        row = [
+            index,
+            invoice.date.strftime('%d/%m/%Y') if invoice.date else "",
+            invoice.supplier.rif,
+            invoice.supplier.name,
+            invoice.number,
+            invoice.invoice_control,
+            "",
+            "",
+
+            cert.document_number,
+            cert.application_date.strftime('%d/%m/%Y'),
+
+            invoice.get_transaction_type_display(),
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            cert.vat_withheld_amount,
+        ]
+
+        if self.is_special_taxpayer:
+            # Acumula al resumen de forma independiente, ya que la base/IVA de la factura 
+            # no afecta los créditos fiscales del período actual (fueron declarados antes)
+            withheld = cert.vat_withheld_amount or Decimal('0.00')
+            row.append(withheld)
+            self.summary['retenciones_extemporaneas'] += withheld
+
         return row
 
     def _update_summary_totals(self, invoice, is_adjustment: bool):
@@ -175,9 +219,12 @@ class PurchaseLedgerExcelBuilder:
         """Segmenta y renderiza las operaciones del período, ajustes y extemporáneas[cite: 6]."""
         current_ops = []
         adjustments = []
+        late_vat_withholding = []
         
         # Clasificación inicial en memoria
         for invoice in self.queryset:
+            if invoice.vat_withholding_certificate and invoice.vat_withholding_certificate.fiscal_period < self.fiscal_period:
+                late_vat_withholding.append(invoice.vat_withholding_certificate)
             if invoice.affected_invoice and invoice.affected_invoice.fiscal_period < self.fiscal_period:
                 adjustments.append(invoice)
             else:
@@ -199,10 +246,19 @@ class PurchaseLedgerExcelBuilder:
                 self.sheet.append(self._process_invoice_row(inv, index, is_adjustment=True))
                 index += 1
 
-        # 3. Retenciones Extemporáneas (Simulación basada en los modelos)
-        # Aquí se inyectarían los certificados de períodos anteriores aplicados hoy.
+        # 3. Retenciones Extemporáneas
+        if late_vat_withholding:
+            # Añadir separación con la tabla anterior si existen registros
+            self.sheet.append([""] * total_cols)
+            
+            # Título de la sección
+            self.sheet.append(["RETENCIONES DE IVA EXTEMPORÁNEAS (PERÍODOS ANTERIORES)"])
+            
+            # Mapeo e inserción de filas
+            for cert in late_vat_withholding:
+                self.sheet.append(self._process_late_withholding_row(cert, index))
+                index += 1
 
-    def _write_summary_section(self):
         """Construye el bloque consolidado del Resumen de Créditos Fiscales[cite: 6]."""
         self.sheet.append([])
         self.sheet.append([])
@@ -220,6 +276,7 @@ class PurchaseLedgerExcelBuilder:
             ("Compras Internas Gravadas por Alícuota General + Adicional", self.summary['internal_adi_base'], self.summary['internal_adi_vat']),
             ("Compras Internas Gravadas por Alícuota Reducida", self.summary['internal_red_base'], self.summary['internal_red_vat']),
             ("Ajuste a los créditos fiscales de períodos anteriores", self.summary['ajustes_base'], self.summary['ajustes_vat']),
+            ("Rete"),
         ]
 
         for row in rows:
