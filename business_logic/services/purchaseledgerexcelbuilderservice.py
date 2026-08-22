@@ -48,6 +48,7 @@ class PurchaseLedgerExcelBuilder:
             'internal_adi_base': Decimal('0.00'), 'internal_adi_vat': Decimal('0.00'),
             'internal_red_base': Decimal('0.00'), 'internal_red_vat': Decimal('0.00'),
             'ajustes_base': Decimal('0.00'), 'ajustes_vat': Decimal('0.00'),
+            'retenciones_periodo': Decimal('0.00'),
             'retenciones_extemporaneas': Decimal('0.00')
         }
 
@@ -215,6 +216,12 @@ class PurchaseLedgerExcelBuilder:
         self.summary[f'{prefix}_{suffix}_base'] += invoice.taxable_base
         self.summary[f'{prefix}_{suffix}_vat'] += invoice.vat_amount
 
+       # Acumular IVA retenido en operaciones corrientes del periodo fiscal
+        if self.is_special_taxpayer:
+            cert = getattr(invoice, 'vat_withholding_certificate', None)
+            if cert and cert.vat_withheld_amount:
+                self.summary['retenciones_periodo'] += cert.vat_withheld_amount
+
     def _write_operations_data(self, total_cols: int):
         """Segmenta y renderiza las operaciones del período, ajustes y extemporáneas[cite: 6]."""
         current_ops = []
@@ -259,12 +266,13 @@ class PurchaseLedgerExcelBuilder:
                 self.sheet.append(self._process_late_withholding_row(cert, index))
                 index += 1
 
-        """Construye el bloque consolidado del Resumen de Créditos Fiscales[cite: 6]."""
+    def _write_summary_section(self):
+        """Construye el bloque consolidado del Resumen de Créditos Fiscales."""
         self.sheet.append([])
         self.sheet.append([])
         self.sheet.append(["RESUMEN DEL LIBRO DE COMPRAS"])
         
-        headers = ["Concepto", "Base Imponible", "Crédito Fiscal / IVA"]
+        headers = ["Concepto", "Base Imponible", "Crédito Fiscal / IVA Retenido"]
         self.sheet.append(headers)
 
         rows = [
@@ -275,9 +283,31 @@ class PurchaseLedgerExcelBuilder:
             ("Compras Internas Gravadas por Alícuota General", self.summary['internal_gen_base'], self.summary['internal_gen_vat']),
             ("Compras Internas Gravadas por Alícuota General + Adicional", self.summary['internal_adi_base'], self.summary['internal_adi_vat']),
             ("Compras Internas Gravadas por Alícuota Reducida", self.summary['internal_red_base'], self.summary['internal_red_vat']),
+            ("Total Compras y Créditos Fiscales del Período", 
+             self.summary['no_gravadas'] + 
+             self.summary['import_gen_base'] +
+             self.summary['import_adi_base'] +
+             self.summary['import_red_base'] +
+             self.summary['internal_gen_base'] +
+             self.summary['internal_adi_base'] +
+             self.summary['internal_red_base'],
+
+             self.summary['import_gen_vat'] +
+             self.summary['import_adi_vat'] +
+             self.summary['import_red_vat'] +
+             self.summary['internal_gen_vat'] +
+             self.summary['internal_adi_vat'] +
+             self.summary['internal_red_vat']
+            )
             ("Ajuste a los créditos fiscales de períodos anteriores", self.summary['ajustes_base'], self.summary['ajustes_vat']),
-            ("Rete"),
         ]
+
+        # Agregar los acumulados de retenciones solo si es contribuyente especial
+        if self.is_special_taxpayer:
+            rows.extend([
+                ("Total IVA Retenido en Operaciones del Período", "N/A", self.summary['retenciones_periodo']),
+                ("Total IVA Retenido en Operaciones Extemporáneas", "N/A", self.summary['retenciones_extemporaneas'])
+            ])
 
         for row in rows:
             self.sheet.append(row)
