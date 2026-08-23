@@ -290,8 +290,8 @@ class PurchaseLedgerExcelBuilder:
             ("Importaciones Gravadas por Alícuota Reducida", self.summary['import_red_base'], self.summary['import_red_vat']),
             ("Compras Internas Gravadas por Alícuota General", self.summary['internal_gen_base'], self.summary['internal_gen_vat']),
             ("Compras Internas Gravadas por Alícuota General + Adicional", self.summary['internal_adi_base'], self.summary['internal_adi_vat']),
-            ("Compras Internas Gravadas por Alícuota Reducida", self.summary['internal_red_base'], self.summary['internal_red_vat']),
-            ("Total Compras y Créditos Fiscales del Período", 
+            ("Compras Internas Gravadas por Alícuota Reducida", self.summary['internal_red_base'], self.summary['internal_red_vat']),         
+            ("Total Compras y Créditos Fiscales del Período", "N/A", 
              self.summary['no_gravadas'] + 
              self.summary['import_gen_base'] +
              self.summary['import_adi_base'] +
@@ -307,17 +307,21 @@ class PurchaseLedgerExcelBuilder:
              self.summary['internal_adi_vat'] +
              self.summary['internal_red_vat']
             ),
-            ("Ajuste a los créditos fiscales de períodos anteriores", self.summary['ajustes_base'], self.summary['ajustes_vat']),
+           
             ("Crédito fiscal totalmente deducible", "N/A", self.summary['Credito fiscal totalmente deducible']),
             ("Crédito fiscal parcialmente deducible", "N/A", self.summary['Credito fiscal parcialmente deducible']),
         ]
 
         # Agregar los acumulados de retenciones solo si es contribuyente especial
         if self.is_special_taxpayer:
+            self.sheet.append([])
             rows.extend([
                 ("Total IVA Retenido en Operaciones del Período", "N/A", self.summary['retenciones_periodo']),
                 ("Total IVA Retenido en Operaciones Extemporáneas", "N/A", self.summary['retenciones_extemporaneas'])
             ])
+
+        self.sheet.append([])
+        ("Ajuste a los créditos fiscales de períodos anteriores", self.summary['ajustes_base'], self.summary['ajustes_vat']),
 
         for row in rows:
             self.sheet.append(row)
