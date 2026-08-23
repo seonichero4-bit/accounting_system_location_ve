@@ -25,6 +25,12 @@ class PurchaseLedgerInvoice(FiscalModuleAbstractModel):
     fechas de aplicación impositiva y los agregados financieros de una transacción
     de compra[cite: 1].
     """
+    class Deductibility(models.TextChoices):
+            """Opciones de deducibilidad de credito fiscal."""
+            DEDUCIBLE = "Deducible"
+            PARCIALMENTE_DEDUCIBLE = "Parcialmente deducible"
+            NO_DEDUCIBLE = "No deducible"
+
     class TransactionType(models.TextChoices):
         """Opciones de porcentaje de IVA según la legislación venezolana."""
         REGISTRO = "01 Registro"
@@ -240,6 +246,13 @@ class PurchaseLedgerInvoice(FiscalModuleAbstractModel):
         default=list,
         verbose_name="Cuentas de gasto imputadas",                                     
     )
+    deductibility = models.CharField(
+        max_length=25,
+        choices=Deductibility.choices,
+        default=Deductibility.DEDUCIBLE,
+        verbose_name="Deducibilidad del credito fiscal",
+        )
+    
     def clean(self) -> None:
         """Realiza las validaciones cruzadas y de temporalidad fiscal del documento.
 

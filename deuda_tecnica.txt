@@ -12,6 +12,9 @@ MODELOS[
     2. Modelo "PurchaseLedgerInvoice": falta implementar validaciones, sanetizacion y restricciones
     para el nuevo campo "affected_account", Tambien implenmentar logica de presentacion y actualizar
     test (unitario e integracion).
+    3. Modelo "PurchaseLedgerInvoice": falta implementar validaciones, sanetizacion y restricciones
+    para el nuevo campo "deductibility", Tambien implenmentar logica de presentacion y actualizar
+    test (unitario e integracion).
     
 ]
 

@@ -49,7 +49,9 @@ class PurchaseLedgerExcelBuilder:
             'internal_red_base': Decimal('0.00'), 'internal_red_vat': Decimal('0.00'),
             'ajustes_base': Decimal('0.00'), 'ajustes_vat': Decimal('0.00'),
             'retenciones_periodo': Decimal('0.00'),
-            'retenciones_extemporaneas': Decimal('0.00')
+            'retenciones_extemporaneas': Decimal('0.00'),
+            'Credito fiscal totalmente deducible': Decimal('0.00'),
+            'Credito fiscal parcialmente deducible': Decimal('0.00'),
         }
 
     def _configure_page_setup(self):
@@ -187,23 +189,28 @@ class PurchaseLedgerExcelBuilder:
 
     def _update_summary_totals(self, invoice, is_adjustment: bool):
         """Alimenta los agregadores del resumen financiero en memoria."""
+        # Factor de signo dinámico para cualquier operación (corriente o ajuste)
+        sign = Decimal('-1') if invoice.document_type == 'CREDIT_NOTE' else Decimal('1')
+
+        # Acumulación de Deducibilidad de Crédito Fiscal
+        if invoice.deductibility == "Deducible":
+            self.summary['Credito fiscal totalmente deducible'] += (invoice.vat_amount * sign)
+        elif invoice.deductibility == "Parcialmente deducible":
+            self.summary['Credito fiscal parcialmente deducible'] += (invoice.vat_amount * sign)
+
         if is_adjustment:
-            # Factor de signo: Las notas de crédito reducen la base, los débitos la aumentan
-            sign = Decimal('-1') if invoice.document_type == 'CREDIT_NOTE' else Decimal('1')
             self.summary['ajustes_base'] += (invoice.taxable_base * sign)
             self.summary['ajustes_vat'] += (invoice.vat_amount * sign)
             return
 
-        # Acumular conceptos no gravados
+        # Acumular conceptos no gravados con su signo correspondiente
         self.summary['no_gravadas'] += (
             invoice.exempt_amount + invoice.amount_exonerated + 
             invoice.amount_not_subject + invoice.amount_without_right_to_credit
-        )
+        ) * sign
 
-        # Clasificación Matricial: Importación/Interno x Alícuota
         prefix = "import" if invoice.purchase_type == 'IMPORT' else "internal"
         
-        # Mapeo de VatPercentageChoices (1: General, 2: Reducida, 3: Adicional)
         if invoice.vat_percentage == 1:
             suffix = "gen"
         elif invoice.vat_percentage == 2:
@@ -213,8 +220,9 @@ class PurchaseLedgerExcelBuilder:
         else:
             return
 
-        self.summary[f'{prefix}_{suffix}_base'] += invoice.taxable_base
-        self.summary[f'{prefix}_{suffix}_vat'] += invoice.vat_amount
+        # Aplica el signo a las operaciones corrientes del período
+        self.summary[f'{prefix}_{suffix}_base'] += (invoice.taxable_base * sign)
+        self.summary[f'{prefix}_{suffix}_vat'] += (invoice.vat_amount * sign)
 
        # Acumular IVA retenido en operaciones corrientes del periodo fiscal
         if self.is_special_taxpayer:
@@ -298,8 +306,10 @@ class PurchaseLedgerExcelBuilder:
              self.summary['internal_gen_vat'] +
              self.summary['internal_adi_vat'] +
              self.summary['internal_red_vat']
-            )
+            ),
             ("Ajuste a los créditos fiscales de períodos anteriores", self.summary['ajustes_base'], self.summary['ajustes_vat']),
+            ("Crédito fiscal totalmente deducible", "N/A", self.summary['Credito fiscal totalmente deducible']),
+            ("Crédito fiscal parcialmente deducible", "N/A", self.summary['Credito fiscal parcialmente deducible']),
         ]
 
         # Agregar los acumulados de retenciones solo si es contribuyente especial
