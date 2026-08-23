@@ -181,9 +181,10 @@ class PurchaseLedgerExcelBuilder:
         if self.is_special_taxpayer:
             # Acumula al resumen de forma independiente, ya que la base/IVA de la factura 
             # no afecta los créditos fiscales del período actual (fueron declarados antes)
+            sign = Decimal('-1') if invoice.document_type == 'CREDIT_NOTE' else Decimal('1')
             withheld = cert.vat_withheld_amount or Decimal('0.00')
             row.append(withheld)
-            self.summary['retenciones_extemporaneas'] += withheld
+            self.summary['retenciones_extemporaneas'] += (withheld * sign)
 
         return row
 
@@ -228,7 +229,7 @@ class PurchaseLedgerExcelBuilder:
         if self.is_special_taxpayer:
             cert = getattr(invoice, 'vat_withholding_certificate', None)
             if cert and cert.vat_withheld_amount:
-                self.summary['retenciones_periodo'] += cert.vat_withheld_amount
+                self.summary['retenciones_periodo'] += (cert.vat_withheld_amount * sign)
 
     def _write_operations_data(self, total_cols: int):
         """Segmenta y renderiza las operaciones del período, ajustes y extemporáneas[cite: 6]."""
