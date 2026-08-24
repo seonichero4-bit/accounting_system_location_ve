@@ -50,6 +50,15 @@ class PurchaseLedgerInvoiceCreateView(RequestScopedQuerySetMixin, CreateView):
     template_name = "invoice_form.html"
     success_url = reverse_lazy("purchase-invoice-list")
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        
+        fiscal_profile_obj = unwrap_lazy_object(getattr(self.request, "fiscal_profile", None))
+        
+        # Los enviamos como kwargs adicionales al formulario
+        kwargs['fiscal_profile'] = fiscal_profile_obj
+        return kwargs
+
     def get_form(self, form_class=None):
         """Inyecta de forma temprana el perfil fiscal activo en la instancia del formulario[cite: 1]."""
         form = super().get_form(form_class)

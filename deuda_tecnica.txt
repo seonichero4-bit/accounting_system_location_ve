@@ -15,6 +15,8 @@ MODELOS[
     3. Modelo "PurchaseLedgerInvoice": falta implementar validaciones, sanetizacion y restricciones
     para el nuevo campo "deductibility", Tambien implenmentar logica de presentacion y actualizar
     test (unitario e integracion).
+    4. Modelo "PurchaseLedgerInvoice": falta implementar asignacion automatica de atributo "deductibility"
+    a nota de credito y debito, desde la factura afectada.
     
 ]
 

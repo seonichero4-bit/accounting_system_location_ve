@@ -22,6 +22,14 @@ class PurchaseLedgerInvoiceForm(forms.ModelForm):
     Gestiona la captura limpia de datos fiscales e intercepta descuadres
     aritméticos o caducidades de créditos fiscales antes de la persistencia[cite: 2].
     """
+
+    def __init__(self, *args, **kwargs):
+        # Extraemos los argumentos personalizados antes de llamar a super()
+        fiscal_profile = kwargs.pop('fiscal_profile', None)
+        
+        super().__init__(*args, **kwargs)
+
+        self.fields["affected_invoice"].queryset = PurchaseLedgerInvoice.objects.filter(fiscal_profile=fiscal_profile)
     
     class Meta:
         """Configuraciones base y mapeo de campos del modelo[cite: 2]."""
