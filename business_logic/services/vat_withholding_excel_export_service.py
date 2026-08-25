@@ -34,8 +34,8 @@ class VatWithholdingExcelExportService:
         Raises:
             ValueError: Si alguna de las dependencias requeridas se provee como None.
         """
-        self.fiscal_profile = unwrap_lazy_object(fiscal_profile)
-        self.fiscal_period = unwrap_lazy_object(fiscal_period)
+        self.fiscal_profile = fiscal_profile
+        self.fiscal_period = fiscal_period
 
         if not self.fiscal_profile or not self.fiscal_period:
             raise ValueError(

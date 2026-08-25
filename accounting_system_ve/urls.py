@@ -13,8 +13,10 @@ from presentation.views import selectfiscalprofile
 from presentation.views import selectfiscalperiod
 from presentation.views import dl_account_model_view
 from presentation.views import purchaseledgerdownloadview
+from presentation.views.vat_withholding_export_view import VatWithholdingExcelExportView
 
 urlpatterns = [
+
     path('admin/', admin.site.urls),
     # Aquí irán tus rutas de django-ledger
     path('ledger/', include('django_ledger.urls')),
@@ -72,6 +74,8 @@ urlpatterns = [
     path("purchase-invoices/<int:invoice_pk>/vat-withholding/<int:pk>/", vat_withholding.VatWithholdingCertificateDetailView.as_view(), name="invoice-vat-withholding-detail"),
     path("purchase-invoices/<int:invoice_pk>/vat-withholding/<int:pk>/delete/", vat_withholding.VatWithholdingCertificateDeleteView.as_view(), name="invoice-vat-withholding-delete"),
 
+    # URLS exportacion de excel/txt para la declaracion de retenciones de IVA
+    path("vat-withholdings/export/excel/", VatWithholdingExcelExportView.as_view(), name="export_excel",),
     # ==========================================
     # URLS de Comprobantes de Retención de ISLR
     # ==========================================
