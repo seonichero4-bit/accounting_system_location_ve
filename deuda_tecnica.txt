@@ -11,7 +11,11 @@ MODELOS[
     alicuotas (detallar alicuotas).
     2. Modelo "PurchaseLedgerInvoice": falta implementar validaciones, sanetizacion y restricciones
     para el nuevo campo "affected_account", Tambien implenmentar logica de presentacion y actualizar
-    test (unitario e integracion).
+    test (unitario e integracion)
+        VALIDACIONES:
+            -No necesario en registro de nota de credito y debito.(se implemento el campo con blank=true
+            por necesidades de dependencias, al implementar validaciones debe regresar a  blank=False)
+    .
     3. Modelo "PurchaseLedgerInvoice": falta implementar validaciones, sanetizacion y restricciones
     para el nuevo campo "deductibility", Tambien implenmentar logica de presentacion y actualizar
     test (unitario e integracion).

@@ -244,7 +244,9 @@ class PurchaseLedgerInvoice(FiscalModuleAbstractModel):
     )
     affected_account = models.JSONField(
         default=list,
-        verbose_name="Cuentas de gasto imputadas",                                     
+        verbose_name="Cuentas de gasto imputadas",
+        null=True,
+        blank=True,                                   
     )
     deductibility = models.CharField(
         max_length=25,
