@@ -1,0 +1,38 @@
+from datetime import datetime
+from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
+from django.views import View
+from django.contrib.auth.mixins import LoginRequiredMixin
+
+from business_logic.services.islr_withholding_xml_export_service import IslrXmlGeneratorService
+
+
+class DownloadIslrXmlView(LoginRequiredMixin, View):
+    """
+    Vista encagada de procesar la petición de descarga directa del reporte XML 
+    relativo a las retenciones del impuesto sobre la renta.
+    """
+
+    def get(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
+        period_param = request.GET.get("fiscal_period")
+        fiscal_profile = getattr(request.user, "fiscal_profile", None)
+
+        if not period_param or not fiscal_profile:
+            return HttpResponseBadRequest("Faltan parámetros requeridos para la generación.")
+
+        try:
+            fiscal_period = datetime.strptime(period_param, "%d-%m-%Y").date()
+        except ValueError:
+            return HttpResponseBadRequest("Formato de fecha inválido. Utilice DD-MM-YYYY.")
+
+        # Inyección de dependencias al servicio
+        service = IslrXmlGeneratorService(
+            fiscal_profile=fiscal_profile,
+            fiscal_period=fiscal_period
+        )
+        
+        xml_content = service.generate_xml_bytes()
+
+        # Construcción de la respuesta HTTP para descarga directa
+        response = HttpResponse(xml_content, content_type="application/xml")
+        response["Content-Disposition"] = 'attachment; filename="XMLrelacionRetencionesISLR.xml"'
+        return response
