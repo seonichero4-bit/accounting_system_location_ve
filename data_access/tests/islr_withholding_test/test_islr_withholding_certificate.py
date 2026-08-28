@@ -31,11 +31,12 @@ class TestIslrWithholdingCertificate:
         
         # Arrange
         certificate = IslrWithholdingCertificate(
-            purchase_invoice=preliminary_invoice,  # Instancia de modelo y no cadena
+            purchase_invoice=preliminary_invoice,
             document_number="2026080001",
             application_date=date(2026, 8, 10),
-            fiscal_profile=base_fiscal_profile,    # Instancia de modelo y no cadena
+            fiscal_profile=base_fiscal_profile,
             concepts_payment_pnnr=1,
+            service_amount=preliminary_invoice.subtotal,
             islr_withheld_amount=Decimal("0.00"),
         )
 
@@ -55,6 +56,7 @@ class TestIslrWithholdingCertificate:
             application_date=date(2026, 8, 10),
             fiscal_profile=base_fiscal_profile,
             concepts_payment_pjd=1,
+            service_amount=preliminary_invoice.subtotal,
             status=IslrWithholdingCertificate.CertificateStatus.PRELIMINARY,
         )
 
@@ -75,6 +77,7 @@ class TestIslrWithholdingCertificate:
             application_date=date(2026, 8, 11),
             fiscal_profile=base_fiscal_profile,
             concepts_payment_pjd=1,
+            service_amount=preliminary_invoice.subtotal,
             islr_withheld_amount=Decimal("10.00"),
             status=IslrWithholdingCertificate.CertificateStatus.PRELIMINARY,
         )
@@ -97,6 +100,7 @@ class TestIslrWithholdingCertificate:
             application_date=date(2026, 8, 12),
             fiscal_profile=base_fiscal_profile,
             concepts_payment_pjd=1,
+            service_amount=preliminary_invoice.subtotal,
             islr_withheld_amount=Decimal("10.00"),
             status=IslrWithholdingCertificate.CertificateStatus.PRELIMINARY,
         )
@@ -121,6 +125,7 @@ class TestIslrWithholdingCertificate:
             application_date=date(2026, 8, 12),
             fiscal_profile=base_fiscal_profile,
             concepts_payment_pjd=1,
+            service_amount=preliminary_invoice.subtotal,
             islr_withheld_amount=Decimal("0.00"),
         )
 
@@ -144,6 +149,7 @@ class TestIslrWithholdingCertificate:
             application_date=date(2026, 8, 21),
             fiscal_profile=base_fiscal_profile,
             concepts_payment_pnnr=1,
+            service_amount=processed_invoice.subtotal,
         )
 
         # Act & Assert
@@ -163,6 +169,7 @@ class TestIslrWithholdingCertificate:
             application_date=date(2026, 8, 15),
             fiscal_profile=base_fiscal_profile,
             concepts_payment_pjd=1,
+            service_amount=preliminary_invoice.subtotal,
         )
 
         # Act & Assert
@@ -185,6 +192,7 @@ class TestIslrWithholdingCertificate:
             application_date=date(2026, 8, 1), # Fecha inferior a la factura
             fiscal_profile=base_fiscal_profile,
             concepts_payment_pjd=1,
+            service_amount=preliminary_invoice.subtotal,
         )
 
         # Act & Assert
@@ -203,6 +211,7 @@ class TestIslrWithholdingCertificate:
             document_number="2026080001",
             application_date=date(2026, 8, 10),
             fiscal_profile=base_fiscal_profile,
+            service_amount=preliminary_invoice.subtotal,
         )
 
         # Act & Assert
@@ -223,6 +232,7 @@ class TestIslrWithholdingCertificate:
             fiscal_profile=base_fiscal_profile,
             concepts_payment_pnr=1,
             concepts_payment_pjd=1, # Selección múltiple
+            service_amount=preliminary_invoice.subtotal,
         )
 
         # Act & Assert
@@ -244,6 +254,7 @@ class TestIslrWithholdingCertificate:
             application_date=date(2026, 8, 1), # Retroactivo
             fiscal_profile=base_fiscal_profile,
             concepts_payment_pjd=1,
+            service_amount=processed_invoice.subtotal,
         )
 
         # Act & Assert
@@ -269,6 +280,7 @@ class TestIslrWithholdingCertificate:
             application_date=date(2026, 8, 10),
             fiscal_profile=base_fiscal_profile,
             concepts_payment_pjd=1,
+            service_amount=preliminary_invoice.subtotal,
             islr_withheld_amount=Decimal("10.00"),
             status=IslrWithholdingCertificate.CertificateStatus.PROCESSED,
         )
@@ -290,6 +302,7 @@ class TestIslrWithholdingCertificate:
             application_date=date(2026, 8, 10),
             fiscal_profile=base_fiscal_profile,
             concepts_payment_pjd=1,
+            service_amount=preliminary_invoice.subtotal,
             islr_withheld_amount=Decimal("10.00"),
             status=IslrWithholdingCertificate.CertificateStatus.PROCESSED,
         )
@@ -313,6 +326,7 @@ class TestIslrWithholdingCertificate:
             application_date=date(2026, 8, 10),
             fiscal_profile=base_fiscal_profile,
             concepts_payment_pjnd=1,
+            service_amount=preliminary_invoice.subtotal,
             status=IslrWithholdingCertificate.CertificateStatus.PRELIMINARY,
         )
 
@@ -332,6 +346,7 @@ class TestIslrWithholdingCertificate:
             application_date=None,
             fiscal_profile=base_fiscal_profile,
             concepts_payment_pnnr=1,
+            service_amount=preliminary_invoice.subtotal,
         )
 
         # Act & Assert
@@ -378,6 +393,7 @@ class TestConceptsPayment:
             application_date=date(2026, 8, 15),
             fiscal_profile=base_fiscal_profile,
             concepts_payment_pnr=concept_val,
+            service_amount=Decimal(subtotal),
         )
 
         # Act
@@ -422,6 +438,7 @@ class TestConceptsPayment:
             application_date=date(2026, 8, 15),
             fiscal_profile=base_fiscal_profile,
             concepts_payment_pnnr=concept_val,
+            service_amount=Decimal(subtotal),
         )
 
         # Act
@@ -461,6 +478,7 @@ class TestConceptsPayment:
             application_date=date(2026, 8, 15),
             fiscal_profile=base_fiscal_profile,
             concepts_payment_pjd=concept_val,
+            service_amount=Decimal(subtotal),
         )
 
         # Act
@@ -508,6 +526,7 @@ class TestConceptsPayment:
             application_date=date(2026, 8, 15),
             fiscal_profile=base_fiscal_profile,
             concepts_payment_pjnd=concept_val,
+            service_amount=Decimal(subtotal),
         )
 
         # Act
@@ -520,4 +539,3 @@ class TestConceptsPayment:
         # `sustraendo_bs` en la propiedad `self.subtracting`, este test fallará sirviendo 
         # como red de seguridad para forzar la corrección en la capa lógica.
         assert getattr(certificate, "subtracting", Decimal("0.00")) == Decimal(expected_sust)
-    

@@ -2,7 +2,7 @@ import re
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any, Dict, Tuple
 from django.core.exceptions import ValidationError
-from django.core.validators import RegexValidator
+from django.core.validators import RegexValidator, MinValueValidator
 from django.db import models
 
 from data_access.models.base import FiscalModuleAbstractModel
@@ -12,7 +12,6 @@ from data_access.models.concep_payment_islr.concepts_payment_pjnd import IslrPjn
 from data_access.models.concep_payment_islr.concepts_payment_pnnr import IslrPnnrChoices
 from data_access.models.concep_payment_islr.concepts_payment_pnr import IslrPnrChoices
 from business_logic.services.ut_setup import TAX_UNIT as ut_value
-
 
 
 class IslrWithholdingCertificate(FiscalModuleAbstractModel):
@@ -46,6 +45,23 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
         blank=True,
         verbose_name="Fiscal Period(DD-MM-YYYY)",
     )
+    
+    # =========================================================================
+    # NUEVO CAMPO: Valor del servicio introducido por el usuario
+    # =========================================================================
+    service_amount = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        validators=[
+            MinValueValidator(
+                Decimal("0.01"), 
+                message="El monto del servicio debe ser mayor a cero."
+            )
+        ],
+        verbose_name="Service Amount",
+        help_text="Valor del servicio al que aplicar los porcentajes de retención.",
+    )
+
     islr_withheld_amount = models.DecimalField(
         max_digits=15,
         decimal_places=2,
@@ -114,7 +130,12 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
 
         # Extracción de variables financieras basándose en el marco legal del enumerador
         concept_choice = IslrPnnrChoices(self.concepts_payment_pnnr)
-        subtotal: Decimal = getattr(self.purchase_invoice, "subtotal", Decimal("0.00"))
+        
+
+
+        # MODIFICACIÓN: Se obtiene desde el nuevo atributo
+        subtotal: Decimal = self.service_amount
+        
         factor_base: Decimal = concept_choice.base_imponible
         alicuota: Decimal = concept_choice.percentage
 
@@ -146,7 +167,10 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
             )
         # Variables de entrada base
         concept_choice = IslrPnrChoices(self.concepts_payment_pnr)
-        subtotal: Decimal = getattr(invoice, "subtotal", Decimal("0.00"))
+        
+        # MODIFICACIÓN: Se obtiene desde el nuevo atributo
+        subtotal: Decimal = self.service_amount
+        
         ut: Decimal = Decimal(str(ut_value))
 
         # Propiedades del concepto normativo
@@ -202,7 +226,10 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
     
         # Variables base para el cálculo financiero
         concept_choice = IslrPjndChoices(self.concepts_payment_pjnd)
-        subtotal: Decimal = getattr(invoice, "subtotal", Decimal("0.00"))
+        
+        # MODIFICACIÓN: Se obtiene desde el nuevo atributo
+        subtotal: Decimal = self.service_amount
+        
         ut: Decimal = Decimal(str(ut_value))
         
         base_imponible: Decimal = concept_choice.base_imponible
@@ -257,7 +284,10 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
         
         # 1. Variables y Origen de Datos
         concept_choice = IslrPjdChoices(self.concepts_payment_pjd)
-        subtotal: Decimal = getattr(self.purchase_invoice, "subtotal", Decimal("0.00"))
+        
+        # MODIFICACIÓN: Se obtiene desde el nuevo atributo
+        subtotal: Decimal = self.service_amount
+        
         base_imponible: Decimal = concept_choice.base_imponible
         percentage: Decimal = concept_choice.percentage
 
@@ -296,6 +326,14 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
                 errors['purchase_invoice'] = ValidationError(
                     ("La factura asociada debe estar estrictamente en estado PRELIMINARY."),
                     code='invalid_invoice_status'
+                )
+
+            invoice_subtotal = getattr(self.purchase_invoice, "subtotal", Decimal("0.00"))
+            if self.service_amount > invoice_subtotal:
+                errors['service_amount'] = ValidationError(
+                    ("El valor del servicio (%(service_amount)s) no puede exceder el subtotal de la factura asociada (%(subtotal)s)."),
+                    params={'service_amount': self.service_amount, 'subtotal': invoice_subtotal},
+                    code='service_amount_exceeds_subtotal'
                 )
 
         # Estructura Jerárquica del Correlativo del numero de documento
@@ -395,4 +433,3 @@ class IslrWithholdingCertificate(FiscalModuleAbstractModel):
     def __str__(self) -> str:
         """Retorna la representación en cadena del comprobante."""
         return f"{self.document_number} - {self.fiscal_profile}"
-    

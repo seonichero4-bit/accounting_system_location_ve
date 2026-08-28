@@ -5,708 +5,125 @@ django: version: 6.0.7, settings: accounting_system_ve.settings (from ini)
 rootdir: /workspaces/accounting_system_location_ve
 configfile: pytest.ini
 plugins: django-4.14.0, Faker-40.15.0
-collecting ... collected 9 items
+collecting ... collected 31 items / 28 deselected / 3 selected
+run-last-failure: rerun previous 3 failures
 
-business_logic/tests/test_vat_withholding_excel_export_service/test_vat_withholding_excel_export_service.py::test_id_hp_001_generate_excel_stream_with_invoice ERROR [ 11%]
-business_logic/tests/test_vat_withholding_excel_export_service/test_vat_withholding_excel_export_service.py::test_id_hp_002_generate_excel_stream_with_debit_note ERROR [ 22%]
-business_logic/tests/test_vat_withholding_excel_export_service/test_vat_withholding_excel_export_service.py::test_id_hp_003_generate_excel_stream_with_credit_note ERROR [ 33%]
-business_logic/tests/test_vat_withholding_excel_export_service/test_vat_withholding_excel_export_service.py::test_id_hp_004_sequential_export_of_multiple_records ERROR [ 44%]
-business_logic/tests/test_vat_withholding_excel_export_service/test_vat_withholding_excel_export_service.py::test_id_ec_001_buffer_pointer_reset_to_zero ERROR [ 55%]
-business_logic/tests/test_vat_withholding_excel_export_service/test_vat_withholding_excel_export_service.py::test_id_ec_002_decimal_precision_and_zero_handling ERROR [ 66%]
-business_logic/tests/test_vat_withholding_excel_export_service/test_vat_withholding_excel_export_service.py::test_id_ec_003_strict_absence_of_visual_styles ERROR [ 77%]
-business_logic/tests/test_vat_withholding_excel_export_service/test_vat_withholding_excel_export_service.py::test_id_ec_004_preservation_of_leading_zeros_and_formats ERROR [ 88%]
-business_logic/tests/test_vat_withholding_excel_export_service/test_vat_withholding_excel_export_service.py::test_id_ec_005_instantiation_with_null_dependencies_raises_error PASSED [100%]
+data_access/tests/islr_withholding_test/test_islr_withholding_certificate.py::TestIslrWithholdingCertificate::test_clean_ec_001_factura_asociada_no_preliminar ERROR [ 33%]
+data_access/tests/islr_withholding_test/test_islr_withholding_certificate.py::TestIslrWithholdingCertificate::test_clean_ec_006_acumulacion_multiples_errores ERROR [ 66%]
+data_access/tests/islr_withholding_test/test_islr_withholding_certificate.py::TestIslrWithholdingCertificate::test_save_ec_010_concepto_con_ut_invalida FAILED [100%]
 
 ==================================== ERRORS ====================================
-_____ ERROR at setup of test_id_hp_001_generate_excel_stream_with_invoice ______
+_ ERROR at setup of TestIslrWithholdingCertificate.test_clean_ec_001_factura_asociada_no_preliminar _
 
-db = None, fiscal_profile = <FiscalProfile: Empresa C.A. (J123456780)>
-local_supplier = <LocalSupplier: Proveedor de Prueba (J123456780) - 625>
+db = None
+base_invoice_data = {'transaction_type': PurchaseLedgerInvoice.TransactionType.REGISTRO, 'document_type': PurchaseLedgerInvoice.DocumentType.INVOICE, 'purchase_type': PurchaseLedgerInvoice.PurchaseType.INTERNAL, 'number': 'fact-001', ...}
 
     @pytest.fixture
-    def purchase_ledger_invoice(
-        db: Any, fiscal_profile: FiscalProfile, local_supplier: LocalSupplier
-    ) -> PurchaseLedgerInvoice:
-        """Crea una factura de compra alineada a un periodo fiscal quincenal."""
-        invoice = PurchaseLedgerInvoice(
-            fiscal_profile=fiscal_profile,
-            transaction_type=PurchaseLedgerInvoice.TransactionType.REGISTRO,
-            document_type=PurchaseLedgerInvoice.DocumentType.INVOICE,
-            number="00004567",
-            invoice_control="00-00123",
-            supplier=local_supplier,
-            date=date(2026, 8, 10),
-            fiscal_period=date(2026, 8, 15),
-            purchase_type=PurchaseLedgerInvoice.PurchaseType.INTERNAL,
-            taxable_base=Decimal("1000.00"),
-            vat_percentage=PurchaseLedgerInvoice.VatPercentageChoices.GENERAL.value,
-            vat_amount=Decimal("160.00"),
-            total_purchase=Decimal("1160.00"),
-            status=PurchaseLedgerInvoice.InvoiceStatus.PRELIMINARY,
-            invoicecategory=PurchaseLedgerInvoice.InvoiceCategory.INVENTARIO,
-        )
->       invoice.full_clean()
+    def processed_invoice(db, base_invoice_data):
+        """Fixture de factura en estado PROCESSED para pruebas de reglas de negocio."""
+        data = base_invoice_data.copy()
+        data["status"] = "PROCESSED"
+        data["number"] = "fact-002"
+        data["invoice_control"] = "CTRL-002"
+        data["date"] = date(2026, 8, 20)
+        invoice = PurchaseLedgerInvoice.objects.create(**data)
+        invoice.subtotal = Decimal("1000.00")
+>       invoice.save()
 
-business_logic/tests/test_vat_withholding_excel_export_service/conftest.py:86: 
+data_access/tests/islr_withholding_test/conftest.py:102: 
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <PurchaseLedgerInvoice: Factura N° 00004567 (00-00123) - ID: None>
-exclude = {'affected_account'}, validate_unique = True
-validate_constraints = True
+self = <PurchaseLedgerInvoice: Factura N° fact-002 (CTRL-002) - ID: 738>
+args = (), kwargs = {}
 
-    def full_clean(self, exclude=None, validate_unique=True, validate_constraints=True):
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Guarda la instancia automatizando cálculos financieros y protegiendo registros procesados[cite: 1].
+    
+        Raises:
+            ValidationError: Si se intenta modificar un registro con estado PROCESSED[cite: 1].
         """
-        Call clean_fields(), clean(), validate_unique(), and
-        validate_constraints() on the model. Raise a ValidationError for any
-        errors that occur.
-        """
-        errors = {}
-        if exclude is None:
-            exclude = set()
-        else:
-            exclude = set(exclude)
-    
-        try:
-            self.clean_fields(exclude=exclude)
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Form.clean() is run even if other validation fails, so do the
-        # same with Model.clean() for consistency.
-        try:
-            self.clean()
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Run unique checks, but only for fields that passed validation.
-        if validate_unique:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_unique(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        # Run constraints checks, but only for fields that passed validation.
-        if validate_constraints:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_constraints(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        if errors:
->           raise ValidationError(errors)
-E           django.core.exceptions.ValidationError: {'affected_account': ['Este campo no puede estar vacío.']}
+     # Restriccion de eliminacion de documentos procesados
+        if self.pk:
+            original = PurchaseLedgerInvoice.objects.get(pk=self.pk)
+            if original.status == PurchaseLedgerInvoice.InvoiceStatus.PROCESSED:
+>               raise ValidationError(
+                    "Bloqueo de Modificación Fiscal: Un documento en estado PROCESSED es estrictamente de solo lectura."
+                )
+E               django.core.exceptions.ValidationError: ['Bloqueo de Modificación Fiscal: Un documento en estado PROCESSED es estrictamente de solo lectura.']
 
-venv/lib/python3.12/site-packages/django/db/models/base.py:1712: ValidationError
+data_access/models/purchase_book.py:402: ValidationError
 ---------------------------- Captured stderr setup -----------------------------
 Using existing test database for alias 'default'...
-____ ERROR at setup of test_id_hp_002_generate_excel_stream_with_debit_note ____
+_ ERROR at setup of TestIslrWithholdingCertificate.test_clean_ec_006_acumulacion_multiples_errores _
 
-db = None, fiscal_profile = <FiscalProfile: Empresa C.A. (J123456780)>
-local_supplier = <LocalSupplier: Proveedor de Prueba (J123456780) - 626>
-
-    @pytest.fixture
-    def purchase_ledger_invoice(
-        db: Any, fiscal_profile: FiscalProfile, local_supplier: LocalSupplier
-    ) -> PurchaseLedgerInvoice:
-        """Crea una factura de compra alineada a un periodo fiscal quincenal."""
-        invoice = PurchaseLedgerInvoice(
-            fiscal_profile=fiscal_profile,
-            transaction_type=PurchaseLedgerInvoice.TransactionType.REGISTRO,
-            document_type=PurchaseLedgerInvoice.DocumentType.INVOICE,
-            number="00004567",
-            invoice_control="00-00123",
-            supplier=local_supplier,
-            date=date(2026, 8, 10),
-            fiscal_period=date(2026, 8, 15),
-            purchase_type=PurchaseLedgerInvoice.PurchaseType.INTERNAL,
-            taxable_base=Decimal("1000.00"),
-            vat_percentage=PurchaseLedgerInvoice.VatPercentageChoices.GENERAL.value,
-            vat_amount=Decimal("160.00"),
-            total_purchase=Decimal("1160.00"),
-            status=PurchaseLedgerInvoice.InvoiceStatus.PRELIMINARY,
-            invoicecategory=PurchaseLedgerInvoice.InvoiceCategory.INVENTARIO,
-        )
->       invoice.full_clean()
-
-business_logic/tests/test_vat_withholding_excel_export_service/conftest.py:86: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <PurchaseLedgerInvoice: Factura N° 00004567 (00-00123) - ID: None>
-exclude = {'affected_account'}, validate_unique = True
-validate_constraints = True
-
-    def full_clean(self, exclude=None, validate_unique=True, validate_constraints=True):
-        """
-        Call clean_fields(), clean(), validate_unique(), and
-        validate_constraints() on the model. Raise a ValidationError for any
-        errors that occur.
-        """
-        errors = {}
-        if exclude is None:
-            exclude = set()
-        else:
-            exclude = set(exclude)
-    
-        try:
-            self.clean_fields(exclude=exclude)
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Form.clean() is run even if other validation fails, so do the
-        # same with Model.clean() for consistency.
-        try:
-            self.clean()
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Run unique checks, but only for fields that passed validation.
-        if validate_unique:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_unique(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        # Run constraints checks, but only for fields that passed validation.
-        if validate_constraints:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_constraints(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        if errors:
->           raise ValidationError(errors)
-E           django.core.exceptions.ValidationError: {'affected_account': ['Este campo no puede estar vacío.']}
-
-venv/lib/python3.12/site-packages/django/db/models/base.py:1712: ValidationError
-___ ERROR at setup of test_id_hp_003_generate_excel_stream_with_credit_note ____
-
-db = None, fiscal_profile = <FiscalProfile: Empresa C.A. (J123456780)>
-local_supplier = <LocalSupplier: Proveedor de Prueba (J123456780) - 627>
+db = None
+base_invoice_data = {'transaction_type': PurchaseLedgerInvoice.TransactionType.REGISTRO, 'document_type': PurchaseLedgerInvoice.DocumentType.INVOICE, 'purchase_type': PurchaseLedgerInvoice.PurchaseType.INTERNAL, 'number': 'fact-001', ...}
 
     @pytest.fixture
-    def purchase_ledger_invoice(
-        db: Any, fiscal_profile: FiscalProfile, local_supplier: LocalSupplier
-    ) -> PurchaseLedgerInvoice:
-        """Crea una factura de compra alineada a un periodo fiscal quincenal."""
-        invoice = PurchaseLedgerInvoice(
-            fiscal_profile=fiscal_profile,
-            transaction_type=PurchaseLedgerInvoice.TransactionType.REGISTRO,
-            document_type=PurchaseLedgerInvoice.DocumentType.INVOICE,
-            number="00004567",
-            invoice_control="00-00123",
-            supplier=local_supplier,
-            date=date(2026, 8, 10),
-            fiscal_period=date(2026, 8, 15),
-            purchase_type=PurchaseLedgerInvoice.PurchaseType.INTERNAL,
-            taxable_base=Decimal("1000.00"),
-            vat_percentage=PurchaseLedgerInvoice.VatPercentageChoices.GENERAL.value,
-            vat_amount=Decimal("160.00"),
-            total_purchase=Decimal("1160.00"),
-            status=PurchaseLedgerInvoice.InvoiceStatus.PRELIMINARY,
-            invoicecategory=PurchaseLedgerInvoice.InvoiceCategory.INVENTARIO,
-        )
->       invoice.full_clean()
+    def processed_invoice(db, base_invoice_data):
+        """Fixture de factura en estado PROCESSED para pruebas de reglas de negocio."""
+        data = base_invoice_data.copy()
+        data["status"] = "PROCESSED"
+        data["number"] = "fact-002"
+        data["invoice_control"] = "CTRL-002"
+        data["date"] = date(2026, 8, 20)
+        invoice = PurchaseLedgerInvoice.objects.create(**data)
+        invoice.subtotal = Decimal("1000.00")
+>       invoice.save()
 
-business_logic/tests/test_vat_withholding_excel_export_service/conftest.py:86: 
+data_access/tests/islr_withholding_test/conftest.py:102: 
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <PurchaseLedgerInvoice: Factura N° 00004567 (00-00123) - ID: None>
-exclude = {'affected_account'}, validate_unique = True
-validate_constraints = True
+self = <PurchaseLedgerInvoice: Factura N° fact-002 (CTRL-002) - ID: 739>
+args = (), kwargs = {}
 
-    def full_clean(self, exclude=None, validate_unique=True, validate_constraints=True):
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Guarda la instancia automatizando cálculos financieros y protegiendo registros procesados[cite: 1].
+    
+        Raises:
+            ValidationError: Si se intenta modificar un registro con estado PROCESSED[cite: 1].
         """
-        Call clean_fields(), clean(), validate_unique(), and
-        validate_constraints() on the model. Raise a ValidationError for any
-        errors that occur.
-        """
-        errors = {}
-        if exclude is None:
-            exclude = set()
-        else:
-            exclude = set(exclude)
-    
-        try:
-            self.clean_fields(exclude=exclude)
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Form.clean() is run even if other validation fails, so do the
-        # same with Model.clean() for consistency.
-        try:
-            self.clean()
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Run unique checks, but only for fields that passed validation.
-        if validate_unique:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_unique(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        # Run constraints checks, but only for fields that passed validation.
-        if validate_constraints:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_constraints(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        if errors:
->           raise ValidationError(errors)
-E           django.core.exceptions.ValidationError: {'affected_account': ['Este campo no puede estar vacío.']}
+     # Restriccion de eliminacion de documentos procesados
+        if self.pk:
+            original = PurchaseLedgerInvoice.objects.get(pk=self.pk)
+            if original.status == PurchaseLedgerInvoice.InvoiceStatus.PROCESSED:
+>               raise ValidationError(
+                    "Bloqueo de Modificación Fiscal: Un documento en estado PROCESSED es estrictamente de solo lectura."
+                )
+E               django.core.exceptions.ValidationError: ['Bloqueo de Modificación Fiscal: Un documento en estado PROCESSED es estrictamente de solo lectura.']
 
-venv/lib/python3.12/site-packages/django/db/models/base.py:1712: ValidationError
-____ ERROR at setup of test_id_hp_004_sequential_export_of_multiple_records ____
+data_access/models/purchase_book.py:402: ValidationError
+=================================== FAILURES ===================================
+___ TestIslrWithholdingCertificate.test_save_ec_010_concepto_con_ut_invalida ___
 
-db = None, fiscal_profile = <FiscalProfile: Empresa C.A. (J123456780)>
-local_supplier = <LocalSupplier: Proveedor de Prueba (J123456780) - 628>
+self = <test_islr_withholding_certificate.TestIslrWithholdingCertificate object at 0x711e8805c080>
+preliminary_invoice = <PurchaseLedgerInvoice: Factura N° fact-001 (CTRL-001) - ID: 740>
+base_fiscal_profile = <FiscalProfile: Comercializadora Alfa C.A. (J123456789)>
 
-    @pytest.fixture
-    def purchase_ledger_invoice(
-        db: Any, fiscal_profile: FiscalProfile, local_supplier: LocalSupplier
-    ) -> PurchaseLedgerInvoice:
-        """Crea una factura de compra alineada a un periodo fiscal quincenal."""
-        invoice = PurchaseLedgerInvoice(
-            fiscal_profile=fiscal_profile,
-            transaction_type=PurchaseLedgerInvoice.TransactionType.REGISTRO,
-            document_type=PurchaseLedgerInvoice.DocumentType.INVOICE,
-            number="00004567",
-            invoice_control="00-00123",
-            supplier=local_supplier,
-            date=date(2026, 8, 10),
-            fiscal_period=date(2026, 8, 15),
-            purchase_type=PurchaseLedgerInvoice.PurchaseType.INTERNAL,
-            taxable_base=Decimal("1000.00"),
-            vat_percentage=PurchaseLedgerInvoice.VatPercentageChoices.GENERAL.value,
-            vat_amount=Decimal("160.00"),
-            total_purchase=Decimal("1160.00"),
-            status=PurchaseLedgerInvoice.InvoiceStatus.PRELIMINARY,
-            invoicecategory=PurchaseLedgerInvoice.InvoiceCategory.INVENTARIO,
+    def test_save_ec_010_concepto_con_ut_invalida(self, preliminary_invoice, base_fiscal_profile):
+        """[ID_EC_010] Comprueba fallo controlado si el perfil fiscal posee UT inválida o nula."""
+    
+        # Arrange
+        base_fiscal_profile.ut = Decimal("0.00")
+        base_fiscal_profile.save()
+    
+        certificate = IslrWithholdingCertificate(
+            purchase_invoice=preliminary_invoice,
+            document_number="2026080010",
+            application_date=date(2026, 8, 10),
+            fiscal_profile=base_fiscal_profile,
+            concepts_payment_pjnd=1,
+            service_amount=preliminary_invoice.subtotal,
+            status=IslrWithholdingCertificate.CertificateStatus.PRELIMINARY,
         )
->       invoice.full_clean()
-
-business_logic/tests/test_vat_withholding_excel_export_service/conftest.py:86: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <PurchaseLedgerInvoice: Factura N° 00004567 (00-00123) - ID: None>
-exclude = {'affected_account'}, validate_unique = True
-validate_constraints = True
-
-    def full_clean(self, exclude=None, validate_unique=True, validate_constraints=True):
-        """
-        Call clean_fields(), clean(), validate_unique(), and
-        validate_constraints() on the model. Raise a ValidationError for any
-        errors that occur.
-        """
-        errors = {}
-        if exclude is None:
-            exclude = set()
-        else:
-            exclude = set(exclude)
     
-        try:
-            self.clean_fields(exclude=exclude)
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Form.clean() is run even if other validation fails, so do the
-        # same with Model.clean() for consistency.
-        try:
-            self.clean()
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Run unique checks, but only for fields that passed validation.
-        if validate_unique:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_unique(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        # Run constraints checks, but only for fields that passed validation.
-        if validate_constraints:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_constraints(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        if errors:
->           raise ValidationError(errors)
-E           django.core.exceptions.ValidationError: {'affected_account': ['Este campo no puede estar vacío.']}
+        # Act & Assert
+>       with pytest.raises(ValidationError) as exc_info:
+E       Failed: DID NOT RAISE ValidationError
 
-venv/lib/python3.12/site-packages/django/db/models/base.py:1712: ValidationError
-________ ERROR at setup of test_id_ec_001_buffer_pointer_reset_to_zero _________
-
-db = None, fiscal_profile = <FiscalProfile: Empresa C.A. (J123456780)>
-local_supplier = <LocalSupplier: Proveedor de Prueba (J123456780) - 629>
-
-    @pytest.fixture
-    def purchase_ledger_invoice(
-        db: Any, fiscal_profile: FiscalProfile, local_supplier: LocalSupplier
-    ) -> PurchaseLedgerInvoice:
-        """Crea una factura de compra alineada a un periodo fiscal quincenal."""
-        invoice = PurchaseLedgerInvoice(
-            fiscal_profile=fiscal_profile,
-            transaction_type=PurchaseLedgerInvoice.TransactionType.REGISTRO,
-            document_type=PurchaseLedgerInvoice.DocumentType.INVOICE,
-            number="00004567",
-            invoice_control="00-00123",
-            supplier=local_supplier,
-            date=date(2026, 8, 10),
-            fiscal_period=date(2026, 8, 15),
-            purchase_type=PurchaseLedgerInvoice.PurchaseType.INTERNAL,
-            taxable_base=Decimal("1000.00"),
-            vat_percentage=PurchaseLedgerInvoice.VatPercentageChoices.GENERAL.value,
-            vat_amount=Decimal("160.00"),
-            total_purchase=Decimal("1160.00"),
-            status=PurchaseLedgerInvoice.InvoiceStatus.PRELIMINARY,
-            invoicecategory=PurchaseLedgerInvoice.InvoiceCategory.INVENTARIO,
-        )
->       invoice.full_clean()
-
-business_logic/tests/test_vat_withholding_excel_export_service/conftest.py:86: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <PurchaseLedgerInvoice: Factura N° 00004567 (00-00123) - ID: None>
-exclude = {'affected_account'}, validate_unique = True
-validate_constraints = True
-
-    def full_clean(self, exclude=None, validate_unique=True, validate_constraints=True):
-        """
-        Call clean_fields(), clean(), validate_unique(), and
-        validate_constraints() on the model. Raise a ValidationError for any
-        errors that occur.
-        """
-        errors = {}
-        if exclude is None:
-            exclude = set()
-        else:
-            exclude = set(exclude)
-    
-        try:
-            self.clean_fields(exclude=exclude)
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Form.clean() is run even if other validation fails, so do the
-        # same with Model.clean() for consistency.
-        try:
-            self.clean()
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Run unique checks, but only for fields that passed validation.
-        if validate_unique:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_unique(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        # Run constraints checks, but only for fields that passed validation.
-        if validate_constraints:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_constraints(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        if errors:
->           raise ValidationError(errors)
-E           django.core.exceptions.ValidationError: {'affected_account': ['Este campo no puede estar vacío.']}
-
-venv/lib/python3.12/site-packages/django/db/models/base.py:1712: ValidationError
-_____ ERROR at setup of test_id_ec_002_decimal_precision_and_zero_handling _____
-
-db = None, fiscal_profile = <FiscalProfile: Empresa C.A. (J123456780)>
-local_supplier = <LocalSupplier: Proveedor de Prueba (J123456780) - 630>
-
-    @pytest.fixture
-    def purchase_ledger_invoice(
-        db: Any, fiscal_profile: FiscalProfile, local_supplier: LocalSupplier
-    ) -> PurchaseLedgerInvoice:
-        """Crea una factura de compra alineada a un periodo fiscal quincenal."""
-        invoice = PurchaseLedgerInvoice(
-            fiscal_profile=fiscal_profile,
-            transaction_type=PurchaseLedgerInvoice.TransactionType.REGISTRO,
-            document_type=PurchaseLedgerInvoice.DocumentType.INVOICE,
-            number="00004567",
-            invoice_control="00-00123",
-            supplier=local_supplier,
-            date=date(2026, 8, 10),
-            fiscal_period=date(2026, 8, 15),
-            purchase_type=PurchaseLedgerInvoice.PurchaseType.INTERNAL,
-            taxable_base=Decimal("1000.00"),
-            vat_percentage=PurchaseLedgerInvoice.VatPercentageChoices.GENERAL.value,
-            vat_amount=Decimal("160.00"),
-            total_purchase=Decimal("1160.00"),
-            status=PurchaseLedgerInvoice.InvoiceStatus.PRELIMINARY,
-            invoicecategory=PurchaseLedgerInvoice.InvoiceCategory.INVENTARIO,
-        )
->       invoice.full_clean()
-
-business_logic/tests/test_vat_withholding_excel_export_service/conftest.py:86: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <PurchaseLedgerInvoice: Factura N° 00004567 (00-00123) - ID: None>
-exclude = {'affected_account'}, validate_unique = True
-validate_constraints = True
-
-    def full_clean(self, exclude=None, validate_unique=True, validate_constraints=True):
-        """
-        Call clean_fields(), clean(), validate_unique(), and
-        validate_constraints() on the model. Raise a ValidationError for any
-        errors that occur.
-        """
-        errors = {}
-        if exclude is None:
-            exclude = set()
-        else:
-            exclude = set(exclude)
-    
-        try:
-            self.clean_fields(exclude=exclude)
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Form.clean() is run even if other validation fails, so do the
-        # same with Model.clean() for consistency.
-        try:
-            self.clean()
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Run unique checks, but only for fields that passed validation.
-        if validate_unique:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_unique(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        # Run constraints checks, but only for fields that passed validation.
-        if validate_constraints:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_constraints(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        if errors:
->           raise ValidationError(errors)
-E           django.core.exceptions.ValidationError: {'affected_account': ['Este campo no puede estar vacío.']}
-
-venv/lib/python3.12/site-packages/django/db/models/base.py:1712: ValidationError
-_______ ERROR at setup of test_id_ec_003_strict_absence_of_visual_styles _______
-
-db = None, fiscal_profile = <FiscalProfile: Empresa C.A. (J123456780)>
-local_supplier = <LocalSupplier: Proveedor de Prueba (J123456780) - 631>
-
-    @pytest.fixture
-    def purchase_ledger_invoice(
-        db: Any, fiscal_profile: FiscalProfile, local_supplier: LocalSupplier
-    ) -> PurchaseLedgerInvoice:
-        """Crea una factura de compra alineada a un periodo fiscal quincenal."""
-        invoice = PurchaseLedgerInvoice(
-            fiscal_profile=fiscal_profile,
-            transaction_type=PurchaseLedgerInvoice.TransactionType.REGISTRO,
-            document_type=PurchaseLedgerInvoice.DocumentType.INVOICE,
-            number="00004567",
-            invoice_control="00-00123",
-            supplier=local_supplier,
-            date=date(2026, 8, 10),
-            fiscal_period=date(2026, 8, 15),
-            purchase_type=PurchaseLedgerInvoice.PurchaseType.INTERNAL,
-            taxable_base=Decimal("1000.00"),
-            vat_percentage=PurchaseLedgerInvoice.VatPercentageChoices.GENERAL.value,
-            vat_amount=Decimal("160.00"),
-            total_purchase=Decimal("1160.00"),
-            status=PurchaseLedgerInvoice.InvoiceStatus.PRELIMINARY,
-            invoicecategory=PurchaseLedgerInvoice.InvoiceCategory.INVENTARIO,
-        )
->       invoice.full_clean()
-
-business_logic/tests/test_vat_withholding_excel_export_service/conftest.py:86: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <PurchaseLedgerInvoice: Factura N° 00004567 (00-00123) - ID: None>
-exclude = {'affected_account'}, validate_unique = True
-validate_constraints = True
-
-    def full_clean(self, exclude=None, validate_unique=True, validate_constraints=True):
-        """
-        Call clean_fields(), clean(), validate_unique(), and
-        validate_constraints() on the model. Raise a ValidationError for any
-        errors that occur.
-        """
-        errors = {}
-        if exclude is None:
-            exclude = set()
-        else:
-            exclude = set(exclude)
-    
-        try:
-            self.clean_fields(exclude=exclude)
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Form.clean() is run even if other validation fails, so do the
-        # same with Model.clean() for consistency.
-        try:
-            self.clean()
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Run unique checks, but only for fields that passed validation.
-        if validate_unique:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_unique(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        # Run constraints checks, but only for fields that passed validation.
-        if validate_constraints:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_constraints(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        if errors:
->           raise ValidationError(errors)
-E           django.core.exceptions.ValidationError: {'affected_account': ['Este campo no puede estar vacío.']}
-
-venv/lib/python3.12/site-packages/django/db/models/base.py:1712: ValidationError
-__ ERROR at setup of test_id_ec_004_preservation_of_leading_zeros_and_formats __
-
-db = None, fiscal_profile = <FiscalProfile: Empresa C.A. (J123456780)>
-local_supplier = <LocalSupplier: Proveedor de Prueba (J123456780) - 632>
-
-    @pytest.fixture
-    def purchase_ledger_invoice(
-        db: Any, fiscal_profile: FiscalProfile, local_supplier: LocalSupplier
-    ) -> PurchaseLedgerInvoice:
-        """Crea una factura de compra alineada a un periodo fiscal quincenal."""
-        invoice = PurchaseLedgerInvoice(
-            fiscal_profile=fiscal_profile,
-            transaction_type=PurchaseLedgerInvoice.TransactionType.REGISTRO,
-            document_type=PurchaseLedgerInvoice.DocumentType.INVOICE,
-            number="00004567",
-            invoice_control="00-00123",
-            supplier=local_supplier,
-            date=date(2026, 8, 10),
-            fiscal_period=date(2026, 8, 15),
-            purchase_type=PurchaseLedgerInvoice.PurchaseType.INTERNAL,
-            taxable_base=Decimal("1000.00"),
-            vat_percentage=PurchaseLedgerInvoice.VatPercentageChoices.GENERAL.value,
-            vat_amount=Decimal("160.00"),
-            total_purchase=Decimal("1160.00"),
-            status=PurchaseLedgerInvoice.InvoiceStatus.PRELIMINARY,
-            invoicecategory=PurchaseLedgerInvoice.InvoiceCategory.INVENTARIO,
-        )
->       invoice.full_clean()
-
-business_logic/tests/test_vat_withholding_excel_export_service/conftest.py:86: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <PurchaseLedgerInvoice: Factura N° 00004567 (00-00123) - ID: None>
-exclude = {'affected_account'}, validate_unique = True
-validate_constraints = True
-
-    def full_clean(self, exclude=None, validate_unique=True, validate_constraints=True):
-        """
-        Call clean_fields(), clean(), validate_unique(), and
-        validate_constraints() on the model. Raise a ValidationError for any
-        errors that occur.
-        """
-        errors = {}
-        if exclude is None:
-            exclude = set()
-        else:
-            exclude = set(exclude)
-    
-        try:
-            self.clean_fields(exclude=exclude)
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Form.clean() is run even if other validation fails, so do the
-        # same with Model.clean() for consistency.
-        try:
-            self.clean()
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Run unique checks, but only for fields that passed validation.
-        if validate_unique:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_unique(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        # Run constraints checks, but only for fields that passed validation.
-        if validate_constraints:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_constraints(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        if errors:
->           raise ValidationError(errors)
-E           django.core.exceptions.ValidationError: {'affected_account': ['Este campo no puede estar vacío.']}
-
-venv/lib/python3.12/site-packages/django/db/models/base.py:1712: ValidationError
+data_access/tests/islr_withholding_test/test_islr_withholding_certificate.py:334: Failed
 =========================== short test summary info ============================
-ERROR business_logic/tests/test_vat_withholding_excel_export_service/test_vat_withholding_excel_export_service.py::test_id_hp_001_generate_excel_stream_with_invoice
-ERROR business_logic/tests/test_vat_withholding_excel_export_service/test_vat_withholding_excel_export_service.py::test_id_hp_002_generate_excel_stream_with_debit_note
-ERROR business_logic/tests/test_vat_withholding_excel_export_service/test_vat_withholding_excel_export_service.py::test_id_hp_003_generate_excel_stream_with_credit_note
-ERROR business_logic/tests/test_vat_withholding_excel_export_service/test_vat_withholding_excel_export_service.py::test_id_hp_004_sequential_export_of_multiple_records
-ERROR business_logic/tests/test_vat_withholding_excel_export_service/test_vat_withholding_excel_export_service.py::test_id_ec_001_buffer_pointer_reset_to_zero
-ERROR business_logic/tests/test_vat_withholding_excel_export_service/test_vat_withholding_excel_export_service.py::test_id_ec_002_decimal_precision_and_zero_handling
-ERROR business_logic/tests/test_vat_withholding_excel_export_service/test_vat_withholding_excel_export_service.py::test_id_ec_003_strict_absence_of_visual_styles
-ERROR business_logic/tests/test_vat_withholding_excel_export_service/test_vat_withholding_excel_export_service.py::test_id_ec_004_preservation_of_leading_zeros_and_formats
-========================= 1 passed, 8 errors in 43.90s =========================
+FAILED data_access/tests/islr_withholding_test/test_islr_withholding_certificate.py::TestIslrWithholdingCertificate::test_save_ec_010_concepto_con_ut_invalida
+ERROR data_access/tests/islr_withholding_test/test_islr_withholding_certificate.py::TestIslrWithholdingCertificate::test_clean_ec_001_factura_asociada_no_preliminar
+ERROR data_access/tests/islr_withholding_test/test_islr_withholding_certificate.py::TestIslrWithholdingCertificate::test_clean_ec_006_acumulacion_multiples_errores
+================= 1 failed, 28 deselected, 2 errors in 14.77s ==================

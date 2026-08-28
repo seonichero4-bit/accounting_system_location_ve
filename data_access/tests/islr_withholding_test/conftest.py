@@ -93,11 +93,11 @@ def preliminary_invoice(db, base_invoice_data):
 def processed_invoice(db, base_invoice_data):
     """Fixture de factura en estado PROCESSED para pruebas de reglas de negocio."""
     data = base_invoice_data.copy()
-    data["status"] = "PROCESSED"
     data["number"] = "fact-002"
     data["invoice_control"] = "CTRL-002"
     data["date"] = date(2026, 8, 20)
     invoice = PurchaseLedgerInvoice.objects.create(**data)
+    invoice.status = "PROCESSED"
     invoice.subtotal = Decimal("1000.00")
     invoice.save()
     return invoice
