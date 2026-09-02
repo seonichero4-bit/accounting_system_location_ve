@@ -39,7 +39,8 @@ class CustomerForm(forms.ModelForm):
             self.instance.fiscal_profile = active_profile
 
             # Filtramos los QuerySets usando el Ledger del Tenant actual
-            if hasattr(active_profile, 'ledger') and active_profile.ledger:
-                tenant_accounts = AccountModel.objects.filter(ledger=active_profile.ledger)
+            coa = active_profile.entity.default_coa
+            if coa:
+                tenant_accounts = AccountModel.objects.filter(coa_model=coa)
                 self.fields['custom_accounts_receivable'].queryset = tenant_accounts
                 self.fields['custom_income_account'].queryset = tenant_accounts
