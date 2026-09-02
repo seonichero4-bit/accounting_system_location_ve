@@ -5,1858 +5,416 @@ django: version: 6.0.7, settings: accounting_system_ve.settings (from ini)
 rootdir: /workspaces/accounting_system_location_ve
 configfile: pytest.ini
 plugins: django-4.14.0, Faker-40.15.0
-collecting ... collected 18 items
+collecting ... collected 6 items
 
-data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_HP_001_valid_rif_format FAILED [  5%]
-data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_HP_002_valid_phone_format FAILED [ 11%]
-data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_HP_003_rif_and_taxpayer_type_consistency FAILED [ 16%]
-data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_HP_004_mandatory_fields_persistence FAILED [ 22%]
-data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_001_unsupported_rif_prefix PASSED [ 27%]
-data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_002_rif_too_short PASSED [ 33%]
-data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_003_rif_too_long PASSED [ 38%]
-data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_004_phone_too_short FAILED [ 44%]
-data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_005_phone_too_long FAILED [ 50%]
-data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_006_fiscal_inconsistency PASSED [ 55%]
-data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_007_rif_uniqueness_violation ERROR [ 61%]
-data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_008_mandatory_rif_empty[] FAILED [ 66%]
-data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_008_mandatory_rif_empty[   ] FAILED [ 72%]
-data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_009_mandatory_name_empty[] FAILED [ 77%]
-data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_009_mandatory_name_empty[   ] FAILED [ 83%]
-data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_010_mandatory_fiscal_address_empty[] FAILED [ 88%]
-data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_010_mandatory_fiscal_address_empty[   ] FAILED [ 94%]
-data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_011_null_values_in_restricted_fields FAILED [100%]
+presentation/tests/tests_integration_customer/test_customer.py::test_customer_create_valid_mandatory_data_ID_HP_001 FAILED [ 16%]
+presentation/tests/tests_integration_customer/test_customer.py::test_customer_create_custom_accounts_same_tenant_ID_HP_002 FAILED [ 33%]
+presentation/tests/tests_integration_customer/test_customer.py::test_customer_update_allowed_fields_same_tenant_ID_HP_003 FAILED [ 50%]
+presentation/tests/tests_integration_customer/test_customer.py::test_customer_create_accounts_other_tenant_ID_EC_001 FAILED [ 66%]
+presentation/tests/tests_integration_customer/test_customer.py::test_customer_update_other_tenant_returns_404_ID_EC_002 FAILED [ 83%]
+presentation/tests/tests_integration_customer/test_customer.py::test_customer_create_malicious_fiscal_profile_tampering_ID_EC_003 FAILED [100%]
 
-==================================== ERRORS ====================================
-_ ERROR at setup of TestCustomerValidations.test_ID_EC_007_rif_uniqueness_violation _
-
-self = <django.db.backends.utils.CursorWrapper object at 0x7ac1a4575d90>
-sql = 'SELECT %s AS "a" FROM "data_access_customer" WHERE "data_access_customer"."rif" = %s LIMIT 1'
-params = (Int4(1), 'J123456780')
-ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x7ac1a4575d90>})
-
-    def _execute(self, sql, params, *ignored_wrapper_args):
-        # Raise a warning during app initialization (stored_app_configs is only
-        # ever set during testing).
-        if not apps.ready and not apps.stored_app_configs:
-            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
-        self.db.validate_no_broken_transaction()
-        with self.db.wrap_database_errors:
-            if params is None:
-                # params default might be backend specific.
-                return self.cursor.execute(sql)
-            else:
->               return self.cursor.execute(sql, params)
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a459d490>
-query = 'SELECT %s AS "a" FROM "data_access_customer" WHERE "data_access_customer"."rif" = %s LIMIT 1'
-params = (Int4(1), 'J123456780'), prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           psycopg.errors.UndefinedTable: relation "data_access_customer" does not exist
-E           LINE 1: SELECT 1 AS "a" FROM "data_access_customer" WHERE "data_acce...
-E                                        ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: UndefinedTable
-
-The above exception was the direct cause of the following exception:
-
-customer_factory = <function customer_factory.<locals>._create_customer at 0x7ac1a463e5c0>
-
-    @pytest.fixture
-    def persisted_customer(customer_factory: Callable[..., Customer]) -> Customer:
-        """Instancia y persiste un cliente activo en la Base de Datos[cite: 2].
-    
-        Utilizado para validar colisiones de unicidad de RIF [ID_EC_007][cite: 2].
-        """
->       return customer_factory(commit=True, validate=True, rif="J123456780")
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-data_access/tests/customer_test/conftest.py:158: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-data_access/tests/customer_test/conftest.py:142: in _create_customer
-    customer.full_clean()
-venv/lib/python3.12/site-packages/django/db/models/base.py:1707: in full_clean
-    self.validate_constraints(exclude=exclude)
-venv/lib/python3.12/site-packages/django/db/models/base.py:1655: in validate_constraints
-    constraint.validate(model_class, self, exclude=exclude, using=using)
-venv/lib/python3.12/site-packages/django/db/models/constraints.py:646: in validate
-    if queryset.exists():
-       ^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:1337: in exists
-    return self.query.has_results(using=self.db)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/query.py:686: in has_results
-    return compiler.has_results()
-           ^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1592: in has_results
-    return bool(self.execute_sql(SINGLE))
-                ^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1624: in execute_sql
-    cursor.execute(sql, params)
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
-    return self._execute_with_wrappers(
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
-    with self.db.wrap_database_errors:
-venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
-    raise dj_exc_value.with_traceback(traceback) from exc_value
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
-    return self.cursor.execute(sql, params)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a459d490>
-query = 'SELECT %s AS "a" FROM "data_access_customer" WHERE "data_access_customer"."rif" = %s LIMIT 1'
-params = (Int4(1), 'J123456780'), prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           django.db.utils.ProgrammingError: relation "data_access_customer" does not exist
-E           LINE 1: SELECT 1 AS "a" FROM "data_access_customer" WHERE "data_acce...
-E                                        ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: ProgrammingError
 =================================== FAILURES ===================================
-___________ TestCustomerValidations.test_ID_HP_001_valid_rif_format ____________
+_____________ test_customer_create_valid_mandatory_data_ID_HP_001 ______________
 
-self = <django.db.backends.utils.CursorWrapper object at 0x7ac1a45feba0>
-sql = 'SELECT %s AS "a" FROM "data_access_customer" WHERE "data_access_customer"."rif" = %s LIMIT 1'
-params = (Int4(1), 'J12345678')
-ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x7ac1a45feba0>})
+authenticated_client = <django.test.client.Client object at 0x6ffdf19dc560>
+valid_customer_post_data = {'rif': 'J-123456789', 'name': 'Distribuidora Central C.A.', 'fiscal_address': 'Calle 10, Edificio A', 'phone_number': '02125551234', ...}
+fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
 
-    def _execute(self, sql, params, *ignored_wrapper_args):
-        # Raise a warning during app initialization (stored_app_configs is only
-        # ever set during testing).
-        if not apps.ready and not apps.stored_app_configs:
-            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
-        self.db.validate_no_broken_transaction()
-        with self.db.wrap_database_errors:
-            if params is None:
-                # params default might be backend specific.
-                return self.cursor.execute(sql)
-            else:
->               return self.cursor.execute(sql, params)
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a45e1f10>
-query = 'SELECT %s AS "a" FROM "data_access_customer" WHERE "data_access_customer"."rif" = %s LIMIT 1'
-params = (Int4(1), 'J12345678'), prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           psycopg.errors.UndefinedTable: relation "data_access_customer" does not exist
-E           LINE 1: SELECT 1 AS "a" FROM "data_access_customer" WHERE "data_acce...
-E                                        ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: UndefinedTable
-
-The above exception was the direct cause of the following exception:
-
-self = <test_customer.TestCustomerValidations object at 0x7ac1a4abb140>
-customer_factory = <function customer_factory.<locals>._create_customer at 0x7ac1a44df560>
-
-    def test_ID_HP_001_valid_rif_format(self, customer_factory) -> None:
-        """Valida que un RIF con estructura correcta es aceptado sin excepciones."""
-        # Arrange
-        valid_rif = "J12345678"
+    @pytest.mark.django_db
+    def test_customer_create_valid_mandatory_data_ID_HP_001(
+        authenticated_client: Client,
+        valid_customer_post_data: Dict[str, Any],
+        fiscal_profile: FiscalProfile
+    ) -> None:
+        """Valida la creación exitosa con datos obligatorios y perfil fiscal desenvuelto."""
+        # Arrange: Preparación
+        url = reverse("customer_create")
+        payload = valid_customer_post_data.copy()
+        payload.pop("custom_accounts_receivable", None)
+        payload.pop("custom_income_account", None)
     
-        # Act
->       customer = customer_factory(commit=False, validate=True, rif=valid_rif)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        # Act: Acción
+        response = authenticated_client.post(url, data=payload)
+    
+        # Assert: Verificación
+>       assert response.status_code == 302
+E       assert 200 == 302
+E        +  where 200 = <TemplateResponse status_code=200, "text/html; charset=utf-8">.status_code
 
-data_access/tests/customer_test/test_customer.py:29: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-data_access/tests/customer_test/conftest.py:142: in _create_customer
-    customer.full_clean()
-venv/lib/python3.12/site-packages/django/db/models/base.py:1707: in full_clean
-    self.validate_constraints(exclude=exclude)
-venv/lib/python3.12/site-packages/django/db/models/base.py:1655: in validate_constraints
-    constraint.validate(model_class, self, exclude=exclude, using=using)
-venv/lib/python3.12/site-packages/django/db/models/constraints.py:646: in validate
-    if queryset.exists():
-       ^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:1337: in exists
-    return self.query.has_results(using=self.db)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/query.py:686: in has_results
-    return compiler.has_results()
-           ^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1592: in has_results
-    return bool(self.execute_sql(SINGLE))
-                ^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1624: in execute_sql
-    cursor.execute(sql, params)
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
-    return self._execute_with_wrappers(
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
-    with self.db.wrap_database_errors:
-venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
-    raise dj_exc_value.with_traceback(traceback) from exc_value
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
-    return self.cursor.execute(sql, params)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a45e1f10>
-query = 'SELECT %s AS "a" FROM "data_access_customer" WHERE "data_access_customer"."rif" = %s LIMIT 1'
-params = (Int4(1), 'J12345678'), prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           django.db.utils.ProgrammingError: relation "data_access_customer" does not exist
-E           LINE 1: SELECT 1 AS "a" FROM "data_access_customer" WHERE "data_acce...
-E                                        ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: ProgrammingError
+presentation/tests/tests_integration_customer/test_customer.py:34: AssertionError
 ---------------------------- Captured stderr setup -----------------------------
 Using existing test database for alias 'default'...
-__________ TestCustomerValidations.test_ID_HP_002_valid_phone_format ___________
+__________ test_customer_create_custom_accounts_same_tenant_ID_HP_002 __________
 
-self = <django.db.backends.utils.CursorWrapper object at 0x7ac1a4639160>
-sql = 'SELECT %s AS "a" FROM "data_access_customer" WHERE "data_access_customer"."rif" = %s LIMIT 1'
-params = (Int4(1), 'J123456780')
-ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x7ac1a4639160>})
+authenticated_client = <django.test.client.Client object at 0x6ffdf19dc890>
+valid_customer_post_data = {'rif': 'J-123456789', 'name': 'Distribuidora Central C.A.', 'fiscal_address': 'Calle 10, Edificio A', 'phone_number': '02125551234', ...}
+fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
 
-    def _execute(self, sql, params, *ignored_wrapper_args):
-        # Raise a warning during app initialization (stored_app_configs is only
-        # ever set during testing).
-        if not apps.ready and not apps.stored_app_configs:
-            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
-        self.db.validate_no_broken_transaction()
-        with self.db.wrap_database_errors:
-            if params is None:
-                # params default might be backend specific.
-                return self.cursor.execute(sql)
-            else:
->               return self.cursor.execute(sql, params)
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a48856d0>
-query = 'SELECT %s AS "a" FROM "data_access_customer" WHERE "data_access_customer"."rif" = %s LIMIT 1'
-params = (Int4(1), 'J123456780'), prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           psycopg.errors.UndefinedTable: relation "data_access_customer" does not exist
-E           LINE 1: SELECT 1 AS "a" FROM "data_access_customer" WHERE "data_acce...
-E                                        ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: UndefinedTable
-
-The above exception was the direct cause of the following exception:
-
-self = <test_customer.TestCustomerValidations object at 0x7ac1a4abb860>
-customer_factory = <function customer_factory.<locals>._create_customer at 0x7ac1a4c25e40>
-
-    def test_ID_HP_002_valid_phone_format(self, customer_factory) -> None:
-        """Valida que un teléfono con longitud y formato correctos es aceptado."""
-        # Arrange
-        valid_phone = "02129998877"
+    @pytest.mark.django_db
+    def test_customer_create_custom_accounts_same_tenant_ID_HP_002(
+        authenticated_client: Client,
+        valid_customer_post_data: Dict[str, Any],
+        fiscal_profile: FiscalProfile
+    ) -> None:
+        """Verifica la asociación de cuentas contables del mismo inquilino."""
+        # Arrange: Preparación
+        url = reverse("customer_create")
+        payload = valid_customer_post_data
     
-        # Act
->       customer = customer_factory(commit=False, validate=True, phone_number=valid_phone)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-data_access/tests/customer_test/test_customer.py:40: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-data_access/tests/customer_test/conftest.py:142: in _create_customer
-    customer.full_clean()
-venv/lib/python3.12/site-packages/django/db/models/base.py:1707: in full_clean
-    self.validate_constraints(exclude=exclude)
-venv/lib/python3.12/site-packages/django/db/models/base.py:1655: in validate_constraints
-    constraint.validate(model_class, self, exclude=exclude, using=using)
-venv/lib/python3.12/site-packages/django/db/models/constraints.py:646: in validate
-    if queryset.exists():
-       ^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:1337: in exists
-    return self.query.has_results(using=self.db)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/query.py:686: in has_results
-    return compiler.has_results()
-           ^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1592: in has_results
-    return bool(self.execute_sql(SINGLE))
-                ^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1624: in execute_sql
-    cursor.execute(sql, params)
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
-    return self._execute_with_wrappers(
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
-    with self.db.wrap_database_errors:
-venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
-    raise dj_exc_value.with_traceback(traceback) from exc_value
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
-    return self.cursor.execute(sql, params)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a48856d0>
-query = 'SELECT %s AS "a" FROM "data_access_customer" WHERE "data_access_customer"."rif" = %s LIMIT 1'
-params = (Int4(1), 'J123456780'), prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           django.db.utils.ProgrammingError: relation "data_access_customer" does not exist
-E           LINE 1: SELECT 1 AS "a" FROM "data_access_customer" WHERE "data_acce...
-E                                        ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: ProgrammingError
-___ TestCustomerValidations.test_ID_HP_003_rif_and_taxpayer_type_consistency ___
-
-self = <django.db.backends.utils.CursorWrapper object at 0x7ac1a44f4680>
-sql = 'SELECT %s AS "a" FROM "data_access_customer" WHERE "data_access_customer"."rif" = %s LIMIT 1'
-params = (Int4(1), 'J12345678')
-ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x7ac1a44f4680>})
-
-    def _execute(self, sql, params, *ignored_wrapper_args):
-        # Raise a warning during app initialization (stored_app_configs is only
-        # ever set during testing).
-        if not apps.ready and not apps.stored_app_configs:
-            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
-        self.db.validate_no_broken_transaction()
-        with self.db.wrap_database_errors:
-            if params is None:
-                # params default might be backend specific.
-                return self.cursor.execute(sql)
-            else:
->               return self.cursor.execute(sql, params)
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a45e37d0>
-query = 'SELECT %s AS "a" FROM "data_access_customer" WHERE "data_access_customer"."rif" = %s LIMIT 1'
-params = (Int4(1), 'J12345678'), prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           psycopg.errors.UndefinedTable: relation "data_access_customer" does not exist
-E           LINE 1: SELECT 1 AS "a" FROM "data_access_customer" WHERE "data_acce...
-E                                        ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: UndefinedTable
-
-The above exception was the direct cause of the following exception:
-
-self = <test_customer.TestCustomerValidations object at 0x7ac1a4abbf80>
-customer_factory = <function customer_factory.<locals>._create_customer at 0x7ac1a4c4c220>
-
-    def test_ID_HP_003_rif_and_taxpayer_type_consistency(self, customer_factory) -> None:
-        """Valida consistencia lógica entre el prefijo del RIF y el tipo de contribuyente."""
-        # Arrange
-        consistent_rif = "J12345678"
-        consistent_type = Customer.TaxpayerType.SPECIAL
+        # Act: Acción
+        response = authenticated_client.post(url, data=payload)
     
-        # Act
->       customer = customer_factory(
-            commit=False,
-            validate=True,
-            rif=consistent_rif,
-            taxpayer_type=consistent_type
-        )
+        # Assert: Verificación
+>       assert response.status_code == 302
+E       assert 200 == 302
+E        +  where 200 = <TemplateResponse status_code=200, "text/html; charset=utf-8">.status_code
 
-data_access/tests/customer_test/test_customer.py:52: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-data_access/tests/customer_test/conftest.py:142: in _create_customer
-    customer.full_clean()
-venv/lib/python3.12/site-packages/django/db/models/base.py:1707: in full_clean
-    self.validate_constraints(exclude=exclude)
-venv/lib/python3.12/site-packages/django/db/models/base.py:1655: in validate_constraints
-    constraint.validate(model_class, self, exclude=exclude, using=using)
-venv/lib/python3.12/site-packages/django/db/models/constraints.py:646: in validate
-    if queryset.exists():
-       ^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:1337: in exists
-    return self.query.has_results(using=self.db)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/query.py:686: in has_results
-    return compiler.has_results()
-           ^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1592: in has_results
-    return bool(self.execute_sql(SINGLE))
-                ^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1624: in execute_sql
-    cursor.execute(sql, params)
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
-    return self._execute_with_wrappers(
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
-    with self.db.wrap_database_errors:
-venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
-    raise dj_exc_value.with_traceback(traceback) from exc_value
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
-    return self.cursor.execute(sql, params)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+presentation/tests/tests_integration_customer/test_customer.py:55: AssertionError
+__________ test_customer_update_allowed_fields_same_tenant_ID_HP_003 ___________
 
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a45e37d0>
-query = 'SELECT %s AS "a" FROM "data_access_customer" WHERE "data_access_customer"."rif" = %s LIMIT 1'
-params = (Int4(1), 'J12345678'), prepare = None, binary = None
+authenticated_client = <django.test.client.Client object at 0x6ffdf03a71a0>
+persisted_customer = <Customer: J123456780 - Corporación de Servicios Integrales C.A.>
+fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
 
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           django.db.utils.ProgrammingError: relation "data_access_customer" does not exist
-E           LINE 1: SELECT 1 AS "a" FROM "data_access_customer" WHERE "data_acce...
-E                                        ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: ProgrammingError
-_____ TestCustomerValidations.test_ID_HP_004_mandatory_fields_persistence ______
-
-self = <django.db.backends.utils.CursorWrapper object at 0x7ac1a44f7a40>
-sql = 'SELECT %s AS "a" FROM "data_access_customer" WHERE "data_access_customer"."rif" = %s LIMIT 1'
-params = (Int4(1), 'J123456780')
-ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x7ac1a44f7a40>})
-
-    def _execute(self, sql, params, *ignored_wrapper_args):
-        # Raise a warning during app initialization (stored_app_configs is only
-        # ever set during testing).
-        if not apps.ready and not apps.stored_app_configs:
-            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
-        self.db.validate_no_broken_transaction()
-        with self.db.wrap_database_errors:
-            if params is None:
-                # params default might be backend specific.
-                return self.cursor.execute(sql)
-            else:
->               return self.cursor.execute(sql, params)
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a45e3950>
-query = 'SELECT %s AS "a" FROM "data_access_customer" WHERE "data_access_customer"."rif" = %s LIMIT 1'
-params = (Int4(1), 'J123456780'), prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           psycopg.errors.UndefinedTable: relation "data_access_customer" does not exist
-E           LINE 1: SELECT 1 AS "a" FROM "data_access_customer" WHERE "data_acce...
-E                                        ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: UndefinedTable
-
-The above exception was the direct cause of the following exception:
-
-self = <test_customer.TestCustomerValidations object at 0x7ac1a48e4710>
-customer_factory = <function customer_factory.<locals>._create_customer at 0x7ac1a463d760>
-
-    def test_ID_HP_004_mandatory_fields_persistence(self, customer_factory) -> None:
-        """Valida que el registro se guarda en base de datos si los datos son correctos."""
-        # Arrange
-        valid_data = {
-            "rif": "J123456780",
-            "name": "Corporación de Servicios Integrales C.A.",
-            "fiscal_address": "Av. Principal",
-            "phone_number": "02129998877",
-            "taxpayer_type": Customer.TaxpayerType.SPECIAL
+    @pytest.mark.django_db
+    def test_customer_update_allowed_fields_same_tenant_ID_HP_003(
+        authenticated_client: Client,
+        persisted_customer: Customer,
+        fiscal_profile: FiscalProfile
+    ) -> None:
+        """Valida la actualización de atributos permitidos sin alterar el perfil fiscal."""
+        # Arrange: Preparación
+        url = reverse("customer_update", kwargs={"pk": persisted_customer.pk})
+        payload = {
+            "rif": persisted_customer.rif,
+            "name": persisted_customer.name,
+            "taxpayer_type": persisted_customer.taxpayer_type,
+            "fiscal_address": "Av. Bolívar, Local 5",
+            "phone_number": "02125559876",
         }
     
-        # Act
->       customer = customer_factory(commit=True, validate=True, **valid_data)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        # Act: Acción
+>       response = authenticated_client.post(url, data=payload)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-data_access/tests/customer_test/test_customer.py:75: 
+presentation/tests/tests_integration_customer/test_customer.py:80: 
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-data_access/tests/customer_test/conftest.py:142: in _create_customer
-    customer.full_clean()
-venv/lib/python3.12/site-packages/django/db/models/base.py:1707: in full_clean
-    self.validate_constraints(exclude=exclude)
-venv/lib/python3.12/site-packages/django/db/models/base.py:1655: in validate_constraints
-    constraint.validate(model_class, self, exclude=exclude, using=using)
-venv/lib/python3.12/site-packages/django/db/models/constraints.py:646: in validate
-    if queryset.exists():
-       ^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:1337: in exists
-    return self.query.has_results(using=self.db)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/query.py:686: in has_results
-    return compiler.has_results()
-           ^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1592: in has_results
-    return bool(self.execute_sql(SINGLE))
-                ^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1624: in execute_sql
-    cursor.execute(sql, params)
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
-    return self._execute_with_wrappers(
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
-    with self.db.wrap_database_errors:
-venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
-    raise dj_exc_value.with_traceback(traceback) from exc_value
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
-    return self.cursor.execute(sql, params)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a45e3950>
-query = 'SELECT %s AS "a" FROM "data_access_customer" WHERE "data_access_customer"."rif" = %s LIMIT 1'
-params = (Int4(1), 'J123456780'), prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           django.db.utils.ProgrammingError: relation "data_access_customer" does not exist
-E           LINE 1: SELECT 1 AS "a" FROM "data_access_customer" WHERE "data_acce...
-E                                        ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: ProgrammingError
-____________ TestCustomerValidations.test_ID_EC_004_phone_too_short ____________
-
-self = <django.db.backends.utils.CursorWrapper object at 0x7ac1a45a6b10>
-sql = 'SELECT %s AS "a" FROM "data_access_customer" WHERE "data_access_customer"."rif" = %s LIMIT 1'
-params = (Int4(1), 'J123456780')
-ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x7ac1a45a6b10>})
-
-    def _execute(self, sql, params, *ignored_wrapper_args):
-        # Raise a warning during app initialization (stored_app_configs is only
-        # ever set during testing).
-        if not apps.ready and not apps.stored_app_configs:
-            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
-        self.db.validate_no_broken_transaction()
-        with self.db.wrap_database_errors:
-            if params is None:
-                # params default might be backend specific.
-                return self.cursor.execute(sql)
-            else:
->               return self.cursor.execute(sql, params)
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
+venv/lib/python3.12/site-packages/django/test/client.py:1156: in post
+    response = super().post(
+venv/lib/python3.12/site-packages/django/test/client.py:499: in post
+    return self.generic(
+venv/lib/python3.12/site-packages/django/test/client.py:671: in generic
+    return self.request(**r)
+           ^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/test/client.py:1090: in request
+    self.check_exception(response)
+venv/lib/python3.12/site-packages/django/test/client.py:805: in check_exception
+    raise exc_value
+venv/lib/python3.12/site-packages/django/core/handlers/exception.py:55: in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/core/handlers/base.py:198: in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/views/generic/base.py:106: in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/views/generic/base.py:145: in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/views/generic/edit.py:205: in post
+    self.object = self.get_object()
+                  ^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/views/generic/detail.py:31: in get_object
+    queryset = self.get_queryset()
+               ^^^^^^^^^^^^^^^^^^^
+presentation/mixins/requestscopedquerysetmixin.py:13: in get_queryset
+    return qs.for_request(self.request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+data_access/manager/requestscopedmanager.py:15: in for_request
+    req_fiscal_period = unwrap_lazy_object(getattr(request, "fiscal_period", None))
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+utils.py:9: in unwrap_lazy_object
+    obj._setup()  # Ejecuta la lambda interna (get_fiscal_period)
+    ^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/utils/functional.py:404: in _setup
+    self._wrapped = self._setupfunc()
+                    ^^^^^^^^^^^^^^^^^
+data_access/middleware/fiscalperiodmiddleware.py:37: in <lambda>
+    request.fiscal_period = SimpleLazyObject(lambda: get_fiscal_period(request))
+                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a459cc50>
-query = 'SELECT %s AS "a" FROM "data_access_customer" WHERE "data_access_customer"."rif" = %s LIMIT 1'
-params = (Int4(1), 'J123456780'), prepare = None, binary = None
+request = <WSGIRequest: POST '/customer/41/update/'>
 
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           psycopg.errors.UndefinedTable: relation "data_access_customer" does not exist
-E           LINE 1: SELECT 1 AS "a" FROM "data_access_customer" WHERE "data_acce...
-E                                        ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: UndefinedTable
-
-The above exception was the direct cause of the following exception:
-
-self = <test_customer.TestCustomerValidations object at 0x7ac1a4bb4e30>
-customer_factory = <function customer_factory.<locals>._create_customer at 0x7ac1a463c9a0>
-
-    def test_ID_EC_004_phone_too_short(self, customer_factory) -> None:
-        """Fuerza el validador Regex con un número telefónico corto."""
-        # Arrange
-        short_phone = "123456789"
+    def get_fiscal_period(request) -> FiscalPeriod | None:
+        if not hasattr(request, '_cached_fiscal_period'):
+            period = None
+            if request.user.is_authenticated:
+                # Obtiene el perfil fiscal activo garantizando aislamiento por inquilino
+                profile = getattr(request, 'fiscal_profile', None)
+                period_id = request.session.get('active_fiscal_period_id')
     
-        # Act & Assert
-        with pytest.raises(ValidationError):
->           customer_factory(commit=False, validate=True, phone_number=short_phone)
-
-data_access/tests/customer_test/test_customer.py:118: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-data_access/tests/customer_test/conftest.py:142: in _create_customer
-    customer.full_clean()
-venv/lib/python3.12/site-packages/django/db/models/base.py:1707: in full_clean
-    self.validate_constraints(exclude=exclude)
-venv/lib/python3.12/site-packages/django/db/models/base.py:1655: in validate_constraints
-    constraint.validate(model_class, self, exclude=exclude, using=using)
-venv/lib/python3.12/site-packages/django/db/models/constraints.py:646: in validate
-    if queryset.exists():
-       ^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:1337: in exists
-    return self.query.has_results(using=self.db)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/query.py:686: in has_results
-    return compiler.has_results()
-           ^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1592: in has_results
-    return bool(self.execute_sql(SINGLE))
-                ^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1624: in execute_sql
-    cursor.execute(sql, params)
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
-    return self._execute_with_wrappers(
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
-    with self.db.wrap_database_errors:
-venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
-    raise dj_exc_value.with_traceback(traceback) from exc_value
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
-    return self.cursor.execute(sql, params)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a459cc50>
-query = 'SELECT %s AS "a" FROM "data_access_customer" WHERE "data_access_customer"."rif" = %s LIMIT 1'
-params = (Int4(1), 'J123456780'), prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           django.db.utils.ProgrammingError: relation "data_access_customer" does not exist
-E           LINE 1: SELECT 1 AS "a" FROM "data_access_customer" WHERE "data_acce...
-E                                        ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: ProgrammingError
-____________ TestCustomerValidations.test_ID_EC_005_phone_too_long _____________
-
-self = <django.db.backends.utils.CursorWrapper object at 0x7ac1a45a7f50>
-sql = 'SELECT %s AS "a" FROM "data_access_customer" WHERE "data_access_customer"."rif" = %s LIMIT 1'
-params = (Int4(1), 'J123456780')
-ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x7ac1a45a7f50>})
-
-    def _execute(self, sql, params, *ignored_wrapper_args):
-        # Raise a warning during app initialization (stored_app_configs is only
-        # ever set during testing).
-        if not apps.ready and not apps.stored_app_configs:
-            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
-        self.db.validate_no_broken_transaction()
-        with self.db.wrap_database_errors:
-            if params is None:
-                # params default might be backend specific.
-                return self.cursor.execute(sql)
-            else:
->               return self.cursor.execute(sql, params)
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a459d010>
-query = 'SELECT %s AS "a" FROM "data_access_customer" WHERE "data_access_customer"."rif" = %s LIMIT 1'
-params = (Int4(1), 'J123456780'), prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           psycopg.errors.UndefinedTable: relation "data_access_customer" does not exist
-E           LINE 1: SELECT 1 AS "a" FROM "data_access_customer" WHERE "data_acce...
-E                                        ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: UndefinedTable
-
-The above exception was the direct cause of the following exception:
-
-self = <test_customer.TestCustomerValidations object at 0x7ac1a48e5910>
-customer_factory = <function customer_factory.<locals>._create_customer at 0x7ac1a4767060>
-
-    def test_ID_EC_005_phone_too_long(self, customer_factory) -> None:
-        """Fuerza el validador Regex con un número telefónico excesivamente largo."""
-        # Arrange
-        long_phone = "123456789012"
+                if profile and period_id:
+                    try:
+                        period = FiscalPeriod.objects.get(pk=period_id)
+                    except FiscalPeriod.DoesNotExist:
+                        request.session.pop('active_fiscal_period_id', None)
     
-        # Act & Assert
-        with pytest.raises(ValidationError):
->           customer_factory(commit=False, validate=True, phone_number=long_phone)
-
-data_access/tests/customer_test/test_customer.py:127: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-data_access/tests/customer_test/conftest.py:142: in _create_customer
-    customer.full_clean()
-venv/lib/python3.12/site-packages/django/db/models/base.py:1707: in full_clean
-    self.validate_constraints(exclude=exclude)
-venv/lib/python3.12/site-packages/django/db/models/base.py:1655: in validate_constraints
-    constraint.validate(model_class, self, exclude=exclude, using=using)
-venv/lib/python3.12/site-packages/django/db/models/constraints.py:646: in validate
-    if queryset.exists():
-       ^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:1337: in exists
-    return self.query.has_results(using=self.db)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/query.py:686: in has_results
-    return compiler.has_results()
-           ^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1592: in has_results
-    return bool(self.execute_sql(SINGLE))
-                ^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1624: in execute_sql
-    cursor.execute(sql, params)
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
-    return self._execute_with_wrappers(
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
-    with self.db.wrap_database_errors:
-venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
-    raise dj_exc_value.with_traceback(traceback) from exc_value
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
-    return self.cursor.execute(sql, params)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a459d010>
-query = 'SELECT %s AS "a" FROM "data_access_customer" WHERE "data_access_customer"."rif" = %s LIMIT 1'
-params = (Int4(1), 'J123456780'), prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           django.db.utils.ProgrammingError: relation "data_access_customer" does not exist
-E           LINE 1: SELECT 1 AS "a" FROM "data_access_customer" WHERE "data_acce...
-E                                        ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: ProgrammingError
-_________ TestCustomerValidations.test_ID_EC_008_mandatory_rif_empty[] _________
-
-self = <django.db.backends.utils.CursorWrapper object at 0x7ac1a4574860>
-sql = 'INSERT INTO "data_access_customer" ("fiscal_profile_id", "rif", "name", "fiscal_address", "phone_number", "taxpayer_t...eivable_id", "custom_income_account_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_customer"."id"'
-params = (1024, '', 'Corporación de Servicios Integrales C.A.', 'Av. Principal con Calle 4, Edificio Centro, Piso 3, Oficina 301', '02129998877', Customer.TaxpayerType.SPECIAL, ...)
-ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x7ac1a4574860>})
-
-    def _execute(self, sql, params, *ignored_wrapper_args):
-        # Raise a warning during app initialization (stored_app_configs is only
-        # ever set during testing).
-        if not apps.ready and not apps.stored_app_configs:
-            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
-        self.db.validate_no_broken_transaction()
-        with self.db.wrap_database_errors:
-            if params is None:
-                # params default might be backend specific.
-                return self.cursor.execute(sql)
-            else:
->               return self.cursor.execute(sql, params)
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a459dc10>
-query = 'INSERT INTO "data_access_customer" ("fiscal_profile_id", "rif", "name", "fiscal_address", "phone_number", "taxpayer_t...eivable_id", "custom_income_account_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_customer"."id"'
-params = (1024, '', 'Corporación de Servicios Integrales C.A.', 'Av. Principal con Calle 4, Edificio Centro, Piso 3, Oficina 301', '02129998877', Customer.TaxpayerType.SPECIAL, ...)
-prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           psycopg.errors.UndefinedTable: relation "data_access_customer" does not exist
-E           LINE 1: INSERT INTO "data_access_customer" ("fiscal_profile_id", "ri...
-E                               ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: UndefinedTable
-
-The above exception was the direct cause of the following exception:
-
-self = <test_customer.TestCustomerValidations object at 0x7ac1a48e7260>
-customer_factory = <function customer_factory.<locals>._create_customer at 0x7ac1a4764360>
-empty_value = ''
-
-    @pytest.mark.parametrize("empty_value", ["", "   "])
-    def test_ID_EC_008_mandatory_rif_empty(self, customer_factory, empty_value: str) -> None:
-        """Evalúa restricción de DB (CheckConstraint) para evitar un RIF vacío o en blanco."""
-        # Arrange & Act & Assert
-        with pytest.raises(IntegrityError):
->           customer_factory(commit=True, validate=False, rif=empty_value)
-
-data_access/tests/customer_test/test_customer.py:167: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-data_access/tests/customer_test/conftest.py:145: in _create_customer
-    customer.save()
-venv/lib/python3.12/site-packages/django/db/models/base.py:874: in save
-    self.save_base(
-venv/lib/python3.12/site-packages/django/db/models/base.py:966: in save_base
-    updated = self._save_table(
-venv/lib/python3.12/site-packages/django/db/models/base.py:1169: in _save_table
-    results = self._do_insert(
-venv/lib/python3.12/site-packages/django/db/models/base.py:1220: in _do_insert
-    return manager._insert(
-venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:1918: in _insert
-    return query.get_compiler(using=using).execute_sql(returning_fields)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1925: in execute_sql
-    cursor.execute(sql, params)
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
-    return self._execute_with_wrappers(
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
-    with self.db.wrap_database_errors:
-venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
-    raise dj_exc_value.with_traceback(traceback) from exc_value
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
-    return self.cursor.execute(sql, params)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a459dc10>
-query = 'INSERT INTO "data_access_customer" ("fiscal_profile_id", "rif", "name", "fiscal_address", "phone_number", "taxpayer_t...eivable_id", "custom_income_account_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_customer"."id"'
-params = (1024, '', 'Corporación de Servicios Integrales C.A.', 'Av. Principal con Calle 4, Edificio Centro, Piso 3, Oficina 301', '02129998877', Customer.TaxpayerType.SPECIAL, ...)
-prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           django.db.utils.ProgrammingError: relation "data_access_customer" does not exist
-E           LINE 1: INSERT INTO "data_access_customer" ("fiscal_profile_id", "ri...
-E                               ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: ProgrammingError
-_______ TestCustomerValidations.test_ID_EC_008_mandatory_rif_empty[   ] ________
-
-self = <django.db.backends.utils.CursorWrapper object at 0x7ac1a45357f0>
-sql = 'INSERT INTO "data_access_customer" ("fiscal_profile_id", "rif", "name", "fiscal_address", "phone_number", "taxpayer_t...eivable_id", "custom_income_account_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_customer"."id"'
-params = (1025, '   ', 'Corporación de Servicios Integrales C.A.', 'Av. Principal con Calle 4, Edificio Centro, Piso 3, Oficina 301', '02129998877', Customer.TaxpayerType.SPECIAL, ...)
-ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x7ac1a45357f0>})
-
-    def _execute(self, sql, params, *ignored_wrapper_args):
-        # Raise a warning during app initialization (stored_app_configs is only
-        # ever set during testing).
-        if not apps.ready and not apps.stored_app_configs:
-            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
-        self.db.validate_no_broken_transaction()
-        with self.db.wrap_database_errors:
-            if params is None:
-                # params default might be backend specific.
-                return self.cursor.execute(sql)
-            else:
->               return self.cursor.execute(sql, params)
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a459c7d0>
-query = 'INSERT INTO "data_access_customer" ("fiscal_profile_id", "rif", "name", "fiscal_address", "phone_number", "taxpayer_t...eivable_id", "custom_income_account_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_customer"."id"'
-params = (1025, '   ', 'Corporación de Servicios Integrales C.A.', 'Av. Principal con Calle 4, Edificio Centro, Piso 3, Oficina 301', '02129998877', Customer.TaxpayerType.SPECIAL, ...)
-prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           psycopg.errors.UndefinedTable: relation "data_access_customer" does not exist
-E           LINE 1: INSERT INTO "data_access_customer" ("fiscal_profile_id", "ri...
-E                               ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: UndefinedTable
-
-The above exception was the direct cause of the following exception:
-
-self = <test_customer.TestCustomerValidations object at 0x7ac1a48e75f0>
-customer_factory = <function customer_factory.<locals>._create_customer at 0x7ac1a4520f40>
-empty_value = '   '
-
-    @pytest.mark.parametrize("empty_value", ["", "   "])
-    def test_ID_EC_008_mandatory_rif_empty(self, customer_factory, empty_value: str) -> None:
-        """Evalúa restricción de DB (CheckConstraint) para evitar un RIF vacío o en blanco."""
-        # Arrange & Act & Assert
-        with pytest.raises(IntegrityError):
->           customer_factory(commit=True, validate=False, rif=empty_value)
-
-data_access/tests/customer_test/test_customer.py:167: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-data_access/tests/customer_test/conftest.py:145: in _create_customer
-    customer.save()
-venv/lib/python3.12/site-packages/django/db/models/base.py:874: in save
-    self.save_base(
-venv/lib/python3.12/site-packages/django/db/models/base.py:966: in save_base
-    updated = self._save_table(
-venv/lib/python3.12/site-packages/django/db/models/base.py:1169: in _save_table
-    results = self._do_insert(
-venv/lib/python3.12/site-packages/django/db/models/base.py:1220: in _do_insert
-    return manager._insert(
-venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:1918: in _insert
-    return query.get_compiler(using=using).execute_sql(returning_fields)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1925: in execute_sql
-    cursor.execute(sql, params)
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
-    return self._execute_with_wrappers(
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
-    with self.db.wrap_database_errors:
-venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
-    raise dj_exc_value.with_traceback(traceback) from exc_value
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
-    return self.cursor.execute(sql, params)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a459c7d0>
-query = 'INSERT INTO "data_access_customer" ("fiscal_profile_id", "rif", "name", "fiscal_address", "phone_number", "taxpayer_t...eivable_id", "custom_income_account_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_customer"."id"'
-params = (1025, '   ', 'Corporación de Servicios Integrales C.A.', 'Av. Principal con Calle 4, Edificio Centro, Piso 3, Oficina 301', '02129998877', Customer.TaxpayerType.SPECIAL, ...)
-prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           django.db.utils.ProgrammingError: relation "data_access_customer" does not exist
-E           LINE 1: INSERT INTO "data_access_customer" ("fiscal_profile_id", "ri...
-E                               ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: ProgrammingError
-________ TestCustomerValidations.test_ID_EC_009_mandatory_name_empty[] _________
-
-self = <django.db.backends.utils.CursorWrapper object at 0x7ac1a4536d50>
-sql = 'INSERT INTO "data_access_customer" ("fiscal_profile_id", "rif", "name", "fiscal_address", "phone_number", "taxpayer_t...eivable_id", "custom_income_account_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_customer"."id"'
-params = (1026, 'J123456780', '', 'Av. Principal con Calle 4, Edificio Centro, Piso 3, Oficina 301', '02129998877', Customer.TaxpayerType.SPECIAL, ...)
-ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x7ac1a4536d50>})
-
-    def _execute(self, sql, params, *ignored_wrapper_args):
-        # Raise a warning during app initialization (stored_app_configs is only
-        # ever set during testing).
-        if not apps.ready and not apps.stored_app_configs:
-            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
-        self.db.validate_no_broken_transaction()
-        with self.db.wrap_database_errors:
-            if params is None:
-                # params default might be backend specific.
-                return self.cursor.execute(sql)
-            else:
->               return self.cursor.execute(sql, params)
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a459cd10>
-query = 'INSERT INTO "data_access_customer" ("fiscal_profile_id", "rif", "name", "fiscal_address", "phone_number", "taxpayer_t...eivable_id", "custom_income_account_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_customer"."id"'
-params = (1026, 'J123456780', '', 'Av. Principal con Calle 4, Edificio Centro, Piso 3, Oficina 301', '02129998877', Customer.TaxpayerType.SPECIAL, ...)
-prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           psycopg.errors.UndefinedTable: relation "data_access_customer" does not exist
-E           LINE 1: INSERT INTO "data_access_customer" ("fiscal_profile_id", "ri...
-E                               ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: UndefinedTable
-
-The above exception was the direct cause of the following exception:
-
-self = <test_customer.TestCustomerValidations object at 0x7ac1a48e7da0>
-customer_factory = <function customer_factory.<locals>._create_customer at 0x7ac1a45227a0>
-empty_value = ''
-
-    @pytest.mark.parametrize("empty_value", ["", "   "])
-    def test_ID_EC_009_mandatory_name_empty(self, customer_factory, empty_value: str) -> None:
-        """Fuerza CheckConstraint de la base de datos dejando el nombre en blanco."""
-        # Arrange & Act & Assert
-        with pytest.raises(IntegrityError):
->           customer_factory(commit=True, validate=False, name=empty_value)
-
-data_access/tests/customer_test/test_customer.py:174: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-data_access/tests/customer_test/conftest.py:145: in _create_customer
-    customer.save()
-venv/lib/python3.12/site-packages/django/db/models/base.py:874: in save
-    self.save_base(
-venv/lib/python3.12/site-packages/django/db/models/base.py:966: in save_base
-    updated = self._save_table(
-venv/lib/python3.12/site-packages/django/db/models/base.py:1169: in _save_table
-    results = self._do_insert(
-venv/lib/python3.12/site-packages/django/db/models/base.py:1220: in _do_insert
-    return manager._insert(
-venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:1918: in _insert
-    return query.get_compiler(using=using).execute_sql(returning_fields)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1925: in execute_sql
-    cursor.execute(sql, params)
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
-    return self._execute_with_wrappers(
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
-    with self.db.wrap_database_errors:
-venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
-    raise dj_exc_value.with_traceback(traceback) from exc_value
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
-    return self.cursor.execute(sql, params)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a459cd10>
-query = 'INSERT INTO "data_access_customer" ("fiscal_profile_id", "rif", "name", "fiscal_address", "phone_number", "taxpayer_t...eivable_id", "custom_income_account_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_customer"."id"'
-params = (1026, 'J123456780', '', 'Av. Principal con Calle 4, Edificio Centro, Piso 3, Oficina 301', '02129998877', Customer.TaxpayerType.SPECIAL, ...)
-prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           django.db.utils.ProgrammingError: relation "data_access_customer" does not exist
-E           LINE 1: INSERT INTO "data_access_customer" ("fiscal_profile_id", "ri...
-E                               ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: ProgrammingError
-_______ TestCustomerValidations.test_ID_EC_009_mandatory_name_empty[   ] _______
-
-self = <django.db.backends.utils.CursorWrapper object at 0x7ac1a4564c80>
-sql = 'INSERT INTO "data_access_customer" ("fiscal_profile_id", "rif", "name", "fiscal_address", "phone_number", "taxpayer_t...eivable_id", "custom_income_account_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_customer"."id"'
-params = (1027, 'J123456780', '   ', 'Av. Principal con Calle 4, Edificio Centro, Piso 3, Oficina 301', '02129998877', Customer.TaxpayerType.SPECIAL, ...)
-ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x7ac1a4564c80>})
-
-    def _execute(self, sql, params, *ignored_wrapper_args):
-        # Raise a warning during app initialization (stored_app_configs is only
-        # ever set during testing).
-        if not apps.ready and not apps.stored_app_configs:
-            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
-        self.db.validate_no_broken_transaction()
-        with self.db.wrap_database_errors:
-            if params is None:
-                # params default might be backend specific.
-                return self.cursor.execute(sql)
-            else:
->               return self.cursor.execute(sql, params)
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a459c890>
-query = 'INSERT INTO "data_access_customer" ("fiscal_profile_id", "rif", "name", "fiscal_address", "phone_number", "taxpayer_t...eivable_id", "custom_income_account_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_customer"."id"'
-params = (1027, 'J123456780', '   ', 'Av. Principal con Calle 4, Edificio Centro, Piso 3, Oficina 301', '02129998877', Customer.TaxpayerType.SPECIAL, ...)
-prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           psycopg.errors.UndefinedTable: relation "data_access_customer" does not exist
-E           LINE 1: INSERT INTO "data_access_customer" ("fiscal_profile_id", "ri...
-E                               ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: UndefinedTable
-
-The above exception was the direct cause of the following exception:
-
-self = <test_customer.TestCustomerValidations object at 0x7ac1a48e7fb0>
-customer_factory = <function customer_factory.<locals>._create_customer at 0x7ac1a4522a20>
-empty_value = '   '
-
-    @pytest.mark.parametrize("empty_value", ["", "   "])
-    def test_ID_EC_009_mandatory_name_empty(self, customer_factory, empty_value: str) -> None:
-        """Fuerza CheckConstraint de la base de datos dejando el nombre en blanco."""
-        # Arrange & Act & Assert
-        with pytest.raises(IntegrityError):
->           customer_factory(commit=True, validate=False, name=empty_value)
-
-data_access/tests/customer_test/test_customer.py:174: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-data_access/tests/customer_test/conftest.py:145: in _create_customer
-    customer.save()
-venv/lib/python3.12/site-packages/django/db/models/base.py:874: in save
-    self.save_base(
-venv/lib/python3.12/site-packages/django/db/models/base.py:966: in save_base
-    updated = self._save_table(
-venv/lib/python3.12/site-packages/django/db/models/base.py:1169: in _save_table
-    results = self._do_insert(
-venv/lib/python3.12/site-packages/django/db/models/base.py:1220: in _do_insert
-    return manager._insert(
-venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:1918: in _insert
-    return query.get_compiler(using=using).execute_sql(returning_fields)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1925: in execute_sql
-    cursor.execute(sql, params)
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
-    return self._execute_with_wrappers(
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
-    with self.db.wrap_database_errors:
-venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
-    raise dj_exc_value.with_traceback(traceback) from exc_value
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
-    return self.cursor.execute(sql, params)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a459c890>
-query = 'INSERT INTO "data_access_customer" ("fiscal_profile_id", "rif", "name", "fiscal_address", "phone_number", "taxpayer_t...eivable_id", "custom_income_account_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_customer"."id"'
-params = (1027, 'J123456780', '   ', 'Av. Principal con Calle 4, Edificio Centro, Piso 3, Oficina 301', '02129998877', Customer.TaxpayerType.SPECIAL, ...)
-prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           django.db.utils.ProgrammingError: relation "data_access_customer" does not exist
-E           LINE 1: INSERT INTO "data_access_customer" ("fiscal_profile_id", "ri...
-E                               ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: ProgrammingError
-___ TestCustomerValidations.test_ID_EC_010_mandatory_fiscal_address_empty[] ____
-
-self = <django.db.backends.utils.CursorWrapper object at 0x7ac1a45654c0>
-sql = 'INSERT INTO "data_access_customer" ("fiscal_profile_id", "rif", "name", "fiscal_address", "phone_number", "taxpayer_t...eivable_id", "custom_income_account_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_customer"."id"'
-params = (1028, 'J123456780', 'Corporación de Servicios Integrales C.A.', '', '02129998877', Customer.TaxpayerType.SPECIAL, ...)
-ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x7ac1a45654c0>})
-
-    def _execute(self, sql, params, *ignored_wrapper_args):
-        # Raise a warning during app initialization (stored_app_configs is only
-        # ever set during testing).
-        if not apps.ready and not apps.stored_app_configs:
-            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
-        self.db.validate_no_broken_transaction()
-        with self.db.wrap_database_errors:
-            if params is None:
-                # params default might be backend specific.
-                return self.cursor.execute(sql)
-            else:
->               return self.cursor.execute(sql, params)
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a459e390>
-query = 'INSERT INTO "data_access_customer" ("fiscal_profile_id", "rif", "name", "fiscal_address", "phone_number", "taxpayer_t...eivable_id", "custom_income_account_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_customer"."id"'
-params = (1028, 'J123456780', 'Corporación de Servicios Integrales C.A.', '', '02129998877', Customer.TaxpayerType.SPECIAL, ...)
-prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           psycopg.errors.UndefinedTable: relation "data_access_customer" does not exist
-E           LINE 1: INSERT INTO "data_access_customer" ("fiscal_profile_id", "ri...
-E                               ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: UndefinedTable
-
-The above exception was the direct cause of the following exception:
-
-self = <test_customer.TestCustomerValidations object at 0x7ac1a48e7c50>
-customer_factory = <function customer_factory.<locals>._create_customer at 0x7ac1a4522b60>
-empty_value = ''
-
-    @pytest.mark.parametrize("empty_value", ["", "   "])
-    def test_ID_EC_010_mandatory_fiscal_address_empty(
-        self, customer_factory, empty_value: str
+            # Validación del valor del periodo fiscal antes de retornar
+            if period:
+                if period.subsequent_period:
+                    selected_period_value = period.subsequent_period
+                else:
+                    selected_period_value = period.start_period
+    
+>           request._cached_fiscal_period = selected_period_value
+                                            ^^^^^^^^^^^^^^^^^^^^^
+E           UnboundLocalError: cannot access local variable 'selected_period_value' where it is not associated with a value
+
+data_access/middleware/fiscalperiodmiddleware.py:25: UnboundLocalError
+------------------------------ Captured log call -------------------------------
+ERROR    django.request:log.py:249 Internal Server Error: /customer/41/update/
+Traceback (most recent call last):
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/core/handlers/base.py", line 198, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/base.py", line 106, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/base.py", line 145, in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/edit.py", line 205, in post
+    self.object = self.get_object()
+                  ^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/detail.py", line 31, in get_object
+    queryset = self.get_queryset()
+               ^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/presentation/mixins/requestscopedquerysetmixin.py", line 13, in get_queryset
+    return qs.for_request(self.request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/data_access/manager/requestscopedmanager.py", line 15, in for_request
+    req_fiscal_period = unwrap_lazy_object(getattr(request, "fiscal_period", None))
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/utils.py", line 9, in unwrap_lazy_object
+    obj._setup()  # Ejecuta la lambda interna (get_fiscal_period)
+    ^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/utils/functional.py", line 404, in _setup
+    self._wrapped = self._setupfunc()
+                    ^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/data_access/middleware/fiscalperiodmiddleware.py", line 37, in <lambda>
+    request.fiscal_period = SimpleLazyObject(lambda: get_fiscal_period(request))
+                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/data_access/middleware/fiscalperiodmiddleware.py", line 25, in get_fiscal_period
+    request._cached_fiscal_period = selected_period_value
+                                    ^^^^^^^^^^^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'selected_period_value' where it is not associated with a value
+_____________ test_customer_create_accounts_other_tenant_ID_EC_001 _____________
+
+authenticated_client = <django.test.client.Client object at 0x6ffdf040a2a0>
+valid_customer_post_data = {'rif': 'J-123456789', 'name': 'Distribuidora Central C.A.', 'fiscal_address': 'Calle 10, Edificio A', 'phone_number': '02125551234', ...}
+secondary_customer_accounts = {'custom_accounts_receivable': <AccountModel: ASSETS - 11209: Cuentas por Cobrar Ajenas (ASSET_CA_RECV/debit)>, 'custom_income_account': <AccountModel: EQUITY - 41109: Ventas Ajenas (IN_OPERATIONAL/credit)>}
+
+    @pytest.mark.django_db
+    def test_customer_create_accounts_other_tenant_ID_EC_001(
+        authenticated_client: Client,
+        valid_customer_post_data: Dict[str, Any],
+        secondary_customer_accounts: Dict[str, Any]
     ) -> None:
-        """Fuerza CheckConstraint de la base de datos dejando la dirección fiscal en blanco."""
-        # Arrange & Act & Assert
-        with pytest.raises(IntegrityError):
->           customer_factory(commit=True, validate=False, fiscal_address=empty_value)
-
-data_access/tests/customer_test/test_customer.py:183: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-data_access/tests/customer_test/conftest.py:145: in _create_customer
-    customer.save()
-venv/lib/python3.12/site-packages/django/db/models/base.py:874: in save
-    self.save_base(
-venv/lib/python3.12/site-packages/django/db/models/base.py:966: in save_base
-    updated = self._save_table(
-venv/lib/python3.12/site-packages/django/db/models/base.py:1169: in _save_table
-    results = self._do_insert(
-venv/lib/python3.12/site-packages/django/db/models/base.py:1220: in _do_insert
-    return manager._insert(
-venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:1918: in _insert
-    return query.get_compiler(using=using).execute_sql(returning_fields)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1925: in execute_sql
-    cursor.execute(sql, params)
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
-    return self._execute_with_wrappers(
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
-    with self.db.wrap_database_errors:
-venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
-    raise dj_exc_value.with_traceback(traceback) from exc_value
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
-    return self.cursor.execute(sql, params)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a459e390>
-query = 'INSERT INTO "data_access_customer" ("fiscal_profile_id", "rif", "name", "fiscal_address", "phone_number", "taxpayer_t...eivable_id", "custom_income_account_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_customer"."id"'
-params = (1028, 'J123456780', 'Corporación de Servicios Integrales C.A.', '', '02129998877', Customer.TaxpayerType.SPECIAL, ...)
-prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           django.db.utils.ProgrammingError: relation "data_access_customer" does not exist
-E           LINE 1: INSERT INTO "data_access_customer" ("fiscal_profile_id", "ri...
-E                               ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: ProgrammingError
-__ TestCustomerValidations.test_ID_EC_010_mandatory_fiscal_address_empty[   ] __
-
-self = <django.db.backends.utils.CursorWrapper object at 0x7ac1a4548710>
-sql = 'INSERT INTO "data_access_customer" ("fiscal_profile_id", "rif", "name", "fiscal_address", "phone_number", "taxpayer_t...eivable_id", "custom_income_account_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_customer"."id"'
-params = (1029, 'J123456780', 'Corporación de Servicios Integrales C.A.', '   ', '02129998877', Customer.TaxpayerType.SPECIAL, ...)
-ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x7ac1a4548710>})
-
-    def _execute(self, sql, params, *ignored_wrapper_args):
-        # Raise a warning during app initialization (stored_app_configs is only
-        # ever set during testing).
-        if not apps.ready and not apps.stored_app_configs:
-            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
-        self.db.validate_no_broken_transaction()
-        with self.db.wrap_database_errors:
-            if params is None:
-                # params default might be backend specific.
-                return self.cursor.execute(sql)
-            else:
->               return self.cursor.execute(sql, params)
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a459e750>
-query = 'INSERT INTO "data_access_customer" ("fiscal_profile_id", "rif", "name", "fiscal_address", "phone_number", "taxpayer_t...eivable_id", "custom_income_account_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_customer"."id"'
-params = (1029, 'J123456780', 'Corporación de Servicios Integrales C.A.', '   ', '02129998877', Customer.TaxpayerType.SPECIAL, ...)
-prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           psycopg.errors.UndefinedTable: relation "data_access_customer" does not exist
-E           LINE 1: INSERT INTO "data_access_customer" ("fiscal_profile_id", "ri...
-E                               ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: UndefinedTable
-
-The above exception was the direct cause of the following exception:
-
-self = <test_customer.TestCustomerValidations object at 0x7ac1a48e7770>
-customer_factory = <function customer_factory.<locals>._create_customer at 0x7ac1a45218a0>
-empty_value = '   '
-
-    @pytest.mark.parametrize("empty_value", ["", "   "])
-    def test_ID_EC_010_mandatory_fiscal_address_empty(
-        self, customer_factory, empty_value: str
-    ) -> None:
-        """Fuerza CheckConstraint de la base de datos dejando la dirección fiscal en blanco."""
-        # Arrange & Act & Assert
-        with pytest.raises(IntegrityError):
->           customer_factory(commit=True, validate=False, fiscal_address=empty_value)
-
-data_access/tests/customer_test/test_customer.py:183: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-data_access/tests/customer_test/conftest.py:145: in _create_customer
-    customer.save()
-venv/lib/python3.12/site-packages/django/db/models/base.py:874: in save
-    self.save_base(
-venv/lib/python3.12/site-packages/django/db/models/base.py:966: in save_base
-    updated = self._save_table(
-venv/lib/python3.12/site-packages/django/db/models/base.py:1169: in _save_table
-    results = self._do_insert(
-venv/lib/python3.12/site-packages/django/db/models/base.py:1220: in _do_insert
-    return manager._insert(
-venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:1918: in _insert
-    return query.get_compiler(using=using).execute_sql(returning_fields)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1925: in execute_sql
-    cursor.execute(sql, params)
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
-    return self._execute_with_wrappers(
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
-    with self.db.wrap_database_errors:
-venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
-    raise dj_exc_value.with_traceback(traceback) from exc_value
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
-    return self.cursor.execute(sql, params)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a459e750>
-query = 'INSERT INTO "data_access_customer" ("fiscal_profile_id", "rif", "name", "fiscal_address", "phone_number", "taxpayer_t...eivable_id", "custom_income_account_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_customer"."id"'
-params = (1029, 'J123456780', 'Corporación de Servicios Integrales C.A.', '   ', '02129998877', Customer.TaxpayerType.SPECIAL, ...)
-prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           django.db.utils.ProgrammingError: relation "data_access_customer" does not exist
-E           LINE 1: INSERT INTO "data_access_customer" ("fiscal_profile_id", "ri...
-E                               ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: ProgrammingError
-___ TestCustomerValidations.test_ID_EC_011_null_values_in_restricted_fields ____
-
-self = <django.db.backends.utils.CursorWrapper object at 0x7ac1a454a510>
-sql = 'INSERT INTO "data_access_customer" ("fiscal_profile_id", "rif", "name", "fiscal_address", "phone_number", "taxpayer_t...eivable_id", "custom_income_account_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_customer"."id"'
-params = (1030, None, 'Corporación de Servicios Integrales C.A.', 'Av. Principal con Calle 4, Edificio Centro, Piso 3, Oficina 301', '02129998877', Customer.TaxpayerType.SPECIAL, ...)
-ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x7ac1a454a510>})
-
-    def _execute(self, sql, params, *ignored_wrapper_args):
-        # Raise a warning during app initialization (stored_app_configs is only
-        # ever set during testing).
-        if not apps.ready and not apps.stored_app_configs:
-            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
-        self.db.validate_no_broken_transaction()
-        with self.db.wrap_database_errors:
-            if params is None:
-                # params default might be backend specific.
-                return self.cursor.execute(sql)
-            else:
->               return self.cursor.execute(sql, params)
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a459ea50>
-query = 'INSERT INTO "data_access_customer" ("fiscal_profile_id", "rif", "name", "fiscal_address", "phone_number", "taxpayer_t...eivable_id", "custom_income_account_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_customer"."id"'
-params = (1030, None, 'Corporación de Servicios Integrales C.A.', 'Av. Principal con Calle 4, Edificio Centro, Piso 3, Oficina 301', '02129998877', Customer.TaxpayerType.SPECIAL, ...)
-prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           psycopg.errors.UndefinedTable: relation "data_access_customer" does not exist
-E           LINE 1: INSERT INTO "data_access_customer" ("fiscal_profile_id", "ri...
-E                               ^
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: UndefinedTable
-
-The above exception was the direct cause of the following exception:
-
-self = <test_customer.TestCustomerValidations object at 0x7ac1a48e5cd0>
-customer_factory = <function customer_factory.<locals>._create_customer at 0x7ac1a4521bc0>
-
-    def test_ID_EC_011_null_values_in_restricted_fields(self, customer_factory) -> None:
-        """Evalúa el comportamiento de la DB al inyectar nulos absolutos (None) en campos obligatorios."""
-        # Arrange
-        null_rif = None
+        """Valida el rechazo al intentar asociar cuentas contables de otro inquilino."""
+        # Arrange: Preparación
+        url = reverse("customer_create")
+        payload = valid_customer_post_data.copy()
+        payload["custom_accounts_receivable"] = secondary_customer_accounts["custom_accounts_receivable"].pk
+        payload["custom_income_account"] = secondary_customer_accounts["custom_income_account"].pk
     
-        # Act & Assert
-        with pytest.raises(IntegrityError):
->           customer_factory(commit=True, validate=False, rif=null_rif)
+        # Act: Acción
+        response = authenticated_client.post(url, data=payload)
+    
+        # Assert: Verificación
+        assert response.status_code == 200
+>       assert "custom_accounts_receivable" in response.context["form"].errors
+E       AssertionError: assert 'custom_accounts_receivable' in {'rif': ['El RIF debe comenzar con V, E, J, G, P, C seguido de 8 a 9 dígitos.']}
+E        +  where {'rif': ['El RIF debe comenzar con V, E, J, G, P, C seguido de 8 a 9 dígitos.']} = <CustomerForm bound=True, valid=False, fields=(rif;name;fiscal_address;phone_number;taxpayer_type;custom_accounts_receivable;custom_income_account)>.errors
 
-data_access/tests/customer_test/test_customer.py:192: 
+presentation/tests/tests_integration_customer/test_customer.py:108: AssertionError
+___________ test_customer_update_other_tenant_returns_404_ID_EC_002 ____________
+
+authenticated_client = <django.test.client.Client object at 0x6ffdeffe6f60>
+secondary_customer = <Customer: J987654321 - Corporación de Servicios Integrales C.A.>
+
+    @pytest.mark.django_db
+    def test_customer_update_other_tenant_returns_404_ID_EC_002(
+        authenticated_client: Client,
+        secondary_customer: Customer
+    ) -> None:
+        """Verifica que el intento de actualización de un cliente ajeno devuelva 404."""
+        # Arrange: Preparación
+        url = reverse("customer_update", kwargs={"pk": secondary_customer.pk})
+        payload = {
+            "fiscal_address": "Intento de intrusión",
+            "phone_number": "00000000000"
+        }
+    
+        # Act: Acción
+>       response = authenticated_client.post(url, data=payload)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+presentation/tests/tests_integration_customer/test_customer.py:127: 
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-data_access/tests/customer_test/conftest.py:145: in _create_customer
-    customer.save()
-venv/lib/python3.12/site-packages/django/db/models/base.py:874: in save
-    self.save_base(
-venv/lib/python3.12/site-packages/django/db/models/base.py:966: in save_base
-    updated = self._save_table(
-venv/lib/python3.12/site-packages/django/db/models/base.py:1169: in _save_table
-    results = self._do_insert(
-venv/lib/python3.12/site-packages/django/db/models/base.py:1220: in _do_insert
-    return manager._insert(
-venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:1918: in _insert
-    return query.get_compiler(using=using).execute_sql(returning_fields)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1925: in execute_sql
-    cursor.execute(sql, params)
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
-    return self._execute_with_wrappers(
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
-    with self.db.wrap_database_errors:
-venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
-    raise dj_exc_value.with_traceback(traceback) from exc_value
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
-    return self.cursor.execute(sql, params)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/test/client.py:1156: in post
+    response = super().post(
+venv/lib/python3.12/site-packages/django/test/client.py:499: in post
+    return self.generic(
+venv/lib/python3.12/site-packages/django/test/client.py:671: in generic
+    return self.request(**r)
+           ^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/test/client.py:1090: in request
+    self.check_exception(response)
+venv/lib/python3.12/site-packages/django/test/client.py:805: in check_exception
+    raise exc_value
+venv/lib/python3.12/site-packages/django/core/handlers/exception.py:55: in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/core/handlers/base.py:198: in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/views/generic/base.py:106: in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/views/generic/base.py:145: in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/views/generic/edit.py:205: in post
+    self.object = self.get_object()
+                  ^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/views/generic/detail.py:31: in get_object
+    queryset = self.get_queryset()
+               ^^^^^^^^^^^^^^^^^^^
+presentation/mixins/requestscopedquerysetmixin.py:13: in get_queryset
+    return qs.for_request(self.request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+data_access/manager/requestscopedmanager.py:15: in for_request
+    req_fiscal_period = unwrap_lazy_object(getattr(request, "fiscal_period", None))
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+utils.py:9: in unwrap_lazy_object
+    obj._setup()  # Ejecuta la lambda interna (get_fiscal_period)
+    ^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/utils/functional.py:404: in _setup
+    self._wrapped = self._setupfunc()
+                    ^^^^^^^^^^^^^^^^^
+data_access/middleware/fiscalperiodmiddleware.py:37: in <lambda>
+    request.fiscal_period = SimpleLazyObject(lambda: get_fiscal_period(request))
+                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ac1a459ea50>
-query = 'INSERT INTO "data_access_customer" ("fiscal_profile_id", "rif", "name", "fiscal_address", "phone_number", "taxpayer_t...eivable_id", "custom_income_account_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_customer"."id"'
-params = (1030, None, 'Corporación de Servicios Integrales C.A.', 'Av. Principal con Calle 4, Edificio Centro, Piso 3, Oficina 301', '02129998877', Customer.TaxpayerType.SPECIAL, ...)
-prepare = None, binary = None
+request = <WSGIRequest: POST '/customer/42/update/'>
 
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           django.db.utils.ProgrammingError: relation "data_access_customer" does not exist
-E           LINE 1: INSERT INTO "data_access_customer" ("fiscal_profile_id", "ri...
-E                               ^
+    def get_fiscal_period(request) -> FiscalPeriod | None:
+        if not hasattr(request, '_cached_fiscal_period'):
+            period = None
+            if request.user.is_authenticated:
+                # Obtiene el perfil fiscal activo garantizando aislamiento por inquilino
+                profile = getattr(request, 'fiscal_profile', None)
+                period_id = request.session.get('active_fiscal_period_id')
+    
+                if profile and period_id:
+                    try:
+                        period = FiscalPeriod.objects.get(pk=period_id)
+                    except FiscalPeriod.DoesNotExist:
+                        request.session.pop('active_fiscal_period_id', None)
+    
+            # Validación del valor del periodo fiscal antes de retornar
+            if period:
+                if period.subsequent_period:
+                    selected_period_value = period.subsequent_period
+                else:
+                    selected_period_value = period.start_period
+    
+>           request._cached_fiscal_period = selected_period_value
+                                            ^^^^^^^^^^^^^^^^^^^^^
+E           UnboundLocalError: cannot access local variable 'selected_period_value' where it is not associated with a value
 
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: ProgrammingError
+data_access/middleware/fiscalperiodmiddleware.py:25: UnboundLocalError
+------------------------------ Captured log call -------------------------------
+ERROR    django.request:log.py:249 Internal Server Error: /customer/42/update/
+Traceback (most recent call last):
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/core/handlers/base.py", line 198, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/base.py", line 106, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/base.py", line 145, in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/edit.py", line 205, in post
+    self.object = self.get_object()
+                  ^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/detail.py", line 31, in get_object
+    queryset = self.get_queryset()
+               ^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/presentation/mixins/requestscopedquerysetmixin.py", line 13, in get_queryset
+    return qs.for_request(self.request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/data_access/manager/requestscopedmanager.py", line 15, in for_request
+    req_fiscal_period = unwrap_lazy_object(getattr(request, "fiscal_period", None))
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/utils.py", line 9, in unwrap_lazy_object
+    obj._setup()  # Ejecuta la lambda interna (get_fiscal_period)
+    ^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/utils/functional.py", line 404, in _setup
+    self._wrapped = self._setupfunc()
+                    ^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/data_access/middleware/fiscalperiodmiddleware.py", line 37, in <lambda>
+    request.fiscal_period = SimpleLazyObject(lambda: get_fiscal_period(request))
+                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/accounting_system_location_ve/data_access/middleware/fiscalperiodmiddleware.py", line 25, in get_fiscal_period
+    request._cached_fiscal_period = selected_period_value
+                                    ^^^^^^^^^^^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'selected_period_value' where it is not associated with a value
+______ test_customer_create_malicious_fiscal_profile_tampering_ID_EC_003 _______
+
+authenticated_client = <django.test.client.Client object at 0x6ffdeff84d10>
+valid_customer_post_data = {'rif': 'J-123456789', 'name': 'Distribuidora Central C.A.', 'fiscal_address': 'Calle 10, Edificio A', 'phone_number': '02125551234', ...}
+secondary_fiscal_profile = <FiscalProfile: Empresa Secundaria C.A. (J987654321)>
+fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
+
+    @pytest.mark.django_db
+    def test_customer_create_malicious_fiscal_profile_tampering_ID_EC_003(
+        authenticated_client: Client,
+        valid_customer_post_data: Dict[str, Any],
+        secondary_fiscal_profile: FiscalProfile,
+        fiscal_profile: FiscalProfile
+    ) -> None:
+        """Verifica la omisión de un fiscal_profile malicioso inyectado en el POST."""
+        # Arrange: Preparación
+        url = reverse("customer_create")
+        payload = valid_customer_post_data.copy()
+        payload["fiscal_profile"] = secondary_fiscal_profile.pk
+    
+        # Act: Acción
+        response = authenticated_client.post(url, data=payload)
+    
+        # Assert: Verificación
+>       assert response.status_code == 302
+E       assert 200 == 302
+E        +  where 200 = <TemplateResponse status_code=200, "text/html; charset=utf-8">.status_code
+
+presentation/tests/tests_integration_customer/test_customer.py:152: AssertionError
 =========================== short test summary info ============================
-FAILED data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_HP_001_valid_rif_format
-FAILED data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_HP_002_valid_phone_format
-FAILED data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_HP_003_rif_and_taxpayer_type_consistency
-FAILED data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_HP_004_mandatory_fields_persistence
-FAILED data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_004_phone_too_short
-FAILED data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_005_phone_too_long
-FAILED data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_008_mandatory_rif_empty[]
-FAILED data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_008_mandatory_rif_empty[   ]
-FAILED data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_009_mandatory_name_empty[]
-FAILED data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_009_mandatory_name_empty[   ]
-FAILED data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_010_mandatory_fiscal_address_empty[]
-FAILED data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_010_mandatory_fiscal_address_empty[   ]
-FAILED data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_011_null_values_in_restricted_fields
-ERROR data_access/tests/customer_test/test_customer.py::TestCustomerValidations::test_ID_EC_007_rif_uniqueness_violation
-==================== 13 failed, 4 passed, 1 error in 44.75s ====================
+FAILED presentation/tests/tests_integration_customer/test_customer.py::test_customer_create_valid_mandatory_data_ID_HP_001
+FAILED presentation/tests/tests_integration_customer/test_customer.py::test_customer_create_custom_accounts_same_tenant_ID_HP_002
+FAILED presentation/tests/tests_integration_customer/test_customer.py::test_customer_update_allowed_fields_same_tenant_ID_HP_003
+FAILED presentation/tests/tests_integration_customer/test_customer.py::test_customer_create_accounts_other_tenant_ID_EC_001
+FAILED presentation/tests/tests_integration_customer/test_customer.py::test_customer_update_other_tenant_returns_404_ID_EC_002
+FAILED presentation/tests/tests_integration_customer/test_customer.py::test_customer_create_malicious_fiscal_profile_tampering_ID_EC_003
+========================= 6 failed in 77.57s (0:01:17) =========================

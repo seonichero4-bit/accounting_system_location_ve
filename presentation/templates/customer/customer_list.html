@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Listado de Clientes</title>
+</head>
+<body>
+    <h1>Listado de Clientes</h1>
+    <p><a href="{% url 'customer_create' %}">Registrar Nuevo Cliente</a></p>
+
+    {% if customer_list %}
+        <ul>
+            {% for customer in customer_list %}
+                <li>
+                    <a href="{% url 'customer_detail' customer.pk %}">{{ customer.name }}</a> - RIF: {{ customer.rif }}
+                    [<a href="{% url 'customer_update' customer.pk %}">Editar</a>]
+                    [<a href="{% url 'customer_delete' customer.pk %}">Eliminar</a>]
+                </li>
+            {% endfor %}
+        </ul>
+
+        {% if is_paginated %}
+            <div class="pagination">
+                <span>
+                    {% if page_obj.has_previous %}
+                        <a href="?page={{ page_obj.previous_page_number }}">anterior</a>
+                    {% endif %}
+
+                    Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}.
+
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}">siguiente</a>
+                    {% endif %}
+                </span>
+            </div>
+        {% endif %}
+    {% else %}
+        <p>No hay clientes registrados.</p>
+    {% endif %}
+</body>
+</html>

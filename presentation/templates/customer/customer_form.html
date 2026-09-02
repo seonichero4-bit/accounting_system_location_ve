@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestión de Cliente</title>
+</head>
+<body>
+    <h1>Registro / Actualización de Cliente</h1>
+    
+    <!-- Renderizado de errores generales capturados en form_valid() -->
+    {% if form.non_field_errors %}
+        <div class="error-container" style="color: red;">
+            {{ form.non_field_errors }}
+        </div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        
+        <!-- Renderizado de campo individual con mapeo de errores del clean() -->
+        <div>
+            <label for="{{ form.rif.id_for_label }}">RIF:</label>
+            {{ form.rif }}
+            {% if form.rif.errors %}
+                <span class="field-error" style="color: red;">{{ form.rif.errors }}</span>
+            {% endif %}
+        </div>
+
+        <div>
+            <label for="{{ form.name.id_for_label }}">Nombre o Razón Social:</label>
+            {{ form.name }}
+            {% if form.name.errors %}
+                <span class="field-error" style="color: red;">{{ form.name.errors }}</span>
+            {% endif %}
+        </div>
+
+        <div>
+            <label for="{{ form.fiscal_address.id_for_label }}">Dirección Fiscal:</label>
+            {{ form.fiscal_address }}
+            {% if form.fiscal_address.errors %}
+                <span class="field-error" style="color: red;">{{ form.fiscal_address.errors }}</span>
+            {% endif %}
+        </div>
+
+        <div>
+            <label for="{{ form.phone_number.id_for_label }}">Teléfono:</label>
+            {{ form.phone_number }}
+            {% if form.phone_number.errors %}
+                <span class="field-error" style="color: red;">{{ form.phone_number.errors }}</span>
+            {% endif %}
+        </div>
+
+        <div>
+            <label for="{{ form.taxpayer_type.id_for_label }}">Tipo de Contribuyente:</label>
+            {{ form.taxpayer_type }}
+            {% if form.taxpayer_type.errors %}
+                <span class="field-error" style="color: red;">{{ form.taxpayer_type.errors }}</span>
+            {% endif %}
+        </div>
+
+        <div>
+            <label for="{{ form.custom_accounts_receivable.id_for_label }}">Cuenta por Cobrar Personalizada:</label>
+            {{ form.custom_accounts_receivable }}
+            {% if form.custom_accounts_receivable.errors %}
+                <span class="field-error" style="color: red;">{{ form.custom_accounts_receivable.errors }}</span>
+            {% endif %}
+        </div>
+
+        <div>
+            <label for="{{ form.custom_income_account.id_for_label }}">Cuenta de Ingresos Personalizada:</label>
+            {{ form.custom_income_account }}
+            {% if form.custom_income_account.errors %}
+                <span class="field-error" style="color: red;">{{ form.custom_income_account.errors }}</span>
+            {% endif %}
+        </div>
+
+        <button type="submit">Guardar Cliente</button>
+    </form>
+    
+    <p><a href="{% url 'customer_list' %}">Volver al listado</a></p>
+</body>
+</html>

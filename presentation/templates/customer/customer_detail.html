@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Detalle de Cliente</title>
+</head>
+<body>
+    <h1>Detalle del Cliente</h1>
+    <ul>
+        <li><strong>RIF:</strong> {{ customer.rif }}</li>
+        <li><strong>Nombre o Razón Social:</strong> {{ customer.name }}</li>
+        <li><strong>Dirección Fiscal:</strong> {{ customer.fiscal_address }}</li>
+        <li><strong>Teléfono:</strong> {{ customer.phone_number }}</li>
+        <li><strong>Tipo de Contribuyente:</strong> {{ customer.get_taxpayer_type_display }}</li>
+        <li><strong>Cuenta por Cobrar:</strong> {{ customer.custom_accounts_receivable|default:"Predeterminada" }}</li>
+        <li><strong>Cuenta de Ingresos:</strong> {{ customer.custom_income_account|default:"Predeterminada" }}</li>
+    </ul>
+
+    <p>
+        <a href="{% url 'customer_update' customer.pk %}">Editar</a> |
+        <a href="{% url 'customer_delete' customer.pk %}">Eliminar</a> |
+        <a href="{% url 'customer_list' %}">Volver al listado</a>
+    </p>
+</body>
+</html>

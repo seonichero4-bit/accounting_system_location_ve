@@ -11,16 +11,10 @@ class RequestScopedQuerySet(models.QuerySet):
         if not request.user.is_authenticated:
             return self.none()
 
-        # Extracción segura de atributos del request
-        req_fiscal_period = unwrap_lazy_object(getattr(request, "fiscal_period", None))
-        req_fiscal_profile = unwrap_lazy_object(getattr(request, "fiscal_profile", None))
-
-        # req_fiscal_period = getattr(request, "fiscal_period", None)
-        # req_fiscal_profile = getattr(request, "fiscal_profile", None)
-                
-
         # 1. Si el modelo posee 'fiscal_period' (filtra por profile y period)
         if hasattr(self.model, 'fiscal_period'):
+            req_fiscal_period = unwrap_lazy_object(getattr(request, "fiscal_period", None))
+            req_fiscal_profile = unwrap_lazy_object(getattr(request, "fiscal_profile", None))
             filters = {}
             if req_fiscal_profile:
                 filters['fiscal_profile'] = req_fiscal_profile
@@ -31,6 +25,7 @@ class RequestScopedQuerySet(models.QuerySet):
 
         # 2. Si el modelo posee 'fiscal_profile' pero NO 'fiscal_period'
         elif hasattr(self.model, 'fiscal_profile'):
+            req_fiscal_profile = unwrap_lazy_object(getattr(request, "fiscal_profile", None))
             if req_fiscal_profile:
                 qs = self.filter(fiscal_profile=req_fiscal_profile)
 

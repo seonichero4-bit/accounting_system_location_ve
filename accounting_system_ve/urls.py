@@ -15,7 +15,20 @@ from presentation.views import dl_account_model_view
 from presentation.views import purchaseledgerdownloadview
 from presentation.views.vat_withholding_export_view import VatWithholdingExcelExportView
 
+from presentation.views import customer
+
+
+
 urlpatterns = [
+
+ # URLS Customer
+
+    path('customer', customer.CustomerListView.as_view(), name='customer_list'),
+    path('customer/create/', customer.CustomerCreateView.as_view(), name='customer_create'),
+    path('customer/<int:pk>/', customer.CustomerDetailView.as_view(), name='customer_detail'),
+    path('customer/<int:pk>/update/', customer.CustomerUpdateView.as_view(), name='customer_update'),
+    path('customer/<int:pk>/delete/', customer.CustomerDeleteView.as_view(), name='customer_delete'),
+
 
     path('admin/', admin.site.urls),
     # Aquí irán tus rutas de django-ledger

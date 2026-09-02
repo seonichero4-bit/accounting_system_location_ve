@@ -30,3 +30,11 @@ SERVICIO[
     tipo de contribuyente, posean un comprobante de rentencion de ISLR.
     2. PurchaseLedgerExcelBuilder: El codigo y logica del servicion debe ser refactoriazada.
 ]
+
+MANAGER[
+    1. RequestScopedManager: Falta implementar un plan de testing.
+]
+
+MIXINS[
+    1.RequestScopedQuerySetMixin: Falta implementar un plan de testing.
+]
