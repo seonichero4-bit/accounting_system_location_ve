@@ -11,7 +11,8 @@ from .purchase_book import PurchaseLedgerInvoice#, PurchaseInvoiceLine
 from .supplier import LocalSupplier
 from .vat_withholding import  VatWithholdingCertificate
 from .islr_withholding import IslrWithholdingCertificate
-
+from .customer import Customer
+from .fiscalperiod import FiscalPeriod
 __all__ = [
     "FiscalProfile",
     "FiscalModuleAbstractModel",
@@ -20,4 +21,6 @@ __all__ = [
     "PurchaseInvoiceLine",
     "VatWithholdingCertificate",
     "IslrWithholdingCertificate",
+    "Customer",
+    "FiscalPeriod",
 ]
