@@ -13,6 +13,7 @@ from .vat_withholding import  VatWithholdingCertificate
 from .islr_withholding import IslrWithholdingCertificate
 from .customer import Customer
 from .fiscalperiod import FiscalPeriod
+from .sales_record import SalesRecord
 __all__ = [
     "FiscalProfile",
     "FiscalModuleAbstractModel",
@@ -23,4 +24,5 @@ __all__ = [
     "IslrWithholdingCertificate",
     "Customer",
     "FiscalPeriod",
+    "SalesRecord",
 ]
