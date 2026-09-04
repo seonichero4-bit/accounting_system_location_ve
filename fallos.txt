@@ -5,416 +5,180 @@ django: version: 6.0.7, settings: accounting_system_ve.settings (from ini)
 rootdir: /workspaces/accounting_system_location_ve
 configfile: pytest.ini
 plugins: django-4.14.0, Faker-40.15.0
-collecting ... collected 6 items
+collecting ... collected 33 items / 32 deselected / 1 selected
+run-last-failure: rerun previous 1 failure
 
-presentation/tests/tests_integration_customer/test_customer.py::test_customer_create_valid_mandatory_data_ID_HP_001 FAILED [ 16%]
-presentation/tests/tests_integration_customer/test_customer.py::test_customer_create_custom_accounts_same_tenant_ID_HP_002 FAILED [ 33%]
-presentation/tests/tests_integration_customer/test_customer.py::test_customer_update_allowed_fields_same_tenant_ID_HP_003 FAILED [ 50%]
-presentation/tests/tests_integration_customer/test_customer.py::test_customer_create_accounts_other_tenant_ID_EC_001 FAILED [ 66%]
-presentation/tests/tests_integration_customer/test_customer.py::test_customer_update_other_tenant_returns_404_ID_EC_002 FAILED [ 83%]
-presentation/tests/tests_integration_customer/test_customer.py::test_customer_create_malicious_fiscal_profile_tampering_ID_EC_003 FAILED [100%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_hp_008_sanitizacion_automatica_numero_control_factura FAILED [100%]
 
 =================================== FAILURES ===================================
-_____________ test_customer_create_valid_mandatory_data_ID_HP_001 ______________
+________ test_id_hp_008_sanitizacion_automatica_numero_control_factura _________
 
-authenticated_client = <django.test.client.Client object at 0x6ffdf19dc560>
-valid_customer_post_data = {'rif': 'J-123456789', 'name': 'Distribuidora Central C.A.', 'fiscal_address': 'Calle 10, Edificio A', 'phone_number': '02125551234', ...}
-fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
+group_a_invoice_record = <SalesRecord id=None doc=0001>
+group_b_fiscal_printer_record = <SalesRecord id=None doc=456>
 
-    @pytest.mark.django_db
-    def test_customer_create_valid_mandatory_data_ID_HP_001(
-        authenticated_client: Client,
-        valid_customer_post_data: Dict[str, Any],
-        fiscal_profile: FiscalProfile
+    def test_id_hp_008_sanitizacion_automatica_numero_control_factura(
+        group_a_invoice_record: SalesRecord,
+        group_b_fiscal_printer_record: SalesRecord
     ) -> None:
-        """Valida la creación exitosa con datos obligatorios y perfil fiscal desenvuelto."""
-        # Arrange: Preparación
-        url = reverse("customer_create")
-        payload = valid_customer_post_data.copy()
-        payload.pop("custom_accounts_receivable", None)
-        payload.pop("custom_income_account", None)
+        """Verifica limpieza de espacios en campos identificadores en clean()."""
+        # Arrange
+        group_a_invoice_record.control_number = " 00-12345 "
+        group_b_fiscal_printer_record.invoice_number = " 456 "
     
-        # Act: Acción
-        response = authenticated_client.post(url, data=payload)
-    
-        # Assert: Verificación
->       assert response.status_code == 302
-E       assert 200 == 302
-E        +  where 200 = <TemplateResponse status_code=200, "text/html; charset=utf-8">.status_code
+        # Act
+        group_a_invoice_record.clean()
+>       group_b_fiscal_printer_record.clean()
 
-presentation/tests/tests_integration_customer/test_customer.py:34: AssertionError
+data_access/tests/salesrecord_test/test_salesrecord.py:171: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <SalesRecord id=None doc=456>
+
+    def clean(self) -> None:
+        """Aplica la lógica de validación de negocio y sanitaria del modelo."""
+        errors = {}
+    
+        # Sanitización de campos identificadores
+        if self.control_number:
+            self.control_number = self.control_number.strip()
+        if self.invoice_number:
+            self.invoice_number = self.invoice_number.strip()
+    
+        # Condicionales de Activación (Grupos)
+        is_group_a = bool(self.document_type)
+        is_group_b = bool(self.invoice_number or self.fiscal_printer_number or self.z_report_number)
+    
+        # Validación Grupo A: Documentación Fiscal Interna
+        if is_group_a:
+            if any([self.invoice_number, self.last_receipt_number, self.fiscal_printer_number, self.z_report_number]):
+                errors['invoice_number'] = (
+                    "Los campos de impresora fiscal (N° de factura/comprobante, N° de último comprobante, "
+                    "N° de máquina fiscal y N° de reporte Z) deben estar vacíos al registrar documentación fiscal interna."
+                )
+    
+            if self.document_type == self.DocumentType.INVOICE and self.affected_invoice:
+                errors['affected_invoice'] = "Las facturas de tipo 'INVOICE' no deben incluir referencia a una factura afectada."
+    
+            if self.document_type in [self.DocumentType.CREDIT_NOTE, self.DocumentType.DEBIT_NOTE] and not self.affected_invoice:
+                errors['affected_invoice'] = (
+                    "Las Notas de Crédito y Débito requieren especificar el N° de factura afectada, "
+                    "N° de control afectado y su fecha original."
+                )
+    
+            if not self.document_number:
+                errors['document_number'] = "El número de documento es requerido y debe ser un valor válido."
+            if not self.control_number:
+                errors['control_number'] = "El número de control es requerido y debe ser un valor válido."
+    
+        # Validación Grupo B: Impresora Fiscal
+        if is_group_b:
+            if any([self.document_type, self.document_number, self.control_number, self.affected_invoice]):
+                errors['document_type'] = (
+                    "Los campos de documentación interna (tipo de documento, N° de documento, "
+                    "N° de control y factura afectada) deben estar vacíos cuando se registra una operación de impresora fiscal."
+                )
+    
+            if not all([self.invoice_number, self.fiscal_printer_number, self.z_report_number]):
+                errors['z_report_number'] = (
+                    "El registro de impresora fiscal requiere que el N° de factura/comprobante, "
+                    "el N° de máquina fiscal y el N° de reporte Z estén presentes simultáneamente."
+                )
+    
+            # Validar secuencia de comprobantes lógicamente si ambos están presentes
+            if self.invoice_number and self.last_receipt_number:
+                inv_num = int(self.invoice_number) if self.invoice_number.isdigit() else self.invoice_number
+                last_num = int(self.last_receipt_number) if self.last_receipt_number.isdigit() else self.last_receipt_number
+    
+                if last_num < inv_num:
+                    errors['last_receipt_number'] = (
+                        "El número del último comprobante del día no puede ser menor al número del primer comprobante."
+                    )
+    
+        # Ecuación Contable del Total
+        expected_total = sum([
+            self.exempt_internal_sales or Decimal('0.00'),
+            self.exonerated_internal_sales or Decimal('0.00'),
+            self.non_subject_internal_sales or Decimal('0.00'),
+            self.fob_export_value or Decimal('0.00'),
+            self.general_tax_base_16 or Decimal('0.00'),
+            self.general_tax_debit_16 or Decimal('0.00'),
+            self.reduced_tax_base_8 or Decimal('0.00'),
+            self.reduced_tax_debit_8 or Decimal('0.00'),
+            self.additional_tax_base_31 or Decimal('0.00'),
+            self.additional_tax_debit_31 or Decimal('0.00'),
+        ])
+    
+        if (self.total_sales_inc_vat or Decimal('0.00')) != expected_total:
+            errors['total_sales_inc_vat'] = (
+                "El total de ventas incluido IVA no coincide con la suma de las ventas exentas, "
+                "exoneradas, no sujetas, valor FOB y bases imponibles con sus débitos fiscales."
+            )
+    
+        # Cálculo de Débitos Fiscales (16%, 8%, 31%)
+        def check_debit(base: Decimal, debit: Decimal, rate: str, field: str, name_rate: str) -> None:
+            base_val = base or Decimal('0.00')
+            debit_val = debit or Decimal('0.00')
+            if base_val > Decimal('0.00'):
+                if abs((base_val * Decimal(rate)) - debit_val) > Decimal('0.01'):
+                    errors[field] = f"El débito fiscal ({name_rate}%) no coincide con el {name_rate}% de la base imponible {('general' if name_rate == '16' else 'reducida' if name_rate == '8' else 'adicional')} indicada."
+            elif base_val == Decimal('0.00') and debit_val > Decimal('0.00'):
+                errors[field] = "El débito fiscal debe ser exactamente 0.00 cuando la base imponible asociada sea igual a 0.00 o nula."
+    
+        check_debit(self.general_tax_base_16, self.general_tax_debit_16, '0.16', 'general_tax_debit_16', '16')
+        check_debit(self.reduced_tax_base_8, self.reduced_tax_debit_8, '0.08', 'reduced_tax_debit_8', '8')
+        check_debit(self.additional_tax_base_31, self.additional_tax_debit_31, '0.31', 'additional_tax_debit_31', '31')
+    
+        # Anulación de Documentos
+        is_annulled = self.transaction_type == self.TransactionType.ANNULMENT or self.record_status == self.RecordStatus.ANNULLED
+        if is_annulled:
+            if self.client_id and self.client.name != 'ANULADO':
+                errors['transaction_type'] = "Para transacciones de anulación, el nombre o razón social debe ser 'ANULADO' y todos los montos deben ser iguales a 0.00."
+    
+            amounts_to_check = [
+                self.total_sales_inc_vat, self.exempt_internal_sales, self.exonerated_internal_sales,
+                self.non_subject_internal_sales, self.fob_export_value, self.general_tax_base_16,
+                self.general_tax_debit_16, self.reduced_tax_base_8, self.reduced_tax_debit_8,
+                self.additional_tax_base_31, self.additional_tax_debit_31, self.igtf_tax_base, self.igtf_tax_amount
+            ]
+    
+            if any(val != Decimal('0.00') for val in amounts_to_check if val is not None):
+                errors['transaction_type'] = "Para transacciones de anulación, el nombre o razón social debe ser 'ANULADO' y todos los montos deben ser iguales a 0.00."
+    
+        # Cálculo IGTF (3%)
+        igtf_base = self.igtf_tax_base or Decimal('0.00')
+        igtf_amount = self.igtf_tax_amount or Decimal('0.00')
+        if igtf_base > Decimal('0.00'):
+            if abs((igtf_base * Decimal('0.03')) - igtf_amount) > Decimal('0.01'):
+                errors['igtf_tax_amount'] = "El monto de IGTF debe corresponder exactamente al 3% de la base imponible de IGTF declarada."
+        elif igtf_base == Decimal('0.00') and igtf_amount > Decimal('0.00'):
+            errors['igtf_tax_amount'] = "El monto de IGTF debe corresponder exactamente al 3% de la base imponible de IGTF declarada."
+    
+        # Restricción de Fecha Futura
+        if self.document_date and self.document_date > timezone.now().date():
+            errors['document_date'] = "La fecha del documento no puede ser posterior a la fecha actual del sistema."
+    
+        # Comercio Exterior (Valor FOB vs Ventas Internas)
+        fob_val = self.fob_export_value or Decimal('0.00')
+        if self.sale_type == self.SaleType.EXPORT:
+            if fob_val <= Decimal('0.00'):
+                errors['fob_export_value'] = "Para operaciones de exportación, el valor FOB debe ser mayor a 0.00 y los campos de ventas internas deben ser 0.00."
+            internal_amounts = [
+                self.exempt_internal_sales, self.exonerated_internal_sales, self.non_subject_internal_sales,
+                self.general_tax_base_16, self.reduced_tax_base_8, self.additional_tax_base_31
+            ]
+            if any(val != Decimal('0.00') for val in internal_amounts if val is not None):
+                errors['sale_type'] = "Para operaciones de exportación, el valor FOB debe ser mayor a 0.00 y los campos de ventas internas deben ser 0.00."
+        elif self.sale_type == self.SaleType.INTERNAL:
+            if fob_val > Decimal('0.00'):
+                errors['fob_export_value'] = "Para operaciones de ventas internas, el valor FOB de exportación debe ser 0.00 o nulo."
+    
+        if errors:
+>           raise ValidationError(errors)
+E           django.core.exceptions.ValidationError: {'last_receipt_number': ['El número del último comprobante del día no puede ser menor al número del primer comprobante.']}
+
+data_access/models/sales_record.py:330: ValidationError
 ---------------------------- Captured stderr setup -----------------------------
 Using existing test database for alias 'default'...
-__________ test_customer_create_custom_accounts_same_tenant_ID_HP_002 __________
-
-authenticated_client = <django.test.client.Client object at 0x6ffdf19dc890>
-valid_customer_post_data = {'rif': 'J-123456789', 'name': 'Distribuidora Central C.A.', 'fiscal_address': 'Calle 10, Edificio A', 'phone_number': '02125551234', ...}
-fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
-
-    @pytest.mark.django_db
-    def test_customer_create_custom_accounts_same_tenant_ID_HP_002(
-        authenticated_client: Client,
-        valid_customer_post_data: Dict[str, Any],
-        fiscal_profile: FiscalProfile
-    ) -> None:
-        """Verifica la asociación de cuentas contables del mismo inquilino."""
-        # Arrange: Preparación
-        url = reverse("customer_create")
-        payload = valid_customer_post_data
-    
-        # Act: Acción
-        response = authenticated_client.post(url, data=payload)
-    
-        # Assert: Verificación
->       assert response.status_code == 302
-E       assert 200 == 302
-E        +  where 200 = <TemplateResponse status_code=200, "text/html; charset=utf-8">.status_code
-
-presentation/tests/tests_integration_customer/test_customer.py:55: AssertionError
-__________ test_customer_update_allowed_fields_same_tenant_ID_HP_003 ___________
-
-authenticated_client = <django.test.client.Client object at 0x6ffdf03a71a0>
-persisted_customer = <Customer: J123456780 - Corporación de Servicios Integrales C.A.>
-fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
-
-    @pytest.mark.django_db
-    def test_customer_update_allowed_fields_same_tenant_ID_HP_003(
-        authenticated_client: Client,
-        persisted_customer: Customer,
-        fiscal_profile: FiscalProfile
-    ) -> None:
-        """Valida la actualización de atributos permitidos sin alterar el perfil fiscal."""
-        # Arrange: Preparación
-        url = reverse("customer_update", kwargs={"pk": persisted_customer.pk})
-        payload = {
-            "rif": persisted_customer.rif,
-            "name": persisted_customer.name,
-            "taxpayer_type": persisted_customer.taxpayer_type,
-            "fiscal_address": "Av. Bolívar, Local 5",
-            "phone_number": "02125559876",
-        }
-    
-        # Act: Acción
->       response = authenticated_client.post(url, data=payload)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-presentation/tests/tests_integration_customer/test_customer.py:80: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-venv/lib/python3.12/site-packages/django/test/client.py:1156: in post
-    response = super().post(
-venv/lib/python3.12/site-packages/django/test/client.py:499: in post
-    return self.generic(
-venv/lib/python3.12/site-packages/django/test/client.py:671: in generic
-    return self.request(**r)
-           ^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/test/client.py:1090: in request
-    self.check_exception(response)
-venv/lib/python3.12/site-packages/django/test/client.py:805: in check_exception
-    raise exc_value
-venv/lib/python3.12/site-packages/django/core/handlers/exception.py:55: in inner
-    response = get_response(request)
-               ^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/core/handlers/base.py:198: in _get_response
-    response = wrapped_callback(request, *callback_args, **callback_kwargs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/base.py:106: in view
-    return self.dispatch(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/base.py:145: in dispatch
-    return handler(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/edit.py:205: in post
-    self.object = self.get_object()
-                  ^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/detail.py:31: in get_object
-    queryset = self.get_queryset()
-               ^^^^^^^^^^^^^^^^^^^
-presentation/mixins/requestscopedquerysetmixin.py:13: in get_queryset
-    return qs.for_request(self.request)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-data_access/manager/requestscopedmanager.py:15: in for_request
-    req_fiscal_period = unwrap_lazy_object(getattr(request, "fiscal_period", None))
-                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-utils.py:9: in unwrap_lazy_object
-    obj._setup()  # Ejecuta la lambda interna (get_fiscal_period)
-    ^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/utils/functional.py:404: in _setup
-    self._wrapped = self._setupfunc()
-                    ^^^^^^^^^^^^^^^^^
-data_access/middleware/fiscalperiodmiddleware.py:37: in <lambda>
-    request.fiscal_period = SimpleLazyObject(lambda: get_fiscal_period(request))
-                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-request = <WSGIRequest: POST '/customer/41/update/'>
-
-    def get_fiscal_period(request) -> FiscalPeriod | None:
-        if not hasattr(request, '_cached_fiscal_period'):
-            period = None
-            if request.user.is_authenticated:
-                # Obtiene el perfil fiscal activo garantizando aislamiento por inquilino
-                profile = getattr(request, 'fiscal_profile', None)
-                period_id = request.session.get('active_fiscal_period_id')
-    
-                if profile and period_id:
-                    try:
-                        period = FiscalPeriod.objects.get(pk=period_id)
-                    except FiscalPeriod.DoesNotExist:
-                        request.session.pop('active_fiscal_period_id', None)
-    
-            # Validación del valor del periodo fiscal antes de retornar
-            if period:
-                if period.subsequent_period:
-                    selected_period_value = period.subsequent_period
-                else:
-                    selected_period_value = period.start_period
-    
->           request._cached_fiscal_period = selected_period_value
-                                            ^^^^^^^^^^^^^^^^^^^^^
-E           UnboundLocalError: cannot access local variable 'selected_period_value' where it is not associated with a value
-
-data_access/middleware/fiscalperiodmiddleware.py:25: UnboundLocalError
------------------------------- Captured log call -------------------------------
-ERROR    django.request:log.py:249 Internal Server Error: /customer/41/update/
-Traceback (most recent call last):
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
-    response = get_response(request)
-               ^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/core/handlers/base.py", line 198, in _get_response
-    response = wrapped_callback(request, *callback_args, **callback_kwargs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/base.py", line 106, in view
-    return self.dispatch(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/base.py", line 145, in dispatch
-    return handler(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/edit.py", line 205, in post
-    self.object = self.get_object()
-                  ^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/detail.py", line 31, in get_object
-    queryset = self.get_queryset()
-               ^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/presentation/mixins/requestscopedquerysetmixin.py", line 13, in get_queryset
-    return qs.for_request(self.request)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/data_access/manager/requestscopedmanager.py", line 15, in for_request
-    req_fiscal_period = unwrap_lazy_object(getattr(request, "fiscal_period", None))
-                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/utils.py", line 9, in unwrap_lazy_object
-    obj._setup()  # Ejecuta la lambda interna (get_fiscal_period)
-    ^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/utils/functional.py", line 404, in _setup
-    self._wrapped = self._setupfunc()
-                    ^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/data_access/middleware/fiscalperiodmiddleware.py", line 37, in <lambda>
-    request.fiscal_period = SimpleLazyObject(lambda: get_fiscal_period(request))
-                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/data_access/middleware/fiscalperiodmiddleware.py", line 25, in get_fiscal_period
-    request._cached_fiscal_period = selected_period_value
-                                    ^^^^^^^^^^^^^^^^^^^^^
-UnboundLocalError: cannot access local variable 'selected_period_value' where it is not associated with a value
-_____________ test_customer_create_accounts_other_tenant_ID_EC_001 _____________
-
-authenticated_client = <django.test.client.Client object at 0x6ffdf040a2a0>
-valid_customer_post_data = {'rif': 'J-123456789', 'name': 'Distribuidora Central C.A.', 'fiscal_address': 'Calle 10, Edificio A', 'phone_number': '02125551234', ...}
-secondary_customer_accounts = {'custom_accounts_receivable': <AccountModel: ASSETS - 11209: Cuentas por Cobrar Ajenas (ASSET_CA_RECV/debit)>, 'custom_income_account': <AccountModel: EQUITY - 41109: Ventas Ajenas (IN_OPERATIONAL/credit)>}
-
-    @pytest.mark.django_db
-    def test_customer_create_accounts_other_tenant_ID_EC_001(
-        authenticated_client: Client,
-        valid_customer_post_data: Dict[str, Any],
-        secondary_customer_accounts: Dict[str, Any]
-    ) -> None:
-        """Valida el rechazo al intentar asociar cuentas contables de otro inquilino."""
-        # Arrange: Preparación
-        url = reverse("customer_create")
-        payload = valid_customer_post_data.copy()
-        payload["custom_accounts_receivable"] = secondary_customer_accounts["custom_accounts_receivable"].pk
-        payload["custom_income_account"] = secondary_customer_accounts["custom_income_account"].pk
-    
-        # Act: Acción
-        response = authenticated_client.post(url, data=payload)
-    
-        # Assert: Verificación
-        assert response.status_code == 200
->       assert "custom_accounts_receivable" in response.context["form"].errors
-E       AssertionError: assert 'custom_accounts_receivable' in {'rif': ['El RIF debe comenzar con V, E, J, G, P, C seguido de 8 a 9 dígitos.']}
-E        +  where {'rif': ['El RIF debe comenzar con V, E, J, G, P, C seguido de 8 a 9 dígitos.']} = <CustomerForm bound=True, valid=False, fields=(rif;name;fiscal_address;phone_number;taxpayer_type;custom_accounts_receivable;custom_income_account)>.errors
-
-presentation/tests/tests_integration_customer/test_customer.py:108: AssertionError
-___________ test_customer_update_other_tenant_returns_404_ID_EC_002 ____________
-
-authenticated_client = <django.test.client.Client object at 0x6ffdeffe6f60>
-secondary_customer = <Customer: J987654321 - Corporación de Servicios Integrales C.A.>
-
-    @pytest.mark.django_db
-    def test_customer_update_other_tenant_returns_404_ID_EC_002(
-        authenticated_client: Client,
-        secondary_customer: Customer
-    ) -> None:
-        """Verifica que el intento de actualización de un cliente ajeno devuelva 404."""
-        # Arrange: Preparación
-        url = reverse("customer_update", kwargs={"pk": secondary_customer.pk})
-        payload = {
-            "fiscal_address": "Intento de intrusión",
-            "phone_number": "00000000000"
-        }
-    
-        # Act: Acción
->       response = authenticated_client.post(url, data=payload)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-presentation/tests/tests_integration_customer/test_customer.py:127: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-venv/lib/python3.12/site-packages/django/test/client.py:1156: in post
-    response = super().post(
-venv/lib/python3.12/site-packages/django/test/client.py:499: in post
-    return self.generic(
-venv/lib/python3.12/site-packages/django/test/client.py:671: in generic
-    return self.request(**r)
-           ^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/test/client.py:1090: in request
-    self.check_exception(response)
-venv/lib/python3.12/site-packages/django/test/client.py:805: in check_exception
-    raise exc_value
-venv/lib/python3.12/site-packages/django/core/handlers/exception.py:55: in inner
-    response = get_response(request)
-               ^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/core/handlers/base.py:198: in _get_response
-    response = wrapped_callback(request, *callback_args, **callback_kwargs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/base.py:106: in view
-    return self.dispatch(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/base.py:145: in dispatch
-    return handler(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/edit.py:205: in post
-    self.object = self.get_object()
-                  ^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/detail.py:31: in get_object
-    queryset = self.get_queryset()
-               ^^^^^^^^^^^^^^^^^^^
-presentation/mixins/requestscopedquerysetmixin.py:13: in get_queryset
-    return qs.for_request(self.request)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-data_access/manager/requestscopedmanager.py:15: in for_request
-    req_fiscal_period = unwrap_lazy_object(getattr(request, "fiscal_period", None))
-                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-utils.py:9: in unwrap_lazy_object
-    obj._setup()  # Ejecuta la lambda interna (get_fiscal_period)
-    ^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/utils/functional.py:404: in _setup
-    self._wrapped = self._setupfunc()
-                    ^^^^^^^^^^^^^^^^^
-data_access/middleware/fiscalperiodmiddleware.py:37: in <lambda>
-    request.fiscal_period = SimpleLazyObject(lambda: get_fiscal_period(request))
-                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-request = <WSGIRequest: POST '/customer/42/update/'>
-
-    def get_fiscal_period(request) -> FiscalPeriod | None:
-        if not hasattr(request, '_cached_fiscal_period'):
-            period = None
-            if request.user.is_authenticated:
-                # Obtiene el perfil fiscal activo garantizando aislamiento por inquilino
-                profile = getattr(request, 'fiscal_profile', None)
-                period_id = request.session.get('active_fiscal_period_id')
-    
-                if profile and period_id:
-                    try:
-                        period = FiscalPeriod.objects.get(pk=period_id)
-                    except FiscalPeriod.DoesNotExist:
-                        request.session.pop('active_fiscal_period_id', None)
-    
-            # Validación del valor del periodo fiscal antes de retornar
-            if period:
-                if period.subsequent_period:
-                    selected_period_value = period.subsequent_period
-                else:
-                    selected_period_value = period.start_period
-    
->           request._cached_fiscal_period = selected_period_value
-                                            ^^^^^^^^^^^^^^^^^^^^^
-E           UnboundLocalError: cannot access local variable 'selected_period_value' where it is not associated with a value
-
-data_access/middleware/fiscalperiodmiddleware.py:25: UnboundLocalError
------------------------------- Captured log call -------------------------------
-ERROR    django.request:log.py:249 Internal Server Error: /customer/42/update/
-Traceback (most recent call last):
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
-    response = get_response(request)
-               ^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/core/handlers/base.py", line 198, in _get_response
-    response = wrapped_callback(request, *callback_args, **callback_kwargs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/base.py", line 106, in view
-    return self.dispatch(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/base.py", line 145, in dispatch
-    return handler(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/edit.py", line 205, in post
-    self.object = self.get_object()
-                  ^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/detail.py", line 31, in get_object
-    queryset = self.get_queryset()
-               ^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/presentation/mixins/requestscopedquerysetmixin.py", line 13, in get_queryset
-    return qs.for_request(self.request)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/data_access/manager/requestscopedmanager.py", line 15, in for_request
-    req_fiscal_period = unwrap_lazy_object(getattr(request, "fiscal_period", None))
-                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/utils.py", line 9, in unwrap_lazy_object
-    obj._setup()  # Ejecuta la lambda interna (get_fiscal_period)
-    ^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/utils/functional.py", line 404, in _setup
-    self._wrapped = self._setupfunc()
-                    ^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/data_access/middleware/fiscalperiodmiddleware.py", line 37, in <lambda>
-    request.fiscal_period = SimpleLazyObject(lambda: get_fiscal_period(request))
-                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/data_access/middleware/fiscalperiodmiddleware.py", line 25, in get_fiscal_period
-    request._cached_fiscal_period = selected_period_value
-                                    ^^^^^^^^^^^^^^^^^^^^^
-UnboundLocalError: cannot access local variable 'selected_period_value' where it is not associated with a value
-______ test_customer_create_malicious_fiscal_profile_tampering_ID_EC_003 _______
-
-authenticated_client = <django.test.client.Client object at 0x6ffdeff84d10>
-valid_customer_post_data = {'rif': 'J-123456789', 'name': 'Distribuidora Central C.A.', 'fiscal_address': 'Calle 10, Edificio A', 'phone_number': '02125551234', ...}
-secondary_fiscal_profile = <FiscalProfile: Empresa Secundaria C.A. (J987654321)>
-fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
-
-    @pytest.mark.django_db
-    def test_customer_create_malicious_fiscal_profile_tampering_ID_EC_003(
-        authenticated_client: Client,
-        valid_customer_post_data: Dict[str, Any],
-        secondary_fiscal_profile: FiscalProfile,
-        fiscal_profile: FiscalProfile
-    ) -> None:
-        """Verifica la omisión de un fiscal_profile malicioso inyectado en el POST."""
-        # Arrange: Preparación
-        url = reverse("customer_create")
-        payload = valid_customer_post_data.copy()
-        payload["fiscal_profile"] = secondary_fiscal_profile.pk
-    
-        # Act: Acción
-        response = authenticated_client.post(url, data=payload)
-    
-        # Assert: Verificación
->       assert response.status_code == 302
-E       assert 200 == 302
-E        +  where 200 = <TemplateResponse status_code=200, "text/html; charset=utf-8">.status_code
-
-presentation/tests/tests_integration_customer/test_customer.py:152: AssertionError
 =========================== short test summary info ============================
-FAILED presentation/tests/tests_integration_customer/test_customer.py::test_customer_create_valid_mandatory_data_ID_HP_001
-FAILED presentation/tests/tests_integration_customer/test_customer.py::test_customer_create_custom_accounts_same_tenant_ID_HP_002
-FAILED presentation/tests/tests_integration_customer/test_customer.py::test_customer_update_allowed_fields_same_tenant_ID_HP_003
-FAILED presentation/tests/tests_integration_customer/test_customer.py::test_customer_create_accounts_other_tenant_ID_EC_001
-FAILED presentation/tests/tests_integration_customer/test_customer.py::test_customer_update_other_tenant_returns_404_ID_EC_002
-FAILED presentation/tests/tests_integration_customer/test_customer.py::test_customer_create_malicious_fiscal_profile_tampering_ID_EC_003
-========================= 6 failed in 77.57s (0:01:17) =========================
+FAILED data_access/tests/salesrecord_test/test_salesrecord.py::test_id_hp_008_sanitizacion_automatica_numero_control_factura
+======================= 1 failed, 32 deselected in 6.65s =======================
