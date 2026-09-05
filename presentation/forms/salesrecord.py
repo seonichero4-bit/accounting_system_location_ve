@@ -31,8 +31,9 @@ class SalesRecordForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         if fiscal_profile:
-            # 1. Asignación directa e inmutable a la instancia
+            # 1. Asignación directa tanto a la instancia como a initial   ### ACTUALIZAR EN LA SPEC
             self.instance.fiscal_profile = fiscal_profile
+            self.initial['fiscal_profile'] = fiscal_profile
             
             # 2. Aislamiento estricto de QuerySets (Multi-tenant)
             if 'affected_invoice' in self.fields:
@@ -44,8 +45,9 @@ class SalesRecordForm(forms.ModelForm):
                     fiscal_profile=fiscal_profile
                 )
 
-        if fiscal_period:
+        if fiscal_period:     ### ACTUALIZAR EN LA SPEC
             self.instance.fiscal_period = fiscal_period
+            self.initial['fiscal_period'] = fiscal_period
 
         # 3. Bloqueo visual e inhibición de manipulación desde el HTML
         for field_name in ['fiscal_profile', 'fiscal_period']:

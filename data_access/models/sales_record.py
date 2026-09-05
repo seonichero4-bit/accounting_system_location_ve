@@ -75,7 +75,8 @@ class SalesRecord(FiscalModuleAbstractModel):
     record_status = models.CharField(
         max_length=20,
         choices=RecordStatus.choices,
-        default=RecordStatus.PRELIMINARY
+        default=RecordStatus.PRELIMINARY,
+        blank=True   ### ACTUALIZAR EN LA SPEC
     )
 
     # Relaciones

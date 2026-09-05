@@ -61,10 +61,11 @@ def standard_customer(db, fiscal_profile: FiscalProfile) -> Customer:
 
 
 @pytest.fixture
-def group_a_invoice_record(fiscal_profile: FiscalProfile, standard_customer: Customer) -> SalesRecord:
+def group_a_invoice_record(fiscal_profile: FiscalProfile, standard_customer: Customer, active_fiscal_period: FiscalPeriod) -> SalesRecord:
     """Instancia en memoria de un registro de venta interna (Grupo A - Factura estándar)."""
     return SalesRecord(
         fiscal_profile=fiscal_profile,
+        fiscal_period=date(2026, 1, 15),
         client=standard_customer,
         document_type="INVOICE",
         document_number="0001",

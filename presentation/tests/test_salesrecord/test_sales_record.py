@@ -166,6 +166,7 @@ def test_ID_EC_004_intercepcion_error_unicidad_documento(
             client=persisted_sales_record.client,
             control_number=persisted_sales_record.control_number,
             document_type=persisted_sales_record.document_type,
+            document_date=persisted_sales_record.document_date,
             # Se omiten campos obligatorios irrelevantes para provocar la restricción de BD
         )
         duplicate_record.save()

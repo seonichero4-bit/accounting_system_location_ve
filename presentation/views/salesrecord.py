@@ -3,8 +3,8 @@
 from typing import Any, Dict
 
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError
-from django.http import HttpResponse
+from django.db import IntegrityError, transaction
+from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, UpdateView, DeleteView, DetailView, ListView
 
@@ -62,9 +62,10 @@ class SalesRecordBaseView(RequestScopedQuerySetMixin):
     def form_valid(self, form: SalesRecordForm) -> HttpResponse:
         """Captura y procesa errores de integridad de base de datos e inmutabilidad."""
         try:
-            # Desencadena el save() del ModelForm y sus validaciones subyacentes
-            self.object = form.save()
-            return super().form_valid(form)
+            # Envolver en transacción atómica para aislar fallos de BD
+            with transaction.atomic():  
+                self.object = form.save()
+            return HttpResponseRedirect(self.get_success_url())
             
         except ValidationError as e:
             # Intercepta el ValidationError lanzado desde SalesRecord.save() (ej. Inmutabilidad)
