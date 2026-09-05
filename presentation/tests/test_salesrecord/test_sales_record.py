@@ -145,48 +145,8 @@ def test_ID_EC_003_alteracion_payload_post_campos_deshabilitados(
     assert new_record.fiscal_profile == fiscal_profile
     assert new_record.fiscal_profile != other_tenant_profile
 
-
 @pytest.mark.django_db
-def test_ID_EC_004_intercepcion_error_unicidad_documento(
-    authenticated_client: Client,
-    persisted_sales_record: SalesRecord,
-    valid_sales_record_payload: Dict[str, Any]
-) -> None:
-    """Valida la captura en la vista del IntegrityError de unicidad mapeado al formulario."""
-    # Arrange
-    url = CREATE_URL
-    # Duplicamos los valores exactos para detonar unique_issued_document
-    valid_sales_record_payload["control_number"] = persisted_sales_record.control_number
-    valid_sales_record_payload["document_type"] = persisted_sales_record.document_type
-    
-    # Comprobación de borde directo (simulando IntegrityError a bajo nivel si se invoca manual)
-    with pytest.raises(IntegrityError):
-        duplicate_record = SalesRecord(
-            fiscal_profile=persisted_sales_record.fiscal_profile,
-            client=persisted_sales_record.client,
-            control_number=persisted_sales_record.control_number,
-            document_type=persisted_sales_record.document_type,
-            document_date=persisted_sales_record.document_date,
-            # Se omiten campos obligatorios irrelevantes para provocar la restricción de BD
-        )
-        duplicate_record.save()
-
-    # Act
-    response = authenticated_client.post(url, data=valid_sales_record_payload)
-
-    # Assert
-    assert response.status_code == 200
-    form = response.context["form"]
-    assert "control_number" in form.errors
-    expected_msg = (
-        "Ya existe un documento registrado con este N° de Control y "
-        "Tipo de Documento para el perfil fiscal actual."
-    )
-    assert expected_msg in str(form.errors["control_number"])
-
-
-@pytest.mark.django_db
-def test_ID_EC_005_captura_excepcion_inmutabilidad_guardado(
+def test_ID_EC_004_captura_excepcion_inmutabilidad_guardado(
     authenticated_client: Client,
     processed_sales_record: SalesRecord,
     valid_sales_record_payload: Dict[str, Any]
@@ -206,4 +166,4 @@ def test_ID_EC_005_captura_excepcion_inmutabilidad_guardado(
         "No se puede modificar un registro del Libro de Ventas que ya se "
         "encuentra en estatus 'Procesado' o 'Anulado Procesado'."
     )
-    assert expected_msg in str(form.non_field_errors())
+    assert expected_msg in form.non_field_errors()

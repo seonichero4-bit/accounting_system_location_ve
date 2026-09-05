@@ -5,207 +5,18 @@ django: version: 6.0.7, settings: accounting_system_ve.settings (from ini)
 rootdir: /workspaces/accounting_system_location_ve
 configfile: pytest.ini
 plugins: django-4.14.0, Faker-40.15.0
-collecting ... collected 8 items / 3 deselected / 5 selected
-run-last-failure: rerun previous 5 failures
+collecting ... collected 8 items / 6 deselected / 2 selected
+run-last-failure: rerun previous 2 failures
 
-presentation/tests/test_salesrecord/test_sales_record.py::test_ID_HP_001_inyeccion_contexto_inquilino_creacion FAILED [ 20%]
-presentation/tests/test_salesrecord/test_sales_record.py::test_ID_HP_003_flujo_completo_edicion_registro_preliminar FAILED [ 40%]
-presentation/tests/test_salesrecord/test_sales_record.py::test_ID_EC_003_alteracion_payload_post_campos_deshabilitados FAILED [ 60%]
-presentation/tests/test_salesrecord/test_sales_record.py::test_ID_EC_004_intercepcion_error_unicidad_documento FAILED [ 80%]
+presentation/tests/test_salesrecord/test_sales_record.py::test_ID_EC_004_intercepcion_error_unicidad_documento FAILED [ 50%]
 presentation/tests/test_salesrecord/test_sales_record.py::test_ID_EC_005_captura_excepcion_inmutabilidad_guardado FAILED [100%]
 
 =================================== FAILURES ===================================
-_____________ test_ID_HP_001_inyeccion_contexto_inquilino_creacion _____________
-
-authenticated_client = <django.test.client.Client object at 0x7ddf5f2aaff0>
-valid_sales_record_payload = {'client': 422, 'document_type': 'INVOICE', 'document_number': '0005', 'control_number': '00-000005', ...}
-fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
-
-    @pytest.mark.django_db
-    def test_ID_HP_001_inyeccion_contexto_inquilino_creacion(
-        authenticated_client: Client,
-        valid_sales_record_payload: Dict[str, Any],
-        fiscal_profile: FiscalProfile
-    ) -> None:
-        """Valida la creación exitosa inyectando el perfil fiscal del inquilino."""
-        # Arrange
-        url = CREATE_URL
-        initial_count = SalesRecord.objects.count()
-    
-        # Act
-        response = authenticated_client.post(url, data=valid_sales_record_payload)
-    
-        # Assert
-        assert response.status_code in [200, 302], "La vista debe procesar la solicitud exitosamente."
->       assert SalesRecord.objects.count() == initial_count + 1
-E       assert 0 == (0 + 1)
-E        +  where 0 = count()
-E        +    where count = <data_access.manager.requestscopedmanager.RequestScopedManager object at 0x7ddf5f6abfe0>.count
-E        +      where <data_access.manager.requestscopedmanager.RequestScopedManager object at 0x7ddf5f6abfe0> = SalesRecord.objects
-
-presentation/tests/test_salesrecord/test_sales_record.py:42: AssertionError
----------------------------- Captured stderr setup -----------------------------
-Using existing test database for alias 'default'...
-__________ test_ID_HP_003_flujo_completo_edicion_registro_preliminar ___________
-
-authenticated_client = <django.test.client.Client object at 0x7ddf5f2ec5f0>
-persisted_sales_record = <SalesRecord id=170 doc=0001>
-valid_sales_record_payload = {'client': 423, 'document_type': 'INVOICE', 'document_number': '9999', 'control_number': '00-000005', ...}
-
-    @pytest.mark.django_db
-    def test_ID_HP_003_flujo_completo_edicion_registro_preliminar(
-        authenticated_client: Client,
-        persisted_sales_record: SalesRecord,
-        valid_sales_record_payload: Dict[str, Any]
-    ) -> None:
-        """Comprueba la actualización exitosa de un registro preliminar."""
-        # Arrange
-        url = UPDATE_URL_TEMPLATE.format(pk=persisted_sales_record.pk)
-        valid_sales_record_payload["document_number"] = "9999"
-    
-        # Act
-        response = authenticated_client.post(url, data=valid_sales_record_payload)
-    
-        # Assert
-        assert response.status_code in [200, 302]
-        persisted_sales_record.refresh_from_db()
->       assert persisted_sales_record.document_number == "9999"
-E       AssertionError: assert '0001' == '9999'
-E         
-E         - 9999
-E         + 0001
-
-presentation/tests/test_salesrecord/test_sales_record.py:86: AssertionError
-_________ test_ID_EC_003_alteracion_payload_post_campos_deshabilitados _________
-
-authenticated_client = <django.test.client.Client object at 0x7ddf5ddd6ff0>
-valid_sales_record_payload = {'client': 424, 'document_type': 'INVOICE', 'document_number': '0005', 'control_number': '00-000005', ...}
-other_tenant_profile = <FiscalProfile: Otra Empresa C.A. (J987654321)>
-fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
-
-    @pytest.mark.django_db
-    def test_ID_EC_003_alteracion_payload_post_campos_deshabilitados(
-        authenticated_client: Client,
-        valid_sales_record_payload: Dict[str, Any],
-        other_tenant_profile: FiscalProfile,
-        fiscal_profile: FiscalProfile
-    ) -> None:
-        """Probar que el formulario ignora inyecciones maliciosas de tenant IDs."""
-        # Arrange
-        url = CREATE_URL
-        # Intento de asignación a un tenant distinto
-        valid_sales_record_payload["fiscal_profile"] = other_tenant_profile.id
-    
-        # Act
-        response = authenticated_client.post(url, data=valid_sales_record_payload)
-    
-        # Assert
-        assert response.status_code in [200, 302]
->       new_record = SalesRecord.objects.latest('id')
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-presentation/tests/test_salesrecord/test_sales_record.py:144: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:1133: in latest
-    return self.reverse()._earliest(*fields)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:1116: in _earliest
-    return obj.get()
-           ^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <RequestScopedQuerySet []>, args = (), kwargs = {}
-
-    def get(self, *args, **kwargs):
-        """
-        Perform the query and return a single object matching the given
-        keyword arguments.
-        """
-        if self.query.combinator and (args or kwargs):
-            raise NotSupportedError(
-                "Calling QuerySet.get(...) with filters after %s() is not "
-                "supported." % self.query.combinator
-            )
-        clone = self._chain() if self.query.combinator else self.filter(*args, **kwargs)
-        if self.query.can_filter() and not self.query.distinct_fields:
-            clone = clone.order_by()
-        limit = None
-        if (
-            not clone.query.select_for_update
-            or connections[clone.db].features.supports_select_for_update_with_limit
-        ):
-            limit = MAX_GET_RESULTS
-            clone.query.set_limits(high=limit)
-        num = len(clone)
-        if num == 1:
-            return clone._result_cache[0]
-        if not num:
->           raise self.model.DoesNotExist(
-                "%s matching query does not exist." % self.model._meta.object_name
-            )
-E           data_access.models.sales_record.SalesRecord.DoesNotExist: SalesRecord matching query does not exist.
-
-venv/lib/python3.12/site-packages/django/db/models/query.py:639: DoesNotExist
 _____________ test_ID_EC_004_intercepcion_error_unicidad_documento _____________
 
-self = <django.db.backends.utils.CursorWrapper object at 0x7ddf5dd9df70>
-sql = 'INSERT INTO "data_access_salesrecord" ("fiscal_profile_id", "fiscal_period", "document_date", "invoice_number", "last..., %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_salesrecord"."id"'
-params = (1589, None, datetime.date(2026, 9, 5), None, None, None, ...)
-ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x7ddf5dd9df70>})
-
-    def _execute(self, sql, params, *ignored_wrapper_args):
-        # Raise a warning during app initialization (stored_app_configs is only
-        # ever set during testing).
-        if not apps.ready and not apps.stored_app_configs:
-            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
-        self.db.validate_no_broken_transaction()
-        with self.db.wrap_database_errors:
-            if params is None:
-                # params default might be backend specific.
-                return self.cursor.execute(sql)
-            else:
->               return self.cursor.execute(sql, params)
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ddf5dd40b90>
-query = 'INSERT INTO "data_access_salesrecord" ("fiscal_profile_id", "fiscal_period", "document_date", "invoice_number", "last..., %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_salesrecord"."id"'
-params = (1589, None, datetime.date(2026, 9, 5), None, None, None, ...)
-prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "unique_issued_document"
-E           DETAIL:  Key (fiscal_profile_id, control_number, document_type)=(1589, 00-000001, INVOICE) already exists.
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: UniqueViolation
-
-The above exception was the direct cause of the following exception:
-
-authenticated_client = <django.test.client.Client object at 0x7ddf5dd9e180>
-persisted_sales_record = <SalesRecord id=171 doc=0001>
-valid_sales_record_payload = {'client': 425, 'document_type': 'INVOICE', 'document_number': '0005', 'control_number': '00-000001', ...}
+authenticated_client = <django.test.client.Client object at 0x76da34137650>
+persisted_sales_record = <SalesRecord id=184 doc=0001>
+valid_sales_record_payload = {'client': 436, 'document_type': 'INVOICE', 'document_number': '0005', 'control_number': '00-000001', ...}
 
     @pytest.mark.django_db
     def test_ID_EC_004_intercepcion_error_unicidad_documento(
@@ -219,383 +30,25 @@ valid_sales_record_payload = {'client': 425, 'document_type': 'INVOICE', 'docume
         # Duplicamos los valores exactos para detonar unique_issued_document
         valid_sales_record_payload["control_number"] = persisted_sales_record.control_number
         valid_sales_record_payload["document_type"] = persisted_sales_record.document_type
-    
-        # Comprobación de borde directo (simulando IntegrityError a bajo nivel si se invoca manual)
-        with pytest.raises(IntegrityError):
-            duplicate_record = SalesRecord(
-                fiscal_profile=persisted_sales_record.fiscal_profile,
-                client=persisted_sales_record.client,
-                control_number=persisted_sales_record.control_number,
-                document_type=persisted_sales_record.document_type,
-                document_date=persisted_sales_record.document_date,
-                # Se omiten campos obligatorios irrelevantes para provocar la restricción de BD
-            )
->           duplicate_record.save()
-
-presentation/tests/test_salesrecord/test_sales_record.py:172: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-data_access/models/sales_record.py:364: in save
-    super().save(*args, **kwargs)
-venv/lib/python3.12/site-packages/django/db/models/base.py:874: in save
-    self.save_base(
-venv/lib/python3.12/site-packages/django/db/models/base.py:966: in save_base
-    updated = self._save_table(
-venv/lib/python3.12/site-packages/django/db/models/base.py:1169: in _save_table
-    results = self._do_insert(
-venv/lib/python3.12/site-packages/django/db/models/base.py:1220: in _do_insert
-    return manager._insert(
-venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:1918: in _insert
-    return query.get_compiler(using=using).execute_sql(returning_fields)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1925: in execute_sql
-    cursor.execute(sql, params)
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
-    return self._execute_with_wrappers(
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
-    with self.db.wrap_database_errors:
-venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
-    raise dj_exc_value.with_traceback(traceback) from exc_value
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
-    return self.cursor.execute(sql, params)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com user=account_5x7m_user database=test_account_5x7m) at 0x7ddf5dd40b90>
-query = 'INSERT INTO "data_access_salesrecord" ("fiscal_profile_id", "fiscal_period", "document_date", "invoice_number", "last..., %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_salesrecord"."id"'
-params = (1589, None, datetime.date(2026, 9, 5), None, None, None, ...)
-prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           django.db.utils.IntegrityError: duplicate key value violates unique constraint "unique_issued_document"
-E           DETAIL:  Key (fiscal_profile_id, control_number, document_type)=(1589, 00-000001, INVOICE) already exists.
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: IntegrityError
-
-The above exception was the direct cause of the following exception:
-
-authenticated_client = <django.test.client.Client object at 0x7ddf5dd9e180>
-persisted_sales_record = <SalesRecord id=171 doc=0001>
-valid_sales_record_payload = {'client': 425, 'document_type': 'INVOICE', 'document_number': '0005', 'control_number': '00-000001', ...}
-
-    @pytest.mark.django_db
-    def test_ID_EC_004_intercepcion_error_unicidad_documento(
-        authenticated_client: Client,
-        persisted_sales_record: SalesRecord,
-        valid_sales_record_payload: Dict[str, Any]
-    ) -> None:
-        """Valida la captura en la vista del IntegrityError de unicidad mapeado al formulario."""
-        # Arrange
-        url = CREATE_URL
-        # Duplicamos los valores exactos para detonar unique_issued_document
-        valid_sales_record_payload["control_number"] = persisted_sales_record.control_number
-        valid_sales_record_payload["document_type"] = persisted_sales_record.document_type
-    
-        # Comprobación de borde directo (simulando IntegrityError a bajo nivel si se invoca manual)
-        with pytest.raises(IntegrityError):
-            duplicate_record = SalesRecord(
-                fiscal_profile=persisted_sales_record.fiscal_profile,
-                client=persisted_sales_record.client,
-                control_number=persisted_sales_record.control_number,
-                document_type=persisted_sales_record.document_type,
-                document_date=persisted_sales_record.document_date,
-                # Se omiten campos obligatorios irrelevantes para provocar la restricción de BD
-            )
-            duplicate_record.save()
     
         # Act
->       response = authenticated_client.post(url, data=valid_sales_record_payload)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        response = authenticated_client.post(url, data=valid_sales_record_payload)
+    
+        # Assert
+        assert response.status_code == 200
+        form = response.context["form"]
+>       assert "control_number" in form.errors
+E       AssertionError: assert 'control_number' in {'__all__': ['Sales record con este Tenant / Associated Fiscal Profile, Control number y Document type ya existe.']}
+E        +  where {'__all__': ['Sales record con este Tenant / Associated Fiscal Profile, Control number y Document type ya existe.']} = <SalesRecordForm bound=True, valid=False, fields=(fiscal_profile;fiscal_period;document_date;invoice_number;last_receipt_number;document_number;control_number;document_type;transaction_type;sale_type;fiscal_printer_number;z_report_number;record_status;affected_invoice;client;total_sales_inc_vat;exempt_internal_sales;exonerated_internal_sales;non_subject_internal_sales;general_tax_base_16;general_tax_debit_16;reduced_tax_base_8;reduced_tax_debit_8;additional_tax_base_31;additional_tax_debit_31;igtf_tax_base;igtf_tax_amount;fob_export_value)>.errors
 
-presentation/tests/test_salesrecord/test_sales_record.py:175: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-venv/lib/python3.12/site-packages/django/test/client.py:1156: in post
-    response = super().post(
-venv/lib/python3.12/site-packages/django/test/client.py:499: in post
-    return self.generic(
-venv/lib/python3.12/site-packages/django/test/client.py:671: in generic
-    return self.request(**r)
-           ^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/test/client.py:1090: in request
-    self.check_exception(response)
-venv/lib/python3.12/site-packages/django/test/client.py:805: in check_exception
-    raise exc_value
-venv/lib/python3.12/site-packages/django/core/handlers/exception.py:55: in inner
-    response = get_response(request)
-               ^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/core/handlers/base.py:198: in _get_response
-    response = wrapped_callback(request, *callback_args, **callback_kwargs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/base.py:106: in view
-    return self.dispatch(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/base.py:145: in dispatch
-    return handler(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/edit.py:182: in post
-    return super().post(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/edit.py:149: in post
-    form = self.get_form()
-           ^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/views/generic/edit.py:37: in get_form
-    return form_class(**self.get_form_kwargs())
-                        ^^^^^^^^^^^^^^^^^^^^^^
-presentation/views/salesrecord.py:56: in get_form_kwargs
-    kwargs['fiscal_profile'] = unwrap_lazy_object(self.request.fiscal_profile)
-                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-utils.py:9: in unwrap_lazy_object
-    obj._setup()  # Ejecuta la lambda interna (get_fiscal_period)
-    ^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/utils/functional.py:404: in _setup
-    self._wrapped = self._setupfunc()
-                    ^^^^^^^^^^^^^^^^^
-data_access/middleware/fiscalprofilemiddleware.py:32: in <lambda>
-    request.fiscal_profile = SimpleLazyObject(lambda: get_fiscal_profile(request))
-                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-data_access/middleware/fiscalprofilemiddleware.py:7: in get_fiscal_profile
-    if request.user.is_authenticated:
-       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/utils/functional.py:251: in inner
-    self._setup()
-venv/lib/python3.12/site-packages/django/utils/functional.py:404: in _setup
-    self._wrapped = self._setupfunc()
-                    ^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/contrib/auth/middleware.py:40: in <lambda>
-    request.user = SimpleLazyObject(lambda: get_user(request))
-                                            ^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/contrib/auth/middleware.py:20: in get_user
-    request._cached_user = auth.get_user(request)
-                           ^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/contrib/auth/__init__.py:321: in get_user
-    user_id = _get_user_session_key(request)
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/contrib/auth/__init__.py:95: in _get_user_session_key
-    return get_user_model()._meta.pk.to_python(request.session[SESSION_KEY])
-                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/contrib/sessions/backends/base.py:55: in __getitem__
-    return self._session[key]
-           ^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/contrib/sessions/backends/base.py:251: in _get_session
-    self._session_cache = self.load()
-                          ^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/contrib/sessions/backends/db.py:55: in load
-    s = self._get_session_from_db()
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/contrib/sessions/backends/db.py:34: in _get_session_from_db
-    return self.model.objects.get(
-venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:635: in get
-    num = len(clone)
-          ^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:372: in __len__
-    self._fetch_all()
-venv/lib/python3.12/site-packages/django/db/models/query.py:2000: in _fetch_all
-    self._result_cache = list(self._iterable_class(self))
-                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:95: in __iter__
-    results = compiler.execute_sql(
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1624: in execute_sql
-    cursor.execute(sql, params)
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
-    return self._execute_with_wrappers(
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:99: in _execute
-    self.db.validate_no_broken_transaction()
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <DatabaseWrapper vendor='postgresql' alias='default'>
-
-    def validate_no_broken_transaction(self):
-        if self.needs_rollback:
->           raise TransactionManagementError(
-                "An error occurred in the current transaction. You can't "
-                "execute queries until the end of the 'atomic' block."
-            ) from self.rollback_exc
-E           django.db.transaction.TransactionManagementError: An error occurred in the current transaction. You can't execute queries until the end of the 'atomic' block.
-
-venv/lib/python3.12/site-packages/django/db/backends/base/base.py:521: TransactionManagementError
------------------------------- Captured log call -------------------------------
-ERROR    django.request:log.py:249 Internal Server Error: /sales-records/create/
-Traceback (most recent call last):
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 105, in _execute
-    return self.cursor.execute(sql, params)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/psycopg/cursor.py", line 117, in execute
-    raise ex.with_traceback(None)
-psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "unique_issued_document"
-DETAIL:  Key (fiscal_profile_id, control_number, document_type)=(1589, 00-000001, INVOICE) already exists.
-
-The above exception was the direct cause of the following exception:
-
-Traceback (most recent call last):
-  File "/workspaces/accounting_system_location_ve/presentation/tests/test_salesrecord/test_sales_record.py", line 172, in test_ID_EC_004_intercepcion_error_unicidad_documento
-    duplicate_record.save()
-  File "/workspaces/accounting_system_location_ve/data_access/models/sales_record.py", line 364, in save
-    super().save(*args, **kwargs)
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/base.py", line 874, in save
-    self.save_base(
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/base.py", line 966, in save_base
-    updated = self._save_table(
-              ^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/base.py", line 1169, in _save_table
-    results = self._do_insert(
-              ^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/base.py", line 1220, in _do_insert
-    return manager._insert(
-           ^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/query.py", line 1918, in _insert
-    return query.get_compiler(using=using).execute_sql(returning_fields)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py", line 1925, in execute_sql
-    cursor.execute(sql, params)
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 79, in execute
-    return self._execute_with_wrappers(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 92, in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 100, in _execute
-    with self.db.wrap_database_errors:
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/utils.py", line 94, in __exit__
-    raise dj_exc_value.with_traceback(traceback) from exc_value
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 105, in _execute
-    return self.cursor.execute(sql, params)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/psycopg/cursor.py", line 117, in execute
-    raise ex.with_traceback(None)
-django.db.utils.IntegrityError: duplicate key value violates unique constraint "unique_issued_document"
-DETAIL:  Key (fiscal_profile_id, control_number, document_type)=(1589, 00-000001, INVOICE) already exists.
-
-The above exception was the direct cause of the following exception:
-
-Traceback (most recent call last):
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
-    response = get_response(request)
-               ^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/core/handlers/base.py", line 198, in _get_response
-    response = wrapped_callback(request, *callback_args, **callback_kwargs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/base.py", line 106, in view
-    return self.dispatch(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/base.py", line 145, in dispatch
-    return handler(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/edit.py", line 182, in post
-    return super().post(request, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/edit.py", line 149, in post
-    form = self.get_form()
-           ^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/views/generic/edit.py", line 37, in get_form
-    return form_class(**self.get_form_kwargs())
-                        ^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/presentation/views/salesrecord.py", line 56, in get_form_kwargs
-    kwargs['fiscal_profile'] = unwrap_lazy_object(self.request.fiscal_profile)
-                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/utils.py", line 9, in unwrap_lazy_object
-    obj._setup()  # Ejecuta la lambda interna (get_fiscal_period)
-    ^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/utils/functional.py", line 404, in _setup
-    self._wrapped = self._setupfunc()
-                    ^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/data_access/middleware/fiscalprofilemiddleware.py", line 32, in <lambda>
-    request.fiscal_profile = SimpleLazyObject(lambda: get_fiscal_profile(request))
-                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/data_access/middleware/fiscalprofilemiddleware.py", line 7, in get_fiscal_profile
-    if request.user.is_authenticated:
-       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/utils/functional.py", line 251, in inner
-    self._setup()
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/utils/functional.py", line 404, in _setup
-    self._wrapped = self._setupfunc()
-                    ^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/contrib/auth/middleware.py", line 40, in <lambda>
-    request.user = SimpleLazyObject(lambda: get_user(request))
-                                            ^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/contrib/auth/middleware.py", line 20, in get_user
-    request._cached_user = auth.get_user(request)
-                           ^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/contrib/auth/__init__.py", line 321, in get_user
-    user_id = _get_user_session_key(request)
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/contrib/auth/__init__.py", line 95, in _get_user_session_key
-    return get_user_model()._meta.pk.to_python(request.session[SESSION_KEY])
-                                               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/contrib/sessions/backends/base.py", line 55, in __getitem__
-    return self._session[key]
-           ^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/contrib/sessions/backends/base.py", line 251, in _get_session
-    self._session_cache = self.load()
-                          ^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/contrib/sessions/backends/db.py", line 55, in load
-    s = self._get_session_from_db()
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/contrib/sessions/backends/db.py", line 34, in _get_session_from_db
-    return self.model.objects.get(
-           ^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/query.py", line 635, in get
-    num = len(clone)
-          ^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/query.py", line 372, in __len__
-    self._fetch_all()
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/query.py", line 2000, in _fetch_all
-    self._result_cache = list(self._iterable_class(self))
-                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/query.py", line 95, in __iter__
-    results = compiler.execute_sql(
-              ^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py", line 1624, in execute_sql
-    cursor.execute(sql, params)
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 79, in execute
-    return self._execute_with_wrappers(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 92, in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 99, in _execute
-    self.db.validate_no_broken_transaction()
-  File "/workspaces/accounting_system_location_ve/venv/lib/python3.12/site-packages/django/db/backends/base/base.py", line 521, in validate_no_broken_transaction
-    raise TransactionManagementError(
-django.db.transaction.TransactionManagementError: An error occurred in the current transaction. You can't execute queries until the end of the 'atomic' block.
+presentation/tests/test_salesrecord/test_sales_record.py:168: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+Using existing test database for alias 'default'...
 ___________ test_ID_EC_005_captura_excepcion_inmutabilidad_guardado ____________
 
-authenticated_client = <django.test.client.Client object at 0x7ddf5dd9dd00>
-processed_sales_record = <SalesRecord id=173 doc=0001>
-valid_sales_record_payload = {'client': 426, 'document_type': 'INVOICE', 'document_number': '0005', 'control_number': '00-000005', ...}
+authenticated_client = <django.test.client.Client object at 0x76da34137680>
+processed_sales_record = <SalesRecord id=185 doc=0001>
+valid_sales_record_payload = {'client': 437, 'document_type': 'INVOICE', 'document_number': '0005', 'control_number': '00-000005', ...}
 
     @pytest.mark.django_db
     def test_ID_EC_005_captura_excepcion_inmutabilidad_guardado(
@@ -613,16 +66,19 @@ valid_sales_record_payload = {'client': 426, 'document_type': 'INVOICE', 'docume
         # Assert
         assert response.status_code == 200
         form = response.context["form"]
->       assert form.non_field_errors()
-E       assert []
-E        +  where [] = non_field_errors()
-E        +    where non_field_errors = <SalesRecordForm bound=True, valid=False, fields=(fiscal_profile;fiscal_period;document_date;invoice_number;last_receipt_number;document_number;control_number;document_type;transaction_type;sale_type;fiscal_printer_number;z_report_number;record_status;affected_invoice;client;total_sales_inc_vat;exempt_internal_sales;exonerated_internal_sales;non_subject_internal_sales;general_tax_base_16;general_tax_debit_16;reduced_tax_base_8;reduced_tax_debit_8;additional_tax_base_31;additional_tax_debit_31;igtf_tax_base;igtf_tax_amount;fob_export_value)>.non_field_errors
+        assert form.non_field_errors()
+        expected_msg = (
+            "No se puede modificar un registro del Libro de Ventas que ya se "
+            "encuentra en estatus 'Procesado' o 'Anulado Procesado'."
+        )
+>       assert expected_msg in str(form.non_field_errors())
+E       assert "No se puede modificar un registro del Libro de Ventas que ya se encuentra en estatus 'Procesado' o 'Anulado Procesado'." in '<ul class="errorlist nonfield"><li>No se puede modificar un registro del Libro de Ventas que ya se encuentra en estatus &#x27;Procesado&#x27; o &#x27;Anulado Procesado&#x27;.</li></ul>'
+E        +  where '<ul class="errorlist nonfield"><li>No se puede modificar un registro del Libro de Ventas que ya se encuentra en estatus &#x27;Procesado&#x27; o &#x27;Anulado Procesado&#x27;.</li></ul>' = str(["No se puede modificar un registro del Libro de Ventas que ya se encuentra en estatus 'Procesado' o 'Anulado Procesado'."])
+E        +    where ["No se puede modificar un registro del Libro de Ventas que ya se encuentra en estatus 'Procesado' o 'Anulado Procesado'."] = non_field_errors()
+E        +      where non_field_errors = <SalesRecordForm bound=True, valid=False, fields=(fiscal_profile;fiscal_period;document_date;invoice_number;last_receipt_number;document_number;control_number;document_type;transaction_type;sale_type;fiscal_printer_number;z_report_number;record_status;affected_invoice;client;total_sales_inc_vat;exempt_internal_sales;exonerated_internal_sales;non_subject_internal_sales;general_tax_base_16;general_tax_debit_16;reduced_tax_base_8;reduced_tax_debit_8;additional_tax_base_31;additional_tax_debit_31;igtf_tax_base;igtf_tax_amount;fob_export_value)>.non_field_errors
 
-presentation/tests/test_salesrecord/test_sales_record.py:204: AssertionError
+presentation/tests/test_salesrecord/test_sales_record.py:197: AssertionError
 =========================== short test summary info ============================
-FAILED presentation/tests/test_salesrecord/test_sales_record.py::test_ID_HP_001_inyeccion_contexto_inquilino_creacion
-FAILED presentation/tests/test_salesrecord/test_sales_record.py::test_ID_HP_003_flujo_completo_edicion_registro_preliminar
-FAILED presentation/tests/test_salesrecord/test_sales_record.py::test_ID_EC_003_alteracion_payload_post_campos_deshabilitados
 FAILED presentation/tests/test_salesrecord/test_sales_record.py::test_ID_EC_004_intercepcion_error_unicidad_documento
 FAILED presentation/tests/test_salesrecord/test_sales_record.py::test_ID_EC_005_captura_excepcion_inmutabilidad_guardado
-======================= 5 failed, 3 deselected in 38.66s =======================
+======================= 2 failed, 6 deselected in 19.35s =======================
