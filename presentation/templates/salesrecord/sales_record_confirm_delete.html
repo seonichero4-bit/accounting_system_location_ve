@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Confirmar Eliminación</title>
+</head>
+<body>
+    <h1>Eliminar Registro de Venta</h1>
+    
+    <p>
+        ¿Estás seguro de que deseas eliminar el registro de venta 
+        <strong>{{ sales_record.document_number|default:sales_record.pk }}</strong>?
+    </p>
+    
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit">Sí, eliminar registro</button>
+    </form>
+    
+    <br>
+    <a href="{% url 'sales_record_list' %}">Cancelar y Volver</a>
+</body>
+</html>

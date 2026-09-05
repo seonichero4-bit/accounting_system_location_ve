@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Registro de Ventas</title>
+</head>
+<body>
+    <h1>Libro de Ventas</h1>
+    
+    <!-- Renderizado explícito de fallos globales (Regla de Inmutabilidad, etc.) -->
+    {% if form.non_field_errors %}
+        <div class="global-errors">
+            {% for error in form.non_field_errors %}
+                <p style="color: red; font-weight: bold;">{{ error }}</p>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        
+        <!-- Renderizado de campos individuales mapeados a los tests de validación -->
+        {% for field in form %}
+            <div class="form-group">
+                {{ field.label_tag }}
+                {{ field }}
+                
+                {% if field.errors %}
+                    <div class="field-errors">
+                        {% for error in field.errors %}
+                            <span style="color: red;">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+        
+        <button type="submit">Guardar Registro</button>
+    </form>
+</body>
+</html>

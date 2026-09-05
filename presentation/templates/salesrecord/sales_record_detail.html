@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Detalle de Venta</title>
+</head>
+<body>
+    <h1>Detalle del Registro de Venta #{{ sales_record.pk }}</h1>
+    
+    <ul>
+        <li><strong>Fecha:</strong> {{ sales_record.document_date }}</li>
+        <li><strong>Tipo de Documento:</strong> {{ sales_record.get_document_type_display|default:"N/A" }}</li>
+        <li><strong>N° Documento:</strong> {{ sales_record.document_number|default:"N/A" }}</li>
+        <li><strong>N° Control:</strong> {{ sales_record.control_number|default:"N/A" }}</li>
+        <li><strong>Total Incluido IVA:</strong> {{ sales_record.total_sales_inc_vat }}</li>
+        <li><strong>Estado:</strong> {{ sales_record.get_record_status_display }}</li>
+        <li><strong>Cliente:</strong> {{ sales_record.client.name }}</li>
+    </ul>
+    
+    <a href="{% url 'sales_record_list' %}">Volver al Listado</a>
+    <a href="{% url 'sales_record_update' sales_record.pk %}">Editar</a>
+    <a href="{% url 'sales_record_delete' sales_record.pk %}">Eliminar</a>
+</body>
+</html>

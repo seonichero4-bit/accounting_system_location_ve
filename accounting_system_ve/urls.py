@@ -16,10 +16,20 @@ from presentation.views import purchaseledgerdownloadview
 from presentation.views.vat_withholding_export_view import VatWithholdingExcelExportView
 
 from presentation.views import customer
+from presentation.views import salesrecord
+
 
 
 
 urlpatterns = [
+
+# URLS SalesRecord
+
+    path('sales-records/', salesrecord.SalesRecordListView.as_view(), name='sales_record_list'),
+    path('sales-records/create/', salesrecord.SalesRecordCreateView.as_view(), name='sales_record_create'),
+    path('sales-records/<int:pk>/', salesrecord.SalesRecordDetailView.as_view(), name='sales_record_detail'),
+    path('sales-records/update/<int:pk>/', salesrecord.SalesRecordUpdateView.as_view(), name='sales_record_update'),
+    path('sales-records/delete/<int:pk>/', salesrecord.SalesRecordDeleteView.as_view(), name='sales_record_delete'),
 
  # URLS Customer
 

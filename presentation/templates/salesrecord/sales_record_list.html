@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Listado de Ventas</title>
+</head>
+<body>
+    <h1>Listado de Registros de Ventas</h1>
+    <a href="{% url 'sales_record_create' %}">Crear Nuevo Registro</a>
+    
+    <table border="1">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Fecha Documento</th>
+                <th>N° Documento</th>
+                <th>N° Control</th>
+                <th>Total Incl. IVA</th>
+                <th>Estatus</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in sales_records %}
+            <tr>
+                <td>{{ record.pk }}</td>
+                <td>{{ record.document_date }}</td>
+                <td>{{ record.document_number|default:"N/A" }}</td>
+                <td>{{ record.control_number|default:"N/A" }}</td>
+                <td>{{ record.total_sales_inc_vat }}</td>
+                <td>{{ record.get_record_status_display }}</td>
+                <td>
+                    <a href="{% url 'sales_record_detail' record.pk %}">Ver</a> |
+                    <a href="{% url 'sales_record_update' record.pk %}">Editar</a> |
+                    <a href="{% url 'sales_record_delete' record.pk %}">Eliminar</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7">No hay registros de ventas para mostrar.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
