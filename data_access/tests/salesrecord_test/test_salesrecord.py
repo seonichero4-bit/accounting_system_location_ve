@@ -483,7 +483,7 @@ def test_id_ec_019_incoherencia_venta_interna_con_valor_fob(
 
 
 @pytest.mark.django_db
-def test_id_ec_020_violacion_inmutabilidad_save_processed(
+def test_id_ec_020_violacion_inmutabilidad_clean_processed(
     persisted_sales_record: SalesRecord
 ) -> None:
     """Intento de modificación sobre registro en estado PROCESSED."""
@@ -494,12 +494,12 @@ def test_id_ec_020_violacion_inmutabilidad_save_processed(
     # Act & Assert
     persisted_sales_record.document_number = "MODIFICADO"
     with pytest.raises(ValidationError) as exc_info:
-        persisted_sales_record.save()
+        persisted_sales_record.clean()
     assert "__all__" in exc_info.value.error_dict
 
 
 @pytest.mark.django_db
-def test_id_ec_021_violacion_inmutabilidad_save_annulled_processed(
+def test_id_ec_021_violacion_inmutabilidad_clean_annulled_processed(
     persisted_sales_record: SalesRecord
 ) -> None:
     """Intento de modificación sobre registro en estado ANNULLED_PROCESSED."""
@@ -510,7 +510,7 @@ def test_id_ec_021_violacion_inmutabilidad_save_annulled_processed(
     # Act & Assert
     persisted_sales_record.control_number = "MODIFICADO"
     with pytest.raises(ValidationError) as exc_info:
-        persisted_sales_record.save()
+        persisted_sales_record.clean()
     assert "__all__" in exc_info.value.error_dict
 
 

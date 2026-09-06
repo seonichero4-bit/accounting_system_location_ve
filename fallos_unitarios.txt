@@ -1,0 +1,86 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.1, pytest-9.1.1, pluggy-1.6.0 -- /workspaces/accounting_system_location_ve/venv/bin/python
+cachedir: .pytest_cache
+django: version: 6.0.7, settings: accounting_system_ve.settings (from ini)
+rootdir: /workspaces/accounting_system_location_ve
+configfile: pytest.ini
+plugins: django-4.14.0, Faker-40.15.0
+collecting ... collected 33 items
+
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_hp_001_registro_exitoso_venta_interna_estandar PASSED [  3%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_hp_002_registro_exitoso_operacion_exportacion PASSED [  6%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_hp_003_registro_exitoso_nota_credito_vinculada PASSED [  9%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_hp_004_registro_exitoso_transaccion_anulada PASSED [ 12%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_hp_005_modificacion_permitida_registro_preliminary PASSED [ 15%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_hp_006_registro_exitoso_impresora_fiscal PASSED [ 18%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_hp_007_calculo_exacto_igtf_con_margen_tolerancia PASSED [ 21%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_hp_008_sanitizacion_automatica_numero_control_factura PASSED [ 24%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_hp_009_normalizacion_implicita_save_grupo_a PASSED [ 27%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_hp_010_normalizacion_implicita_save_grupo_b PASSED [ 30%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_001_violacion_unicidad_documento_emitido PASSED [ 33%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_002_violacion_unicidad_reporte_z PASSED [ 36%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_003_montos_financieros_negativos PASSED [ 39%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_004_secuencia_comprobantes_invalida PASSED [ 42%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_005_suma_montos_mayor_a_cero_anulacion PASSED [ 45%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_006_inconsistencia_ecuacion_contable_total PASSED [ 48%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_007_desviacion_precision_debito_fiscal_fuera_tolerancia PASSED [ 51%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_008_debito_fiscal_presente_con_base_cero PASSED [ 54%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_009_omision_documento_afectado_nota_credito PASSED [ 57%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_010_asignacion_indebida_documento_afectado_factura PASSED [ 60%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_011_presencia_campos_impresora_fiscal_grupo_a PASSED [ 63%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_012_omision_campos_obligatorios_grupo_a PASSED [ 66%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_013_presencia_campos_documentacion_interna_grupo_b PASSED [ 69%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_014_incompleitud_campos_requeridos_impresora_fiscal_grupo_b PASSED [ 72%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_015_cliente_no_valido_estado_anulado PASSED [ 75%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_016_desviacion_calculo_igtf_fuera_margen PASSED [ 78%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_017_infraccion_fecha_futura_documento PASSED [ 81%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_018_incoherencia_exportacion_con_ventas_internas PASSED [ 84%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_019_incoherencia_venta_interna_con_valor_fob PASSED [ 87%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_020_violacion_inmutabilidad_save_processed FAILED [ 90%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_021_violacion_inmutabilidad_save_annulled_processed FAILED [ 93%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_022_formato_numero_control_invalido PASSED [ 96%]
+data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_023_acumulacion_masiva_errores_clean PASSED [100%]
+
+=================================== FAILURES ===================================
+____________ test_id_ec_020_violacion_inmutabilidad_save_processed _____________
+
+persisted_sales_record = <SalesRecord id=233 doc=MODIFICADO>
+
+    @pytest.mark.django_db
+    def test_id_ec_020_violacion_inmutabilidad_save_processed(
+        persisted_sales_record: SalesRecord
+    ) -> None:
+        """Intento de modificación sobre registro en estado PROCESSED."""
+        # Arrange
+        SalesRecord.objects.filter(pk=persisted_sales_record.pk).update(record_status="PROCESSED")
+        persisted_sales_record.refresh_from_db()
+    
+        # Act & Assert
+        persisted_sales_record.document_number = "MODIFICADO"
+>       with pytest.raises(ValidationError) as exc_info:
+E       Failed: DID NOT RAISE ValidationError
+
+data_access/tests/salesrecord_test/test_salesrecord.py:496: Failed
+________ test_id_ec_021_violacion_inmutabilidad_save_annulled_processed ________
+
+persisted_sales_record = <SalesRecord id=234 doc=0001>
+
+    @pytest.mark.django_db
+    def test_id_ec_021_violacion_inmutabilidad_save_annulled_processed(
+        persisted_sales_record: SalesRecord
+    ) -> None:
+        """Intento de modificación sobre registro en estado ANNULLED_PROCESSED."""
+        # Arrange
+        SalesRecord.objects.filter(pk=persisted_sales_record.pk).update(record_status="ANNULLED_PROCESSED")
+        persisted_sales_record.refresh_from_db()
+    
+        # Act & Assert
+        persisted_sales_record.control_number = "MODIFICADO"
+>       with pytest.raises(ValidationError) as exc_info:
+E       Failed: DID NOT RAISE ValidationError
+
+data_access/tests/salesrecord_test/test_salesrecord.py:512: Failed
+=========================== short test summary info ============================
+FAILED data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_020_violacion_inmutabilidad_save_processed
+FAILED data_access/tests/salesrecord_test/test_salesrecord.py::test_id_ec_021_violacion_inmutabilidad_save_annulled_processed
+=================== 2 failed, 31 passed in 79.85s (0:01:19) ====================

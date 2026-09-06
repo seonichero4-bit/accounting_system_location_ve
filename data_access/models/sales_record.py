@@ -172,15 +172,18 @@ class SalesRecord(FiscalModuleAbstractModel):
                     Q(non_subject_internal_sales__gte=0) &
                     Q(fob_export_value__gte=0)
                 ),
-                name='positive_amounts'
+                name='positive_amounts',
+                violation_error_message="Todos los montos (ventas, bases imponibles y exenciones) deben ser mayores o iguales a 0.00."
             ),
             models.CheckConstraint(
                 condition=Q(last_receipt_number__gte=F('invoice_number')) | Q(last_receipt_number__isnull=True) | Q(invoice_number__isnull=True),
-                name='valid_receipt_sequence'
+                name='valid_receipt_sequence',
+                violation_error_message="El número del último comprobante no puede ser menor al número de factura o primer comprobante."
             ),
             models.CheckConstraint(
                 condition=~Q(transaction_type='03_ANNULMENT') | Q(total_sales_inc_vat=0),
-                name='zero_amount_on_annulment'
+                name='zero_amount_on_annulment',
+                violation_error_message="Para las transacciones de anulación, el monto total de ventas debe ser obligatoriamente 0.00."
             ),
         ]
 
@@ -194,6 +197,14 @@ class SalesRecord(FiscalModuleAbstractModel):
     def clean(self) -> None:
         """Aplica la lógica de validación de negocio y sanitaria del modelo."""
         errors = {}
+
+        # 1. Restricción de Inmutabilidad Fiscal
+        if self.pk:
+            old_instance = SalesRecord.objects.filter(pk=self.pk).first()
+            if old_instance and old_instance.record_status in [self.RecordStatus.PROCESSED, self.RecordStatus.ANNULLED_PROCESSED]:
+                errors['__all__'] = "No se puede modificar un registro del Libro de Ventas que ya se encuentra en estatus 'Procesado' o 'Anulado Procesado'."
+
+        # Sanitización de campos identificadores
 
         # Sanitización de campos identificadores
         if self.control_number:
@@ -335,20 +346,13 @@ class SalesRecord(FiscalModuleAbstractModel):
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs) -> None:
-        """Persiste el registro garantizando la inmutabilidad y la normalización de datos."""
-        # 1. Restricción de Inmutabilidad Fiscal
-        if self.pk:
-            old_instance = SalesRecord.objects.get(pk=self.pk)
-            if old_instance.record_status in [self.RecordStatus.PROCESSED, self.RecordStatus.ANNULLED_PROCESSED]:
-                raise ValidationError({
-                    '__all__': "No se puede modificar un registro del Libro de Ventas que ya se encuentra en estatus 'Procesado' o 'Anulado Procesado'."
-                })
-
-        # 2. Persistencia de Estatus para Anulaciones
+        """Persiste el registro garantizando la normalización de datos."""
+        
+        # 1. Persistencia de Estatus para Anulaciones
         if self.transaction_type == self.TransactionType.ANNULMENT:
             self.record_status = self.RecordStatus.ANNULLED
 
-        # 3. Normalización Implícita Grupo A
+        # 2. Normalización Implícita Grupo A
         if self.document_type:
             self.invoice_number = None
             self.last_receipt_number = None
@@ -357,7 +361,7 @@ class SalesRecord(FiscalModuleAbstractModel):
             if self.document_type == self.DocumentType.INVOICE:
                 self.affected_invoice = None
                 
-        # 4. Normalización Implícita Grupo B (Mutuamente excluyente al Grupo A)
+        # 3. Normalización Implícita Grupo B (Mutuamente excluyente al Grupo A)
         elif self.invoice_number or self.fiscal_printer_number or self.z_report_number:
             self.document_type = None
             self.document_number = None
