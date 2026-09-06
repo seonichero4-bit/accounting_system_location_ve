@@ -56,23 +56,6 @@ class CustomerCreateView(RequestScopedQuerySetMixin, CreateView):
         kwargs['fiscal_profile'] = unwrap_lazy_object(getattr(self.request, 'fiscal_profile', None))
         return kwargs
 
-    def form_valid(self, form: CustomerForm) -> HttpResponse:
-        """Guarda el formulario capturando errores de validación de BD o Modelo."""
-        try:
-            return super().form_valid(form)
-        except (ValidationError, IntegrityError) as e:
-            if isinstance(e, ValidationError):
-                if hasattr(e, 'message_dict'):
-                    for field, errors in e.message_dict.items():
-                        for error in errors:
-                            form.add_error(field, error)
-                else:
-                    form.add_error(None, e)
-            else:
-                form.add_error(None, "Error de integridad: Restricción de base de datos violada.")
-            return self.form_invalid(form)
-
-
 class CustomerUpdateView(RequestScopedQuerySetMixin, UpdateView):
     """Vista para la actualización de un cliente existente."""
     
@@ -86,23 +69,6 @@ class CustomerUpdateView(RequestScopedQuerySetMixin, UpdateView):
         kwargs = super().get_form_kwargs()
         kwargs['fiscal_profile'] = unwrap_lazy_object(getattr(self.request, 'fiscal_profile', None))
         return kwargs
-
-    def form_valid(self, form: CustomerForm) -> HttpResponse:
-        """Guarda el formulario capturando errores de validación de BD o Modelo."""
-        try:
-            return super().form_valid(form)
-        except (ValidationError, IntegrityError) as e:
-            if isinstance(e, ValidationError):
-                if hasattr(e, 'message_dict'):
-                    for field, errors in e.message_dict.items():
-                        for error in errors:
-                            form.add_error(field, error)
-                    else:
-                        form.add_error(None, e)
-            else:
-                form.add_error(None, "Error de integridad: Restricción de base de datos violada.")
-            return self.form_invalid(form)
-
 
 class CustomerDeleteView(RequestScopedQuerySetMixin, DeleteView):
     """Vista para la eliminación de un cliente existente."""

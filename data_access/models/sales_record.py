@@ -152,11 +152,13 @@ class SalesRecord(FiscalModuleAbstractModel):
         constraints = [
             models.UniqueConstraint(
                 fields=['fiscal_profile', 'control_number', 'document_type'],
-                name='unique_issued_document'
+                name='unique_issued_document',
+                violation_error_message="Ya existe un documento registrado con este N° de Control y Tipo de Documento para el perfil fiscal actual."
             ),
             models.UniqueConstraint(
                 fields=['fiscal_profile', 'fiscal_printer_number', 'z_report_number', 'invoice_number', 'last_receipt_number'],
-                name='unique_z_report'
+                name='unique_z_report',
+                violation_error_message="Este N° de Reporte Z ya fue registrado previamente para la máquina fiscal especificada."
             ),
             models.CheckConstraint(
                 condition=(

@@ -59,45 +59,6 @@ class SalesRecordBaseView(RequestScopedQuerySetMixin):
             
         return kwargs
 
-    def form_valid(self, form: SalesRecordForm) -> HttpResponse:
-        """Captura y procesa errores de integridad de base de datos e inmutabilidad."""
-        try:
-            # Envolver en transacción atómica para aislar fallos de BD
-            with transaction.atomic():  
-                self.object = form.save()
-            return HttpResponseRedirect(self.get_success_url())
-            
-        except ValidationError as e:
-            # Intercepta el ValidationError lanzado desde SalesRecord.save() (ej. Inmutabilidad)
-            if hasattr(e, 'message_dict'):
-                for field, messages in e.message_dict.items():
-                    for msg in messages:
-                        form.add_error(field if field != '__all__' else None, msg)
-            else:
-                for msg in e.messages:
-                    form.add_error(None, msg)
-            return self.form_invalid(form)
-            
-        except IntegrityError as e:
-            # Intercepta las violaciones de UniqueConstraint de PostgreSQL
-            error_msg = str(e).lower()
-            if 'unique_issued_document' in error_msg:
-                form.add_error(
-                    'control_number',
-                    "Ya existe un documento registrado con este N° de Control y "
-                    "Tipo de Documento para el perfil fiscal actual."
-                )
-            elif 'unique_z_report' in error_msg:
-                form.add_error(
-                    'z_report_number',
-                    "Este N° de Reporte Z ya fue registrado previamente para la "
-                    "máquina fiscal especificada."
-                )
-            else:
-                form.add_error(None, "Error de integridad en la base de datos.")
-            return self.form_invalid(form)
-
-
 class SalesRecordCreateView(SalesRecordBaseView, CreateView):
     """Vista acotada para crear un nuevo registro en el Libro de Ventas."""
     template_name = 'sales_record_form.html'
