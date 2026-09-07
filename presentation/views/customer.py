@@ -64,12 +64,6 @@ class CustomerUpdateView(RequestScopedQuerySetMixin, UpdateView):
     template_name = 'customer_form.html'
     success_url = reverse_lazy('customer_list')
 
-    def get_form_kwargs(self) -> Dict[str, Any]:
-        """Inyecta el perfil fiscal del usuario en el formulario."""
-        kwargs = super().get_form_kwargs()
-        kwargs['fiscal_profile'] = unwrap_lazy_object(getattr(self.request, 'fiscal_profile', None))
-        return kwargs
-
 class CustomerDeleteView(RequestScopedQuerySetMixin, DeleteView):
     """Vista para la eliminación de un cliente existente."""
     

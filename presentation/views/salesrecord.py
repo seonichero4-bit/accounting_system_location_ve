@@ -10,8 +10,7 @@ from django.views.generic import CreateView, UpdateView, DeleteView, DetailView,
 
 from data_access.models.sales_record import SalesRecord
 from presentation.mixins.requestscopedquerysetmixin import RequestScopedQuerySetMixin
-from utils import unwrap_lazy_object
-
+from presentation.mixins.fiscalformkwargsmixin import FiscalFormKwargsMixin 
 from presentation.forms.salesrecord import SalesRecordForm
 
 class SalesRecordListView(RequestScopedQuerySetMixin, ListView):
@@ -21,14 +20,12 @@ class SalesRecordListView(RequestScopedQuerySetMixin, ListView):
     template_name = 'sales_record_list.html'
     context_object_name = 'sales_records'
 
-
 class SalesRecordDetailView(RequestScopedQuerySetMixin, DetailView):
     """Vista para visualizar el detalle de un registro de venta específico."""
 
     model = SalesRecord
     template_name = 'sales_record_detail.html'
     context_object_name = 'sales_record'
-
 
 class SalesRecordDeleteView(RequestScopedQuerySetMixin, DeleteView):
     """Vista para eliminar un registro de venta.
@@ -40,30 +37,16 @@ class SalesRecordDeleteView(RequestScopedQuerySetMixin, DeleteView):
     template_name = 'sales_record_confirm_delete.html'
     success_url = reverse_lazy('sales_record_list')
 
-
-class SalesRecordBaseView(RequestScopedQuerySetMixin):
-    """Vista genérica base que consolida la lógica de negocio transversal."""
-    
-    model = SalesRecord
-    form_class = SalesRecordForm
-    success_url = "/"  # Redirección estática para satisfacer aserciones HTTP 302
-
-    def get_form_kwargs(self) -> Dict[str, Any]:
-        """Inyecta el perfil y periodo fiscal en los kwargs del formulario."""
-        kwargs = super().get_form_kwargs()
-        
-        if hasattr(self.request, 'fiscal_profile'):
-            kwargs['fiscal_profile'] = unwrap_lazy_object(self.request.fiscal_profile)
-        if hasattr(self.request, 'fiscal_period'):
-            kwargs['fiscal_period'] = unwrap_lazy_object(self.request.fiscal_period)
-            
-        return kwargs
-
-class SalesRecordCreateView(SalesRecordBaseView, CreateView):
+class SalesRecordCreateView(RequestScopedQuerySetMixin, FiscalFormKwargsMixin, CreateView):
     """Vista acotada para crear un nuevo registro en el Libro de Ventas."""
     template_name = 'sales_record_form.html'
-
-
-class SalesRecordUpdateView(SalesRecordBaseView, UpdateView):
+    model = SalesRecord
+    form_class = SalesRecordForm
+    success_url =  '/'
+    
+class SalesRecordUpdateView(RequestScopedQuerySetMixin, UpdateView):
     """Vista acotada para editar un registro existente en el Libro de Ventas."""
     template_name = 'sales_record_form.html'
+    model = SalesRecord
+    form_class = SalesRecordForm
+    success_url = '/'
