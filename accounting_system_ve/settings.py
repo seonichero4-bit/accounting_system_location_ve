@@ -92,10 +92,10 @@ WSGI_APPLICATION = "accounting_system_ve.wsgi.application"
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'account_5x7m',        
-        'USER': 'account_5x7m_user',              
-        'PASSWORD': 'br4OlSfifDLFOLXDZYQq4xmd3cvYRp34',       
-        'HOST': 'dpg-d9tr886417fc73f40ru0-a.oregon-postgres.render.com',   
+        'NAME': 'sa_g6eq',        
+        'USER': 'sa_g6eq_user',              
+        'PASSWORD': 'CdAGfxJYaIVDSwzWwDfPEqL7NdArJkjT',       
+        'HOST': 'dpg-dajl7eh594qs73ckve60-a.oregon-postgres.render.com',   
         'PORT': '5432',
     }
 }
