@@ -5,38 +5,58 @@ django: version: 6.0.7, settings: accounting_system_ve.settings (from ini)
 rootdir: /workspaces/accounting_system_location_ve
 configfile: pytest.ini
 plugins: django-4.14.0, Faker-40.15.0
-collecting ... collected 16 items / 11 deselected / 5 selected
-run-last-failure: rerun previous 5 failures
+collecting ... collected 18 items / 17 deselected / 1 selected
+run-last-failure: rerun previous 1 failure
 
-data_access/tests/vat_withholding/test_vat_withholding.py::test_ID_HP_001_create_valid_voucher_75_percent_retention FAILED [ 20%]
-data_access/tests/vat_withholding/test_vat_withholding.py::test_ID_HP_002_create_valid_voucher_100_percent_retention FAILED [ 40%]
-data_access/tests/vat_withholding/test_vat_withholding.py::test_ID_HP_003_voucher_number_string_normalization_and_trimming FAILED [ 60%]
-data_access/tests/vat_withholding/test_vat_withholding.py::test_ID_EC_001_duplicate_voucher_raises_integrity_error FAILED [ 80%]
-data_access/tests/vat_withholding/test_vat_withholding.py::test_ID_EC_009_issue_date_before_document_date_raises_validation_error FAILED [100%]
+data_access/tests/islr_withholding/test_islr_withholding.py::test_reuse_voucher_number_different_client_or_profile_ID_HP_006 FAILED [100%]
 
 =================================== FAILURES ===================================
-___________ test_ID_HP_001_create_valid_voucher_75_percent_retention ___________
+_______ test_reuse_voucher_number_different_client_or_profile_ID_HP_006 ________
 
-client = <django.test.client.Client object at 0x71cd80c556d0>
-admin_user = <User: admin_test>
-sales_record = <SalesRecord id=None doc=00000001>
-build_valid_voucher_data = <function build_valid_voucher_data.<locals>._factory at 0x71cd80c5d8a0>
+client = <django.test.client.Client object at 0x786ffd702fc0>
+islr_withholding_factory = <function islr_withholding_factory.<locals>._create_islr_withholding at 0x786ffd74b100>
+fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
+standard_customer = <Customer: J312345678 - Inversiones Andinas C.A.>
 
     @pytest.mark.django_db
-    def test_ID_HP_001_create_valid_voucher_75_percent_retention(client, admin_user, sales_record, build_valid_voucher_data):
-        """[ID_HP_001] Verifica el registro exitoso con retención del 75%."""
+    def test_reuse_voucher_number_different_client_or_profile_ID_HP_006(
+        client: Client,
+        islr_withholding_factory,
+        fiscal_profile,
+        standard_customer
+    ):
         # Arrange
-        client.force_login(admin_user)
-        valid_data = build_valid_voucher_data(sales_record)
-        voucher = VatWithHolding(**valid_data)
+        second_customer = Customer.objects.create(
+            fiscal_profile=fiscal_profile,
+            rif="J999999999",
+            name="Cliente Secundario C.A.",
+            fiscal_address="Caracas, Venezuela",
+            phone_number="02129999999",
+            taxpayer_type=Customer.TaxpayerType.ORDINARY
+        )
+        voucher_number = "00000100"
     
         # Act
->       voucher.full_clean()
+        instance_a = islr_withholding_factory(
+            commit=True,
+            validate=True,
+            voucher_number=voucher_number,
+            client=standard_customer
+        )
+>       instance_b = islr_withholding_factory(
+            commit=True,
+            validate=True,
+            voucher_number=voucher_number,
+            client=second_customer
+        )
 
-data_access/tests/vat_withholding/test_vat_withholding.py:28: 
+data_access/tests/islr_withholding/test_islr_withholding.py:192: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+data_access/tests/islr_withholding/conftest.py:174: in _create_islr_withholding
+    instance.full_clean()
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <VatWithHolding: Comprobante 20260100000001 - Inversiones Andinas C.A.>
+self = <IslrWithHolding: ISLR Withholding 00000100 - Inversiones Andinas C.A.>
 exclude = {'document'}, validate_unique = True, validate_constraints = True
 
     def full_clean(self, exclude=None, validate_unique=True, validate_constraints=True):
@@ -85,254 +105,11 @@ exclude = {'document'}, validate_unique = True, validate_constraints = True
     
         if errors:
 >           raise ValidationError(errors)
-E           django.core.exceptions.ValidationError: {'document': ['Este campo no puede ser nulo.']}
+E           django.core.exceptions.ValidationError: {'document': ['Ya existe ISLR Withholding con este Document.']}
 
 venv/lib/python3.12/site-packages/django/db/models/base.py:1712: ValidationError
 ---------------------------- Captured stderr setup -----------------------------
 Using existing test database for alias 'default'...
-__________ test_ID_HP_002_create_valid_voucher_100_percent_retention ___________
-
-client = <django.test.client.Client object at 0x71cd80b38380>
-admin_user = <User: admin_test>
-sales_record = <SalesRecord id=None doc=00000001>
-build_valid_voucher_data = <function build_valid_voucher_data.<locals>._factory at 0x71cd80b67060>
-
-    @pytest.mark.django_db
-    def test_ID_HP_002_create_valid_voucher_100_percent_retention(client, admin_user, sales_record, build_valid_voucher_data):
-        """[ID_HP_002] Verifica el comportamiento al retener el 100% del débito fiscal."""
-        # Arrange
-        client.force_login(admin_user)
-        valid_data = build_valid_voucher_data(sales_record)
-        valid_data["withheld_amount"] = valid_data["tax_caused"]
-        voucher = VatWithHolding(**valid_data)
-    
-        # Act
->       voucher.full_clean()
-
-data_access/tests/vat_withholding/test_vat_withholding.py:47: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <VatWithHolding: Comprobante 20260100000001 - Inversiones Andinas C.A.>
-exclude = {'document'}, validate_unique = True, validate_constraints = True
-
-    def full_clean(self, exclude=None, validate_unique=True, validate_constraints=True):
-        """
-        Call clean_fields(), clean(), validate_unique(), and
-        validate_constraints() on the model. Raise a ValidationError for any
-        errors that occur.
-        """
-        errors = {}
-        if exclude is None:
-            exclude = set()
-        else:
-            exclude = set(exclude)
-    
-        try:
-            self.clean_fields(exclude=exclude)
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Form.clean() is run even if other validation fails, so do the
-        # same with Model.clean() for consistency.
-        try:
-            self.clean()
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Run unique checks, but only for fields that passed validation.
-        if validate_unique:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_unique(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        # Run constraints checks, but only for fields that passed validation.
-        if validate_constraints:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_constraints(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        if errors:
->           raise ValidationError(errors)
-E           django.core.exceptions.ValidationError: {'document': ['Este campo no puede ser nulo.']}
-
-venv/lib/python3.12/site-packages/django/db/models/base.py:1712: ValidationError
-_______ test_ID_HP_003_voucher_number_string_normalization_and_trimming ________
-
-client = <django.test.client.Client object at 0x71cd80b3a060>
-admin_user = <User: admin_test>
-sales_record = <SalesRecord id=None doc=00000001>
-build_valid_voucher_data = <function build_valid_voucher_data.<locals>._factory at 0x71cd80b676a0>
-
-    @pytest.mark.django_db
-    def test_ID_HP_003_voucher_number_string_normalization_and_trimming(client, admin_user, sales_record, build_valid_voucher_data):
-        """[ID_HP_003] Verifica que el número de comprobante elimine espacios invisibles."""
-        # Arrange
-        client.force_login(admin_user)
-        valid_data = build_valid_voucher_data(sales_record)
-        valid_data["voucher_number"] = "  20260100000001  "
-        voucher = VatWithHolding(**valid_data)
-    
-        # Act
->       voucher.full_clean()
-
-data_access/tests/vat_withholding/test_vat_withholding.py:65: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <VatWithHolding: Comprobante   20260100000001   - Inversiones Andinas C.A.>
-exclude = {'document', 'voucher_number'}, validate_unique = True
-validate_constraints = True
-
-    def full_clean(self, exclude=None, validate_unique=True, validate_constraints=True):
-        """
-        Call clean_fields(), clean(), validate_unique(), and
-        validate_constraints() on the model. Raise a ValidationError for any
-        errors that occur.
-        """
-        errors = {}
-        if exclude is None:
-            exclude = set()
-        else:
-            exclude = set(exclude)
-    
-        try:
-            self.clean_fields(exclude=exclude)
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Form.clean() is run even if other validation fails, so do the
-        # same with Model.clean() for consistency.
-        try:
-            self.clean()
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Run unique checks, but only for fields that passed validation.
-        if validate_unique:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_unique(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        # Run constraints checks, but only for fields that passed validation.
-        if validate_constraints:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_constraints(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        if errors:
->           raise ValidationError(errors)
-E           django.core.exceptions.ValidationError: {'voucher_number': ['El número de comprobante debe contener exactamente 14 dígitos numéricos (ejemplo: 20260500000001). Por favor, verifique el número ingresado.', 'Asegúrese de que este valor tenga menos de 14 caracteres (tiene 18).'], 'document': ['Este campo no puede ser nulo.']}
-
-venv/lib/python3.12/site-packages/django/db/models/base.py:1712: ValidationError
-___________ test_ID_EC_001_duplicate_voucher_raises_integrity_error ____________
-
-client = <django.test.client.Client object at 0x71cd80b3b110>
-admin_user = <User: admin_test>
-sales_record = <SalesRecord id=None doc=00000001>
-build_valid_voucher_data = <function build_valid_voucher_data.<locals>._factory at 0x71cd80b67920>
-
-    @pytest.mark.django_db
-    def test_ID_EC_001_duplicate_voucher_raises_integrity_error(client, admin_user, sales_record, build_valid_voucher_data):
-        """[ID_EC_001] Verifica la prevención de duplicidad por (voucher, cliente, perfil)."""
-        # Arrange
-        client.force_login(admin_user)
-        valid_data = build_valid_voucher_data(sales_record)
->       VatWithHolding.objects.create(**valid_data)
-
-data_access/tests/vat_withholding/test_vat_withholding.py:78: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:669: in create
-    obj.save(force_insert=True, using=self.db)
-data_access/models/vat_withholding_sales.py:175: in save
-    super().save(*args, **kwargs)
-venv/lib/python3.12/site-packages/django/db/models/base.py:828: in save
-    self._prepare_related_fields_for_save(operation_name="save")
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <VatWithHolding: Comprobante 20260100000001 - Inversiones Andinas C.A.>
-operation_name = 'save', fields = None
-
-    def _prepare_related_fields_for_save(self, operation_name, fields=None):
-        # Ensure that a model instance without a PK hasn't been assigned to
-        # a ForeignKey, GenericForeignKey or OneToOneField on this model. If
-        # the field is nullable, allowing the save would result in silent data
-        # loss.
-        for field in self._meta.concrete_fields:
-            if fields and field not in fields:
-                continue
-            # If the related field isn't cached, then an instance hasn't been
-            # assigned and there's no need to worry about this check.
-            if field.is_relation and field.is_cached(self):
-                obj = getattr(self, field.name, None)
-                if not obj:
-                    continue
-                # A pk may have been assigned manually to a model instance not
-                # saved to the database (or auto-generated in a case like
-                # UUIDField), but we allow the save to proceed and rely on the
-                # database to raise an IntegrityError if applicable. If
-                # constraints aren't supported by the database, there's the
-                # unavoidable risk of data corruption.
-                if not obj._is_pk_set():
-                    # Remove the object from a related instance cache.
-                    if not field.remote_field.multiple:
-                        field.remote_field.delete_cached_value(obj)
->                   raise ValueError(
-                        "%s() prohibited to prevent data loss due to unsaved "
-                        "related object '%s'." % (operation_name, field.name)
-E                       ValueError: save() prohibited to prevent data loss due to unsaved related object 'document'.
-
-venv/lib/python3.12/site-packages/django/db/models/base.py:1261: ValueError
-____ test_ID_EC_009_issue_date_before_document_date_raises_validation_error ____
-
-client = <django.test.client.Client object at 0x71cd80b3a180>
-admin_user = <User: admin_test>
-sales_record = <SalesRecord id=None doc=00000001>
-build_valid_voucher_data = <function build_valid_voucher_data.<locals>._factory at 0x71cd80c5ef20>
-
-    @pytest.mark.django_db
-    def test_ID_EC_009_issue_date_before_document_date_raises_validation_error(client, admin_user, sales_record, build_valid_voucher_data):
-        """[ID_EC_009] Verifica precedencia cronológica asegurando emisión no anterior al documento."""
-        # Arrange
-        client.force_login(admin_user)
-        valid_data = build_valid_voucher_data(sales_record)
-        # Según fixture, el doc fue emitido el 2026-01-20
-        valid_data["issue_date"] = date(2026, 1, 10)
-        valid_data["voucher_number"] = "20260100000001"
-    
-        voucher = VatWithHolding(**valid_data)
-    
-        # Act & Assert
-        with pytest.raises(ValidationError) as exc_info:
-            voucher.full_clean()
-    
->       assert "issue_date" in exc_info.value.message_dict
-E       AssertionError: assert 'issue_date' in {'document': ['Este campo no puede ser nulo.']}
-E        +  where {'document': ['Este campo no puede ser nulo.']} = ValidationError({'document': ['Este campo no puede ser nulo.']}).message_dict
-E        +    where ValidationError({'document': ['Este campo no puede ser nulo.']}) = <ExceptionInfo ValidationError({'document': ['Este campo no puede ser nulo.']}) tblen=2>.value
-
-data_access/tests/vat_withholding/test_vat_withholding.py:230: AssertionError
 =========================== short test summary info ============================
-FAILED data_access/tests/vat_withholding/test_vat_withholding.py::test_ID_HP_001_create_valid_voucher_75_percent_retention
-FAILED data_access/tests/vat_withholding/test_vat_withholding.py::test_ID_HP_002_create_valid_voucher_100_percent_retention
-FAILED data_access/tests/vat_withholding/test_vat_withholding.py::test_ID_HP_003_voucher_number_string_normalization_and_trimming
-FAILED data_access/tests/vat_withholding/test_vat_withholding.py::test_ID_EC_001_duplicate_voucher_raises_integrity_error
-FAILED data_access/tests/vat_withholding/test_vat_withholding.py::test_ID_EC_009_issue_date_before_document_date_raises_validation_error
-====================== 5 failed, 11 deselected in 25.00s =======================
+FAILED data_access/tests/islr_withholding/test_islr_withholding.py::test_reuse_voucher_number_different_client_or_profile_ID_HP_006
+======================= 1 failed, 17 deselected in 9.68s =======================

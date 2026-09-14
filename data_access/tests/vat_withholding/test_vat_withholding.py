@@ -80,7 +80,7 @@ def test_ID_EC_002_voucher_number_short_length_raises_validation_error(client, a
     # Arrange
     client.force_login(admin_user)
     valid_data = build_valid_voucher_data(sales_record)
-    valid_data["voucher_number"] = "2026010000000"  # 13 dígitos
+    valid_data["voucher_number"] = "2026010000000 "  # 13 dígitos
     voucher = VatWithHolding(**valid_data)
 
     # Act & Assert

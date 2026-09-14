@@ -15,6 +15,7 @@ from .customer import Customer
 from .fiscalperiod import FiscalPeriod
 from .sales_record import SalesRecord
 from .vat_withholding_sales import VatWithHolding
+from .islr_withholding_sales import IslrWithHolding
 
 __all__ = [
     "FiscalProfile",
@@ -28,4 +29,5 @@ __all__ = [
     "FiscalPeriod",
     "SalesRecord",
     "VatWithHolding",
+    "IslrWithHolding",
 ]
