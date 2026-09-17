@@ -16,6 +16,9 @@ from .fiscalperiod import FiscalPeriod
 from .sales_record import SalesRecord
 from .vat_withholding_sales import VatWithHolding
 from .islr_withholding_sales import IslrWithHolding
+from .account_receivable import AccountReceivable
+from .customer_payment import CustomerPayment
+from .payment_imputation import PaymentImputation
 
 __all__ = [
     "FiscalProfile",
@@ -30,4 +33,7 @@ __all__ = [
     "SalesRecord",
     "VatWithHolding",
     "IslrWithHolding",
+    "AccountReceivable",
+    "CustomerPayment",
+    "PaymentImputation"
 ]

@@ -5,111 +5,196 @@ django: version: 6.0.7, settings: accounting_system_ve.settings (from ini)
 rootdir: /workspaces/accounting_system_location_ve
 configfile: pytest.ini
 plugins: django-4.14.0, Faker-40.15.0
-collecting ... collected 18 items / 17 deselected / 1 selected
-run-last-failure: rerun previous 1 failure
+collecting ... collected 21 items / 19 deselected / 2 selected
+run-last-failure: rerun previous 2 failures
 
-data_access/tests/islr_withholding/test_islr_withholding.py::test_reuse_voucher_number_different_client_or_profile_ID_HP_006 FAILED [100%]
+data_access/tests/cxc_treasury/test_cxc_treasury.py::test_ID_HP_002_net_retention_with_adjustments FAILED [ 50%]
+data_access/tests/cxc_treasury/test_cxc_treasury.py::test_ID_EC_004_numeric_overflow_extreme_precision FAILED [100%]
 
 =================================== FAILURES ===================================
-_______ test_reuse_voucher_number_different_client_or_profile_ID_HP_006 ________
+________________ test_ID_HP_002_net_retention_with_adjustments _________________
 
-client = <django.test.client.Client object at 0x786ffd702fc0>
-islr_withholding_factory = <function islr_withholding_factory.<locals>._create_islr_withholding at 0x786ffd74b100>
-fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
-standard_customer = <Customer: J312345678 - Inversiones Andinas C.A.>
+sales_record = <SalesRecord id=343 doc=00000001>
+credit_note_sales_record = <SalesRecord id=344 doc=00000002>
+account_receivable_factory = <function account_receivable_factory.<locals>._factory at 0x7ecfaf87d760>
+vat_withholding = <VatWithHolding: Comprobante 20260100000001 - Inversiones Andinas C.A.>
 
     @pytest.mark.django_db
-    def test_reuse_voucher_number_different_client_or_profile_ID_HP_006(
-        client: Client,
-        islr_withholding_factory,
-        fiscal_profile,
-        standard_customer
-    ):
+    def test_ID_HP_002_net_retention_with_adjustments(
+        sales_record: SalesRecord,
+        credit_note_sales_record: SalesRecord,
+        account_receivable_factory: Callable[..., AccountReceivable],
+        vat_withholding: VatWithHolding
+    ) -> None:
+        """Validación de accumulated_net_retention con retenciones y ajustes."""
         # Arrange
-        second_customer = Customer.objects.create(
-            fiscal_profile=fiscal_profile,
-            rif="J999999999",
-            name="Cliente Secundario C.A.",
-            fiscal_address="Caracas, Venezuela",
-            phone_number="02129999999",
-            taxpayer_type=Customer.TaxpayerType.ORDINARY
+        # vat_withholding.withheld_amount = Decimal("100.00")
+        # vat_withholding.save()
+    
+        # Creación de ajuste negativo manual asociado al documento de ajuste (Nota de Crédito)
+        VatWithHolding.objects.create(
+            fiscal_profile=vat_withholding.fiscal_profile,
+            voucher_number="20260100000002",
+            issue_date=vat_withholding.issue_date,
+            fiscal_period=vat_withholding.fiscal_period,
+            client_name=vat_withholding.client_name,
+            client_rif=vat_withholding.client_rif,
+            document_number=credit_note_sales_record.document_number,
+            control_number=credit_note_sales_record.control_number,
+            total_amount=Decimal("10.50"),
+            tax_base=Decimal("10.50"),
+            tax_caused=Decimal("10.50"),
+            withheld_amount=Decimal("10.50"),
+            client=vat_withholding.client,
+            document=credit_note_sales_record
         )
-        voucher_number = "00000100"
+    
+        ar = account_receivable_factory(sales_record=sales_record)
     
         # Act
-        instance_a = islr_withholding_factory(
-            commit=True,
-            validate=True,
-            voucher_number=voucher_number,
-            client=standard_customer
-        )
->       instance_b = islr_withholding_factory(
-            commit=True,
-            validate=True,
-            voucher_number=voucher_number,
-            client=second_customer
-        )
+        net_retention = ar.accumulated_net_retention
+    
+        # Assert
+>       assert net_retention == Decimal("10.80")
+E       AssertionError: assert Decimal('12.00') == Decimal('10.80')
+E        +  where Decimal('10.80') = Decimal('10.80')
 
-data_access/tests/islr_withholding/test_islr_withholding.py:192: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-data_access/tests/islr_withholding/conftest.py:174: in _create_islr_withholding
-    instance.full_clean()
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <IslrWithHolding: ISLR Withholding 00000100 - Inversiones Andinas C.A.>
-exclude = {'document'}, validate_unique = True, validate_constraints = True
-
-    def full_clean(self, exclude=None, validate_unique=True, validate_constraints=True):
-        """
-        Call clean_fields(), clean(), validate_unique(), and
-        validate_constraints() on the model. Raise a ValidationError for any
-        errors that occur.
-        """
-        errors = {}
-        if exclude is None:
-            exclude = set()
-        else:
-            exclude = set(exclude)
-    
-        try:
-            self.clean_fields(exclude=exclude)
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Form.clean() is run even if other validation fails, so do the
-        # same with Model.clean() for consistency.
-        try:
-            self.clean()
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Run unique checks, but only for fields that passed validation.
-        if validate_unique:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_unique(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        # Run constraints checks, but only for fields that passed validation.
-        if validate_constraints:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_constraints(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        if errors:
->           raise ValidationError(errors)
-E           django.core.exceptions.ValidationError: {'document': ['Ya existe ISLR Withholding con este Document.']}
-
-venv/lib/python3.12/site-packages/django/db/models/base.py:1712: ValidationError
+data_access/tests/cxc_treasury/test_cxc_treasury.py:395: AssertionError
 ---------------------------- Captured stderr setup -----------------------------
 Using existing test database for alias 'default'...
+______________ test_ID_EC_004_numeric_overflow_extreme_precision _______________
+
+self = <django.db.backends.utils.CursorWrapper object at 0x7ecfaf8f9340>
+sql = 'UPDATE "data_access_salesrecord" SET "fiscal_profile_id" = %s, "fiscal_period" = %s, "document_date" = %s, "invoice_n... = %s, "igtf_tax_base" = %s, "igtf_tax_amount" = %s, "fob_export_value" = %s WHERE "data_access_salesrecord"."id" = %s'
+params = (379, datetime.date(2026, 1, 1), datetime.date(2026, 1, 20), '00000001', '00-00000001', SalesRecord.DocumentType.INVOICE, ...)
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x7ecfaf8f9340>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        # Raise a warning during app initialization (stored_app_configs is only
+        # ever set during testing).
+        if not apps.ready and not apps.stored_app_configs:
+            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+                return self.cursor.execute(sql)
+            else:
+>               return self.cursor.execute(sql, params)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-dajl7eh594qs73ckve60-a.oregon-postgres.render.com user=sa_g6eq_user database=test_sa_g6eq) at 0x7ecfafca47d0>
+query = 'UPDATE "data_access_salesrecord" SET "fiscal_profile_id" = %s, "fiscal_period" = %s, "document_date" = %s, "invoice_n... = %s, "igtf_tax_base" = %s, "igtf_tax_amount" = %s, "fob_export_value" = %s WHERE "data_access_salesrecord"."id" = %s'
+params = (379, datetime.date(2026, 1, 1), datetime.date(2026, 1, 20), '00000001', '00-00000001', SalesRecord.DocumentType.INVOICE, ...)
+prepare = None, binary = None
+
+    def execute(
+        self,
+        query: Query,
+        params: Params | None = None,
+        *,
+        prepare: bool | None = None,
+        binary: bool | None = None,
+    ) -> Self:
+        """
+        Execute a query or command to the database.
+        """
+        try:
+            with self._conn.lock:
+                self._conn.wait(
+                    self._execute_gen(query, params, prepare=prepare, binary=binary)
+                )
+        except e._NO_TRACEBACK as ex:
+>           raise ex.with_traceback(None)
+E           psycopg.errors.NumericValueOutOfRange: numeric field overflow
+E           DETAIL:  A field with precision 15, scale 2 must round to an absolute value less than 10^13.
+
+venv/lib/python3.12/site-packages/psycopg/cursor.py:117: NumericValueOutOfRange
+
+The above exception was the direct cause of the following exception:
+
+sales_record = <SalesRecord id=345 doc=00000001>
+account_receivable_factory = <function account_receivable_factory.<locals>._factory at 0x7ecfaf946020>
+
+    @pytest.mark.django_db
+    def test_ID_EC_004_numeric_overflow_extreme_precision(
+        sales_record: SalesRecord,
+        account_receivable_factory: Callable[..., AccountReceivable]
+    ) -> None:
+        """Manejo de cifras excesivamente altas o fracciones en los saldos."""
+        # Arrange
+        sales_record.total_sales_inc_vat = Decimal("999999999999999.9999")
+>       sales_record.save()
+
+data_access/tests/cxc_treasury/test_cxc_treasury.py:552: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+data_access/models/sales_record.py:371: in save
+    super().save(*args, **kwargs)
+venv/lib/python3.12/site-packages/django/db/models/base.py:874: in save
+    self.save_base(
+venv/lib/python3.12/site-packages/django/db/models/base.py:966: in save_base
+    updated = self._save_table(
+venv/lib/python3.12/site-packages/django/db/models/base.py:1110: in _save_table
+    results = self._do_update(
+venv/lib/python3.12/site-packages/django/db/models/base.py:1213: in _do_update
+    return filtered._update(values, returning_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:1327: in _update
+    return query.get_compiler(self.db).execute_returning_sql(returning_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:2140: in execute_returning_sql
+    row_count = self.execute_sql(ROW_COUNT)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:2111: in execute_sql
+    row_count = super().execute_sql(result_type)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1624: in execute_sql
+    cursor.execute(sql, params)
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
+    return self._execute_with_wrappers(
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
+    with self.db.wrap_database_errors:
+venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-dajl7eh594qs73ckve60-a.oregon-postgres.render.com user=sa_g6eq_user database=test_sa_g6eq) at 0x7ecfafca47d0>
+query = 'UPDATE "data_access_salesrecord" SET "fiscal_profile_id" = %s, "fiscal_period" = %s, "document_date" = %s, "invoice_n... = %s, "igtf_tax_base" = %s, "igtf_tax_amount" = %s, "fob_export_value" = %s WHERE "data_access_salesrecord"."id" = %s'
+params = (379, datetime.date(2026, 1, 1), datetime.date(2026, 1, 20), '00000001', '00-00000001', SalesRecord.DocumentType.INVOICE, ...)
+prepare = None, binary = None
+
+    def execute(
+        self,
+        query: Query,
+        params: Params | None = None,
+        *,
+        prepare: bool | None = None,
+        binary: bool | None = None,
+    ) -> Self:
+        """
+        Execute a query or command to the database.
+        """
+        try:
+            with self._conn.lock:
+                self._conn.wait(
+                    self._execute_gen(query, params, prepare=prepare, binary=binary)
+                )
+        except e._NO_TRACEBACK as ex:
+>           raise ex.with_traceback(None)
+E           django.db.utils.DataError: numeric field overflow
+E           DETAIL:  A field with precision 15, scale 2 must round to an absolute value less than 10^13.
+
+venv/lib/python3.12/site-packages/psycopg/cursor.py:117: DataError
 =========================== short test summary info ============================
-FAILED data_access/tests/islr_withholding/test_islr_withholding.py::test_reuse_voucher_number_different_client_or_profile_ID_HP_006
-======================= 1 failed, 17 deselected in 9.68s =======================
+FAILED data_access/tests/cxc_treasury/test_cxc_treasury.py::test_ID_HP_002_net_retention_with_adjustments
+FAILED data_access/tests/cxc_treasury/test_cxc_treasury.py::test_ID_EC_004_numeric_overflow_extreme_precision
+====================== 2 failed, 19 deselected in 11.62s =======================
