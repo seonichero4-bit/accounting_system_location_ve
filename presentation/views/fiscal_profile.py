@@ -150,16 +150,15 @@ class FiscalProfileUpdateView(View):
             try:
                 service.update_fiscal_profile(
                     fiscal_profile=fiscal_profile,
+                    name=profile_form.cleaned_data.get("name"),
                     rif=profile_form.cleaned_data["rif"],
                     taxpayer_type=profile_form.cleaned_data["taxpayer_type"],
                     start_period=period_form.cleaned_data.get("start_period"),
-                    ledger=profile_form.cleaned_data.get("ledger"),
-                    inventory_account=profile_form.cleaned_data.get("inventory_account"),
-                    vat_credit_account=profile_form.cleaned_data.get("vat_credit_account"),
-                    igtf_expense_account=profile_form.cleaned_data.get("igtf_expense_account"),
-                    islr_payable_account=profile_form.cleaned_data.get("islr_payable_account"),
-                    cxp_suppliers_account=profile_form.cleaned_data.get("cxp_suppliers_account"),
-                    vat_withheld_payable_account=profile_form.cleaned_data.get("vat_withheld_payable_account"),
+                    **{
+                        field: profile_form.cleaned_data.get(field)
+                        for field in profile_form.fields
+                        if field not in ["name", "rif", "taxpayer_type"]
+                    }
                 )
                 return redirect("fiscal-profile-detail", pk=fiscal_profile.pk)
             except ValidationError as error:
