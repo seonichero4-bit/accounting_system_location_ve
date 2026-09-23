@@ -209,6 +209,63 @@ def test_id_hp_010_normalizacion_implicita_save_grupo_b(
     assert group_b_fiscal_printer_record.document_type is None
     assert group_b_fiscal_printer_record.control_number is None
 
+@pytest.mark.django_db
+def test_id_hp_011_registro_exitoso_categoria_bienes_por_defecto(
+    group_a_invoice_record: SalesRecord
+) -> None:
+    """Verifica la asignación por defecto de la categoría GOODS y montos en 0.00."""
+    # Arrange: Se utiliza la fixture base sin asignar categoría ni desgloses
+    
+    # Act
+    group_a_invoice_record.full_clean()
+    group_a_invoice_record.save()
+    
+    # Assert
+    assert group_a_invoice_record.pk is not None
+    assert group_a_invoice_record.sale_category == SalesRecord.SaleCategory.GOODS
+    assert group_a_invoice_record.goods_amount == Decimal("0.00")
+    assert group_a_invoice_record.services_amount == Decimal("0.00")
+
+
+@pytest.mark.django_db
+def test_id_hp_012_registro_exitoso_categoria_servicios(
+    group_a_invoice_record: SalesRecord
+) -> None:
+    """Confirma el registro correcto cuando la categoría es explícitamente SERVICES."""
+    # Arrange
+    group_a_invoice_record.sale_category = SalesRecord.SaleCategory.SERVICES
+    
+    # Act
+    group_a_invoice_record.full_clean()
+    group_a_invoice_record.save()
+    
+    # Assert
+    assert group_a_invoice_record.pk is not None
+    assert group_a_invoice_record.sale_category == SalesRecord.SaleCategory.SERVICES
+    assert group_a_invoice_record.goods_amount == Decimal("0.00")
+    assert group_a_invoice_record.services_amount == Decimal("0.00")
+
+
+@pytest.mark.django_db
+def test_id_hp_013_registro_exitoso_operacion_mixta_con_desglose_valido(
+    group_a_invoice_record: SalesRecord
+) -> None:
+    """Valida la creación exitosa de un registro con categoría MIXED y desgloses válidos."""
+    # Arrange: Total de venta = 116.00 (Base 100.00 + IVA 16.00)
+    group_a_invoice_record.sale_category = SalesRecord.SaleCategory.MIXED
+    group_a_invoice_record.goods_amount = Decimal("50.00")
+    group_a_invoice_record.services_amount = Decimal("50.00")
+    
+    # Act
+    group_a_invoice_record.full_clean()
+    group_a_invoice_record.save()
+    
+    # Assert
+    assert group_a_invoice_record.pk is not None
+    assert group_a_invoice_record.sale_category == SalesRecord.SaleCategory.MIXED
+    assert group_a_invoice_record.goods_amount == Decimal("50.00")
+    assert group_a_invoice_record.services_amount == Decimal("50.00")
+
 
 @pytest.mark.django_db
 def test_id_ec_001_violacion_unicidad_documento_emitido(
@@ -545,3 +602,93 @@ def test_id_ec_023_acumulacion_masiva_errores_clean(
     assert "total_sales_inc_vat" in errors
     assert "document_date" in errors
     assert "affected_invoice" in errors
+
+def test_id_ec_024_categoria_mixta_monto_bienes_cero_o_nulo(
+    group_a_invoice_record: SalesRecord
+) -> None:
+    """Rechaza registro MIXED con monto de bienes igual a 0.00."""
+    # Arrange
+    group_a_invoice_record.sale_category = SalesRecord.SaleCategory.MIXED
+    group_a_invoice_record.goods_amount = Decimal("0.00")
+    group_a_invoice_record.services_amount = Decimal("50.00")
+    
+    # Act & Assert
+    with pytest.raises(ValidationError) as exc_info:
+        group_a_invoice_record.clean()
+    assert "sale_category" in exc_info.value.error_dict
+
+
+def test_id_ec_025_categoria_mixta_monto_servicios_cero_o_nulo(
+    group_a_invoice_record: SalesRecord
+) -> None:
+    """Rechaza registro MIXED con monto de servicios igual a 0.00."""
+    # Arrange
+    group_a_invoice_record.sale_category = SalesRecord.SaleCategory.MIXED
+    group_a_invoice_record.goods_amount = Decimal("50.00")
+    group_a_invoice_record.services_amount = Decimal("0.00")
+    
+    # Act & Assert
+    with pytest.raises(ValidationError) as exc_info:
+        group_a_invoice_record.clean()
+    assert "sale_category" in exc_info.value.error_dict
+
+
+def test_id_ec_026_categoria_mixta_suma_desglose_supera_total_venta(
+    group_a_invoice_record: SalesRecord
+) -> None:
+    """Rechaza registro MIXED donde la suma de bienes y servicios supera el total de la venta."""
+    # Arrange: total_sales_inc_vat es 116.00 por defecto en la fixture
+    group_a_invoice_record.sale_category = SalesRecord.SaleCategory.MIXED
+    group_a_invoice_record.goods_amount = Decimal("70.00")
+    group_a_invoice_record.services_amount = Decimal("50.00")  # Suma 120.00 > 116.00
+    
+    # Act & Assert
+    with pytest.raises(ValidationError) as exc_info:
+        group_a_invoice_record.clean()
+    assert "goods_amount" in exc_info.value.error_dict
+
+
+def test_id_ec_027_categoria_no_mixta_con_monto_desglose_bienes_mayor_a_cero(
+    group_a_invoice_record: SalesRecord
+) -> None:
+    """Rechaza desglose de bienes en categorías distintas a MIXED."""
+    # Arrange
+    group_a_invoice_record.sale_category = SalesRecord.SaleCategory.GOODS
+    group_a_invoice_record.goods_amount = Decimal("50.00")
+    group_a_invoice_record.services_amount = Decimal("0.00")
+    
+    # Act & Assert
+    with pytest.raises(ValidationError) as exc_info:
+        group_a_invoice_record.clean()
+    assert "goods_amount" in exc_info.value.error_dict
+
+
+def test_id_ec_028_categoria_no_mixta_con_monto_desglose_servicios_mayor_a_cero(
+    group_a_invoice_record: SalesRecord
+) -> None:
+    """Rechaza desglose de servicios en categorías distintas a MIXED."""
+    # Arrange
+    group_a_invoice_record.sale_category = SalesRecord.SaleCategory.SERVICES
+    group_a_invoice_record.goods_amount = Decimal("0.00")
+    group_a_invoice_record.services_amount = Decimal("50.00")
+    
+    # Act & Assert
+    with pytest.raises(ValidationError) as exc_info:
+        group_a_invoice_record.clean()
+    assert "goods_amount" in exc_info.value.error_dict
+
+
+@pytest.mark.django_db
+def test_id_ec_029_violacion_check_constraint_montos_desglose_negativos(
+    group_a_invoice_record: SalesRecord
+) -> None:
+    """Rechaza valores negativos en los campos de desglose mediante MinValueValidator y CheckConstraint."""
+    # Arrange
+    group_a_invoice_record.sale_category = SalesRecord.SaleCategory.MIXED
+    group_a_invoice_record.goods_amount = Decimal("-10.00")
+    group_a_invoice_record.services_amount = Decimal("50.00")
+    
+    # Act & Assert
+    with pytest.raises((ValidationError, IntegrityError)):
+        group_a_invoice_record.full_clean()
+        group_a_invoice_record.save()

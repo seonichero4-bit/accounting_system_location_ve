@@ -45,6 +45,12 @@ class SalesRecord(FiscalModuleAbstractModel):
         PROCESSED = 'PROCESSED', 'Procesado'
         ANNULLED_PROCESSED = 'ANNULLED_PROCESSED', 'Anulado_Procesado'
 
+    class SaleCategory(models.TextChoices):
+        """Categorización del contenido de la venta."""
+        GOODS = 'GOODS', 'Bienes'
+        SERVICES = 'SERVICES', 'Servicios'
+        MIXED = 'MIXED', 'Mixto (Servicios y Bienes en la misma factura)'
+
     # Identificación
     fiscal_period = models.DateField(null=True, blank=True)
     document_date = models.DateField()
@@ -67,6 +73,20 @@ class SalesRecord(FiscalModuleAbstractModel):
         choices=DocumentType.choices,
         null=True,
         blank=True
+    )
+    sale_category = models.CharField(
+        max_length=20,
+        choices=SaleCategory.choices,
+        default=SaleCategory.GOODS
+    )
+        # Desglose de Operaciones Mixtas
+    goods_amount = models.DecimalField(
+        max_digits=15, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))]
+    )
+    services_amount = models.DecimalField(
+        max_digits=15, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))]
     )
     transaction_type = models.CharField(max_length=20, choices=TransactionType.choices)
     sale_type = models.CharField(max_length=20, choices=SaleType.choices)
@@ -170,7 +190,9 @@ class SalesRecord(FiscalModuleAbstractModel):
                     Q(exempt_internal_sales__gte=0) &
                     Q(exonerated_internal_sales__gte=0) &
                     Q(non_subject_internal_sales__gte=0) &
-                    Q(fob_export_value__gte=0)
+                    Q(fob_export_value__gte=0) &
+                    Q(goods_amount__gte=0) &
+                    Q(services_amount__gte=0)
                 ),
                 name='positive_amounts',
                 violation_error_message="Todos los montos (ventas, bases imponibles y exenciones) deben ser mayores o iguales a 0.00."
@@ -213,6 +235,27 @@ class SalesRecord(FiscalModuleAbstractModel):
             self.invoice_number = self.invoice_number.strip()
         if self.last_receipt_number:
             self.last_receipt_number = self.last_receipt_number.strip()
+
+        # Validación de Categoría de Venta Mixta
+        if self.sale_category == self.SaleCategory.MIXED:
+            goods_val = self.goods_amount or Decimal('0.00')
+            services_val = self.services_amount or Decimal('0.00')
+
+            if goods_val <= Decimal('0.00') or services_val <= Decimal('0.00'):
+                errors['sale_category'] = (
+                    "Para ventas de categoría 'Mixto', tanto el monto de bienes como el de servicios "
+                    "deben ser mayores a 0.00."
+                )
+            elif (goods_val + services_val) > (self.total_sales_inc_vat or Decimal('0.00')):
+                errors['goods_amount'] = (
+                    "La suma de los montos desglosados de bienes y servicios no puede ser superior al total de la venta."
+                )
+        else:
+            # Para ventas no mixtas, asegurar que los campos de desglose permanezcan en 0.00
+            if (self.goods_amount or Decimal('0.00')) > Decimal('0.00') or (self.services_amount or Decimal('0.00')) > Decimal('0.00'):
+                errors['goods_amount'] = (
+                    "El desglose de bienes y servicios solo debe especificarse cuando la categoría sea 'Mixto'."
+                )
 
         # Condicionales de Activación (Grupos)
         is_group_a = bool(self.document_type)
