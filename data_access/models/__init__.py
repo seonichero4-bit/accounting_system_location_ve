@@ -19,6 +19,7 @@ from .islr_withholding_sales import IslrWithHolding
 from .account_receivable import AccountReceivable
 from .customer_payment import CustomerPayment
 from .payment_imputation import PaymentImputation
+from .credit_note_settlement import CreditNoteSettlement
 
 __all__ = [
     "FiscalProfile",
@@ -35,5 +36,6 @@ __all__ = [
     "IslrWithHolding",
     "AccountReceivable",
     "CustomerPayment",
-    "PaymentImputation"
+    "PaymentImputation",
+    "CreditNoteSettlement",
 ]

@@ -541,19 +541,88 @@ def test_ID_EC_003_over_imputation_forced_negative_balance(
     assert balance == Decimal("-50.00")
 
 
-# @pytest.mark.django_db
-# def test_ID_EC_004_numeric_overflow_extreme_precision(
-#     sales_record: SalesRecord,
-#     account_receivable_factory: Callable[..., AccountReceivable]
-# ) -> None:
-#     """Manejo de cifras excesivamente altas o fracciones en los saldos."""
-#     # Arrange
-#     sales_record.total_sales_inc_vat = Decimal("999999999999999.9999")
-#     sales_record.save()
-#     ar = account_receivable_factory(sales_record=sales_record)
 
-#     # Act
-#     balance = ar.net_receivable_balance
 
-#     # Assert
-#     assert balance == Decimal("999999999999999.9999")
+from decimal import Decimal
+from typing import Callable
+
+import pytest
+
+from data_access.models.account_receivable import AccountReceivable
+from data_access.models.sales_record import SalesRecord
+from data_access.models.vat_withholding_sales import VatWithHolding
+
+
+@pytest.mark.django_db
+def test_net_receivable_balance_credit_note_without_withholding(
+    sales_record: SalesRecord,
+    credit_note_sales_record: SalesRecord,
+    account_receivable_factory: Callable[..., AccountReceivable]
+) -> None:
+    """Verifica la disminución directa del Saldo Neto Cobrable por una Nota de Crédito 
+    cuando la factura origen NO posee retenciones previas.
+    
+    Escenario Gherkin: Disminución directa del Saldo Neto Cobrable por Nota de Crédito 
+    SIN retención previa en la factura origen.
+    """
+    # Arrange
+    # Factura origen: total_sales_inc_vat = 116.00
+    # Nota de crédito asociada: total_sales_inc_vat = 11.60
+    ar = account_receivable_factory(sales_record=sales_record)
+
+    # Act
+    net_retention = ar.accumulated_net_retention
+    balance = ar.net_receivable_balance
+
+    # Assert
+    # 1. No existen retenciones aplicadas
+    assert net_retention == Decimal("0.00")
+    # 2. Saldo Neto = (116.00 total factura - 11.60 monto NC) = 104.40
+    assert balance == Decimal("104.40")
+
+
+@pytest.mark.django_db
+def test_net_receivable_balance_credit_note_with_adjustment_withholding(
+    sales_record: SalesRecord,
+    credit_note_sales_record: SalesRecord,
+    vat_withholding: VatWithHolding,
+    account_receivable_factory: Callable[..., AccountReceivable]
+) -> None:
+    """Verifica el cálculo del Saldo Neto Cobrable descontando el monto de la Nota de Crédito
+    y la Retención Neta Acumulada (Retención Inicial - Retención de Ajuste NC).
+    
+    Escenario Gherkin: Ajuste del Saldo Neto Cobrable por Nota de Crédito CON retención 
+    de ajuste (con retención previa).
+    """
+    # Arrange
+    # 1. Factura origen tiene retención inicial en vat_withholding (12.00)
+    # 2. Registrar la retención de ajuste para la Nota de Crédito (1.20)
+    VatWithHolding.objects.create(
+        fiscal_profile=vat_withholding.fiscal_profile,
+        voucher_number="20260100000002",
+        issue_date=vat_withholding.issue_date,
+        fiscal_period=vat_withholding.fiscal_period,
+        client_name=vat_withholding.client_name,
+        client_rif=vat_withholding.client_rif,
+        document_number=credit_note_sales_record.document_number,
+        control_number=credit_note_sales_record.control_number,
+        total_amount=Decimal("11.60"),
+        tax_base=Decimal("10.00"),
+        tax_caused=Decimal("1.60"),
+        withheld_amount=Decimal("1.20"),
+        client=vat_withholding.client,
+        document=credit_note_sales_record
+    )
+
+    ar = account_receivable_factory(sales_record=sales_record)
+
+    # Act
+    net_retention = ar.accumulated_net_retention
+    balance = ar.net_receivable_balance
+
+    # Assert
+    # 1. Retención Neta Acumulada = 12.00 (Factura) - 1.20 (NC) = 10.80
+    assert net_retention == Decimal("10.80")
+    
+    # 2. Saldo Neto = (116.00 base - 11.60 NC) - 10.80 retención neta = 93.60
+    assert balance == Decimal("93.60")

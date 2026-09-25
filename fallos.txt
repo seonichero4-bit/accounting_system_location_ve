@@ -5,196 +5,101 @@ django: version: 6.0.7, settings: accounting_system_ve.settings (from ini)
 rootdir: /workspaces/accounting_system_location_ve
 configfile: pytest.ini
 plugins: django-4.14.0, Faker-40.15.0
-collecting ... collected 21 items / 19 deselected / 2 selected
-run-last-failure: rerun previous 2 failures
+collecting ... collected 26 items / 22 deselected / 4 selected
+run-last-failure: rerun previous 4 failures
 
-data_access/tests/cxc_treasury/test_cxc_treasury.py::test_ID_HP_002_net_retention_with_adjustments FAILED [ 50%]
-data_access/tests/cxc_treasury/test_cxc_treasury.py::test_ID_EC_004_numeric_overflow_extreme_precision FAILED [100%]
+data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementEdgeCases::test_ID_EC_012_goods_returned_in_services_sale FAILED [ 25%]
+data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementEdgeCases::test_ID_EC_013_services_reimbursement_in_goods_sale FAILED [ 50%]
+data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementEdgeCases::test_ID_EC_019_external_modules_isolation FAILED [ 75%]
+data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementEdgeCases::test_ID_EC_020_missing_mandatory_sales_record FAILED [100%]
 
 =================================== FAILURES ===================================
-________________ test_ID_HP_002_net_retention_with_adjustments _________________
+_ TestCreditNoteSettlementEdgeCases.test_ID_EC_012_goods_returned_in_services_sale _
 
-sales_record = <SalesRecord id=343 doc=00000001>
-credit_note_sales_record = <SalesRecord id=344 doc=00000002>
-account_receivable_factory = <function account_receivable_factory.<locals>._factory at 0x7ecfaf87d760>
-vat_withholding = <VatWithHolding: Comprobante 20260100000001 - Inversiones Andinas C.A.>
+self = <test_credit_note_settlement.TestCreditNoteSettlementEdgeCases object at 0x76aa154d61b0>
+credit_note_sales_record = <SalesRecord id=621 doc=00000002>
+credit_note_settlement_factory = <function credit_note_settlement_factory.<locals>._create_settlement at 0x76aa1511eb60>
 
-    @pytest.mark.django_db
-    def test_ID_HP_002_net_retention_with_adjustments(
-        sales_record: SalesRecord,
-        credit_note_sales_record: SalesRecord,
-        account_receivable_factory: Callable[..., AccountReceivable],
-        vat_withholding: VatWithHolding
-    ) -> None:
-        """Validación de accumulated_net_retention con retenciones y ajustes."""
+    def test_ID_EC_012_goods_returned_in_services_sale(self, credit_note_sales_record, credit_note_settlement_factory):
+        """Prohíbe devolución de bienes si la factura de origen es estrictamente de servicios."""
         # Arrange
-        # vat_withholding.withheld_amount = Decimal("100.00")
-        # vat_withholding.save()
+        credit_note_sales_record.sale_category = SalesRecord.SaleCategory.SERVICES
+        credit_note_sales_record.total_sales_inc_vat = Decimal("50.00")
+        credit_note_sales_record.save(update_fields=["sale_category", "total_sales_inc_vat"])
     
-        # Creación de ajuste negativo manual asociado al documento de ajuste (Nota de Crédito)
-        VatWithHolding.objects.create(
-            fiscal_profile=vat_withholding.fiscal_profile,
-            voucher_number="20260100000002",
-            issue_date=vat_withholding.issue_date,
-            fiscal_period=vat_withholding.fiscal_period,
-            client_name=vat_withholding.client_name,
-            client_rif=vat_withholding.client_rif,
-            document_number=credit_note_sales_record.document_number,
-            control_number=credit_note_sales_record.control_number,
-            total_amount=Decimal("10.50"),
-            tax_base=Decimal("10.50"),
-            tax_caused=Decimal("10.50"),
-            withheld_amount=Decimal("10.50"),
-            client=vat_withholding.client,
-            document=credit_note_sales_record
-        )
-    
-        ar = account_receivable_factory(sales_record=sales_record)
-    
-        # Act
-        net_retention = ar.accumulated_net_retention
-    
-        # Assert
->       assert net_retention == Decimal("10.80")
-E       AssertionError: assert Decimal('12.00') == Decimal('10.80')
-E        +  where Decimal('10.80') = Decimal('10.80')
+        # Act & Assert
+>       with pytest.raises(ValidationError) as exc:
+E       Failed: DID NOT RAISE ValidationError
 
-data_access/tests/cxc_treasury/test_cxc_treasury.py:395: AssertionError
+data_access/tests/credit_note_settlement/test_credit_note_settlement.py:381: Failed
 ---------------------------- Captured stderr setup -----------------------------
 Using existing test database for alias 'default'...
-______________ test_ID_EC_004_numeric_overflow_extreme_precision _______________
+_ TestCreditNoteSettlementEdgeCases.test_ID_EC_013_services_reimbursement_in_goods_sale _
 
-self = <django.db.backends.utils.CursorWrapper object at 0x7ecfaf8f9340>
-sql = 'UPDATE "data_access_salesrecord" SET "fiscal_profile_id" = %s, "fiscal_period" = %s, "document_date" = %s, "invoice_n... = %s, "igtf_tax_base" = %s, "igtf_tax_amount" = %s, "fob_export_value" = %s WHERE "data_access_salesrecord"."id" = %s'
-params = (379, datetime.date(2026, 1, 1), datetime.date(2026, 1, 20), '00000001', '00-00000001', SalesRecord.DocumentType.INVOICE, ...)
-ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x7ecfaf8f9340>})
+self = <test_credit_note_settlement.TestCreditNoteSettlementEdgeCases object at 0x76aa154b8920>
+credit_note_sales_record = <SalesRecord id=623 doc=00000002>
+credit_note_settlement_factory = <function credit_note_settlement_factory.<locals>._create_settlement at 0x76aa15161b20>
 
-    def _execute(self, sql, params, *ignored_wrapper_args):
-        # Raise a warning during app initialization (stored_app_configs is only
-        # ever set during testing).
-        if not apps.ready and not apps.stored_app_configs:
-            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
-        self.db.validate_no_broken_transaction()
-        with self.db.wrap_database_errors:
-            if params is None:
-                # params default might be backend specific.
-                return self.cursor.execute(sql)
-            else:
->               return self.cursor.execute(sql, params)
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-dajl7eh594qs73ckve60-a.oregon-postgres.render.com user=sa_g6eq_user database=test_sa_g6eq) at 0x7ecfafca47d0>
-query = 'UPDATE "data_access_salesrecord" SET "fiscal_profile_id" = %s, "fiscal_period" = %s, "document_date" = %s, "invoice_n... = %s, "igtf_tax_base" = %s, "igtf_tax_amount" = %s, "fob_export_value" = %s WHERE "data_access_salesrecord"."id" = %s'
-params = (379, datetime.date(2026, 1, 1), datetime.date(2026, 1, 20), '00000001', '00-00000001', SalesRecord.DocumentType.INVOICE, ...)
-prepare = None, binary = None
-
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           psycopg.errors.NumericValueOutOfRange: numeric field overflow
-E           DETAIL:  A field with precision 15, scale 2 must round to an absolute value less than 10^13.
-
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: NumericValueOutOfRange
-
-The above exception was the direct cause of the following exception:
-
-sales_record = <SalesRecord id=345 doc=00000001>
-account_receivable_factory = <function account_receivable_factory.<locals>._factory at 0x7ecfaf946020>
-
-    @pytest.mark.django_db
-    def test_ID_EC_004_numeric_overflow_extreme_precision(
-        sales_record: SalesRecord,
-        account_receivable_factory: Callable[..., AccountReceivable]
-    ) -> None:
-        """Manejo de cifras excesivamente altas o fracciones en los saldos."""
+    def test_ID_EC_013_services_reimbursement_in_goods_sale(self, credit_note_sales_record, credit_note_settlement_factory):
+        """Prohíbe reversión de servicios si la factura de origen es estrictamente de bienes."""
         # Arrange
-        sales_record.total_sales_inc_vat = Decimal("999999999999999.9999")
->       sales_record.save()
+        credit_note_sales_record.sale_category = SalesRecord.SaleCategory.GOODS
+        credit_note_sales_record.total_sales_inc_vat = Decimal("75.00")
+        credit_note_sales_record.save(update_fields=["sale_category", "total_sales_inc_vat"])
+    
+        # Act & Assert
+>       with pytest.raises(ValidationError) as exc:
+E       Failed: DID NOT RAISE ValidationError
 
-data_access/tests/cxc_treasury/test_cxc_treasury.py:552: 
+data_access/tests/credit_note_settlement/test_credit_note_settlement.py:399: Failed
+_ TestCreditNoteSettlementEdgeCases.test_ID_EC_019_external_modules_isolation __
+
+self = <test_credit_note_settlement.TestCreditNoteSettlementEdgeCases object at 0x76aa154e6d80>
+account_receivable = <AccountReceivable: CxC - Documento: 624 - Estado: PENDING>
+credit_note_sales_record = <SalesRecord id=625 doc=00000002>
+credit_note_settlement_factory = <function credit_note_settlement_factory.<locals>._create_settlement at 0x76aa15162200>
+
+    def test_ID_EC_019_external_modules_isolation(self, account_receivable, credit_note_sales_record, credit_note_settlement_factory):
+        """Garantiza la invarianza de otros módulos, AccountReceivable no se debe afectar."""
+        # Arrange
+>       account_receivable.net_receivable_balance = Decimal("500.00")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: property 'net_receivable_balance' of 'AccountReceivable' object has no setter
+
+data_access/tests/credit_note_settlement/test_credit_note_settlement.py:500: AttributeError
+_ TestCreditNoteSettlementEdgeCases.test_ID_EC_020_missing_mandatory_sales_record _
+
+self = <test_credit_note_settlement.TestCreditNoteSettlementEdgeCases object at 0x76aa154e73b0>
+credit_note_settlement_factory = <function credit_note_settlement_factory.<locals>._create_settlement at 0x76aa157c1300>
+
+    def test_ID_EC_020_missing_mandatory_sales_record(self, credit_note_settlement_factory):
+        """Maneja controladamente el intento de validadción sin un registro base (sales_record=None)."""
+        # Arrange
+        # Act & Assert
+        with pytest.raises(ValidationError) as exc:
+>           credit_note_settlement_factory(
+                sales_record=None,
+                validate=True
+            )
+
+data_access/tests/credit_note_settlement/test_credit_note_settlement.py:521: 
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-data_access/models/sales_record.py:371: in save
-    super().save(*args, **kwargs)
-venv/lib/python3.12/site-packages/django/db/models/base.py:874: in save
-    self.save_base(
-venv/lib/python3.12/site-packages/django/db/models/base.py:966: in save_base
-    updated = self._save_table(
-venv/lib/python3.12/site-packages/django/db/models/base.py:1110: in _save_table
-    results = self._do_update(
-venv/lib/python3.12/site-packages/django/db/models/base.py:1213: in _do_update
-    return filtered._update(values, returning_fields)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/query.py:1327: in _update
-    return query.get_compiler(self.db).execute_returning_sql(returning_fields)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:2140: in execute_returning_sql
-    row_count = self.execute_sql(ROW_COUNT)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:2111: in execute_sql
-    row_count = super().execute_sql(result_type)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1624: in execute_sql
-    cursor.execute(sql, params)
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
-    return self._execute_with_wrappers(
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
-    return executor(sql, params, many, context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
-    with self.db.wrap_database_errors:
-venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
-    raise dj_exc_value.with_traceback(traceback) from exc_value
-venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
-    return self.cursor.execute(sql, params)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-dajl7eh594qs73ckve60-a.oregon-postgres.render.com user=sa_g6eq_user database=test_sa_g6eq) at 0x7ecfafca47d0>
-query = 'UPDATE "data_access_salesrecord" SET "fiscal_profile_id" = %s, "fiscal_period" = %s, "document_date" = %s, "invoice_n... = %s, "igtf_tax_base" = %s, "igtf_tax_amount" = %s, "fob_export_value" = %s WHERE "data_access_salesrecord"."id" = %s'
-params = (379, datetime.date(2026, 1, 1), datetime.date(2026, 1, 20), '00000001', '00-00000001', SalesRecord.DocumentType.INVOICE, ...)
-prepare = None, binary = None
+kwargs = {}
 
-    def execute(
-        self,
-        query: Query,
-        params: Params | None = None,
-        *,
-        prepare: bool | None = None,
-        binary: bool | None = None,
-    ) -> Self:
-        """
-        Execute a query or command to the database.
-        """
-        try:
-            with self._conn.lock:
-                self._conn.wait(
-                    self._execute_gen(query, params, prepare=prepare, binary=binary)
-                )
-        except e._NO_TRACEBACK as ex:
->           raise ex.with_traceback(None)
-E           django.db.utils.DataError: numeric field overflow
-E           DETAIL:  A field with precision 15, scale 2 must round to an absolute value less than 10^13.
+    def _create_settlement(**kwargs) -> CreditNoteSettlement:
+        target_sales_record = kwargs.pop("sales_record", credit_note_sales_record)
+        target_fiscal_profile = kwargs.pop("fiscal_profile", fiscal_profile)
+        should_validate = kwargs.pop("validate", True)
+    
+>       total_amount = target_sales_record.total_sales_inc_vat or Decimal("0.00")
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute 'total_sales_inc_vat'
 
-venv/lib/python3.12/site-packages/psycopg/cursor.py:117: DataError
+data_access/tests/credit_note_settlement/conftest.py:173: AttributeError
 =========================== short test summary info ============================
-FAILED data_access/tests/cxc_treasury/test_cxc_treasury.py::test_ID_HP_002_net_retention_with_adjustments
-FAILED data_access/tests/cxc_treasury/test_cxc_treasury.py::test_ID_EC_004_numeric_overflow_extreme_precision
-====================== 2 failed, 19 deselected in 11.62s =======================
+FAILED data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementEdgeCases::test_ID_EC_012_goods_returned_in_services_sale
+FAILED data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementEdgeCases::test_ID_EC_013_services_reimbursement_in_goods_sale
+FAILED data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementEdgeCases::test_ID_EC_019_external_modules_isolation
+FAILED data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementEdgeCases::test_ID_EC_020_missing_mandatory_sales_record
+====================== 4 failed, 22 deselected in 21.33s =======================
