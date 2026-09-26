@@ -113,12 +113,14 @@ class AccountReceivable(FiscalModuleAbstractModel):
         """Calcula en tiempo real el saldo exigible de la obligación comercial.
 
         Ecuación: (total de venta + notas de débito - notas de crédito)
-                  - retenciones netas acumuladas - pagos imputados.
+                  - retenciones netas acumuladas - pagos imputados
+                  + montos reembolsados (liquidación de notas de crédito).
 
         Returns:
             Decimal: El balance neto por cobrar actual.
         """
         from data_access.models.sales_record import SalesRecord
+        from data_access.models.credit_note_settlement import CreditNoteSettlement
 
         total_sales = self.sales_record.total_sales_inc_vat or Decimal('0.00')
 
@@ -137,6 +139,14 @@ class AccountReceivable(FiscalModuleAbstractModel):
         ).aggregate(
             total=Sum('total_sales_inc_vat')
         )['total'] or Decimal('0.00')
+        
+        # Monto total desembolsado/reembolsado de las liquidaciones de las notas de crédito (suma a la ecuación)
+        refunded_total = CreditNoteSettlement.objects.filter(
+            sales_record__affected_invoice=self.sales_record,
+            sales_record__document_type=SalesRecord.DocumentType.CREDIT_NOTE
+        ).aggregate(
+            total=Sum('refunded_amount')
+        )['total'] or Decimal('0.00')
 
         retentions = self.accumulated_net_retention
 
@@ -144,7 +154,8 @@ class AccountReceivable(FiscalModuleAbstractModel):
             total=Sum('imputed_amount')
         )['total'] or Decimal('0.00')
 
-        return (total_sales + debit_notes_total - credit_notes_total) - retentions - imputations_total
+        # Se agrega '+ refunded_total' al final de la ecuación contable
+        return (total_sales + debit_notes_total - credit_notes_total) - retentions - imputations_total + refunded_total
 
     def clean(self) -> None:
         """Valida y restringe las transiciones de estado permitidas."""

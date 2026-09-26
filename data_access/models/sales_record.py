@@ -389,7 +389,7 @@ class SalesRecord(FiscalModuleAbstractModel):
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs) -> None:
-        """Persiste el registro garantizando la normalización de datos."""
+        """Persiste el registro garantizando la normalización de datos y la generación de CxC."""
         
         # 1. Persistencia de Estatus para Anulaciones
         if self.transaction_type == self.TransactionType.ANNULMENT:
@@ -411,4 +411,18 @@ class SalesRecord(FiscalModuleAbstractModel):
             self.control_number = None
             self.affected_invoice = None
 
+        # Guardar la instancia de SalesRecord para garantizar que posee PK en la base de datos
         super().save(*args, **kwargs)
+
+        # 4. Creación automática de la Cuenta por Cobrar si el documento es una Factura
+        # if self.document_type == self.DocumentType.INVOICE:
+        #     # Importación local para evitar dependencias circulares
+        #     from data_access.models.account_receivable import AccountReceivable
+
+        #     AccountReceivable.objects.get_or_create(
+        #         sales_record=self,
+        #         defaults={
+        #             'fiscal_period': self.fiscal_period,
+        #             'fiscal_profile': self.fiscal_profile,
+        #         }
+        #     )

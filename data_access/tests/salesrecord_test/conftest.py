@@ -76,6 +76,7 @@ def group_a_invoice_record(fiscal_profile: FiscalProfile, standard_customer: Cus
     """
     return SalesRecord(
         fiscal_profile=fiscal_profile,
+        fiscal_period=date(2026, 1, 15),
         client=standard_customer,
         document_type="INVOICE",
         document_number="0001",
@@ -112,6 +113,7 @@ def group_b_fiscal_printer_record(fiscal_profile: FiscalProfile, standard_custom
     """
     return SalesRecord(
         fiscal_profile=fiscal_profile,
+         fiscal_period=date(2026, 1, 15),
         client=standard_customer,
         # document_type=None,
         # document_number=None,

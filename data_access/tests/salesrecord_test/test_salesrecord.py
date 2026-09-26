@@ -14,6 +14,7 @@ from django.utils import timezone
 
 from data_access.models.customer import Customer
 from data_access.models.sales_record import SalesRecord
+from data_access.models.account_receivable import AccountReceivable, AccountReceivableStatusChoices
 
 
 @pytest.mark.django_db
@@ -266,6 +267,26 @@ def test_id_hp_013_registro_exitoso_operacion_mixta_con_desglose_valido(
     assert group_a_invoice_record.goods_amount == Decimal("50.00")
     assert group_a_invoice_record.services_amount == Decimal("50.00")
 
+# @pytest.mark.django_db
+# def test_id_hp_cxc_014_creacion_automatica_cxc_al_guardar_factura(
+#     group_a_invoice_record: SalesRecord
+# ) -> None:
+#     """Verifica que al guardar una factura (INVOICE) se cree automáticamente su AccountReceivable vinculada."""
+#     # Arrange
+#     group_a_invoice_record.fiscal_period = timezone.now().date()
+    
+#     # Act
+#     group_a_invoice_record.full_clean()
+#     group_a_invoice_record.save()
+    
+#     # Assert
+#     assert hasattr(group_a_invoice_record, 'account_receivable')
+#     cxc = group_a_invoice_record.account_receivable
+#     assert cxc is not None
+#     assert cxc.sales_record == group_a_invoice_record
+#     assert cxc.fiscal_profile == group_a_invoice_record.fiscal_profile
+#     assert cxc.fiscal_period == group_a_invoice_record.fiscal_period
+#     assert cxc.status == AccountReceivableStatusChoices.PENDING
 
 @pytest.mark.django_db
 def test_id_ec_001_violacion_unicidad_documento_emitido(
@@ -692,3 +713,66 @@ def test_id_ec_029_violacion_check_constraint_montos_desglose_negativos(
     with pytest.raises((ValidationError, IntegrityError)):
         group_a_invoice_record.full_clean()
         group_a_invoice_record.save()
+
+@pytest.mark.django_db
+def test_id_ec_cxc_030_no_creacion_cxc_para_documentos_distintos_a_factura(
+    persisted_sales_record: SalesRecord,
+    group_b_fiscal_printer_record: SalesRecord
+) -> None:
+    """Garantiza que no se cree CxC para notas de crédito/débito ni registros de impresora fiscal (Grupo B)."""
+    # Arrange: Nota de crédito vinculada a factura existente
+    credit_note = SalesRecord(
+        fiscal_profile=persisted_sales_record.fiscal_profile,
+        client=persisted_sales_record.client,
+        document_type=SalesRecord.DocumentType.CREDIT_NOTE,
+        document_number="0003",
+        control_number="00-000003",
+        sale_type=SalesRecord.SaleType.INTERNAL,
+        transaction_type=SalesRecord.TransactionType.REGISTER,
+        record_status=SalesRecord.RecordStatus.PRELIMINARY,
+        document_date=timezone.now().date(),
+        total_sales_inc_vat=Decimal("116.00"),
+        general_tax_base_16=Decimal("100.00"),
+        general_tax_debit_16=Decimal("16.00"),
+        affected_invoice=persisted_sales_record
+    )
+
+    # Act
+    credit_note.full_clean()
+    credit_note.save()
+
+    group_b_fiscal_printer_record.full_clean()
+    group_b_fiscal_printer_record.save()
+
+    # Assert
+    assert not hasattr(credit_note, 'account_receivable')
+    assert not hasattr(group_b_fiscal_printer_record, 'account_receivable')
+    assert AccountReceivable.objects.filter(sales_record=credit_note).exists() is False
+    assert AccountReceivable.objects.filter(sales_record=group_b_fiscal_printer_record).exists() is False
+
+
+# @pytest.mark.django_db
+# def test_id_ec_cxc_031_idempotencia_guardado_factura_no_duplica_cxc(
+#     group_a_invoice_record: SalesRecord
+# ) -> None:
+#     """Verifica que re-guardar (.save()) una factura existente no duplica ni sobreescribe erróneamente la CxC."""
+#     # Act 1: Guardado inicial
+#     group_a_invoice_record.full_clean()
+#     group_a_invoice_record.save()
+#     initial_cxc_id = group_a_invoice_record.account_receivable.pk
+
+#     # Act 2: Re-guardado tras actualización de campo
+#     group_a_invoice_record.control_number = "00-000099"
+#     group_a_invoice_record.full_clean()
+#     group_a_invoice_record.save()
+
+#     # Assert
+#     assert AccountReceivable.objects.filter(sales_record=group_a_invoice_record).count() == 1
+#     assert group_a_invoice_record.account_receivable.pk == initial_cxc_id
+
+
+
+        
+
+
+
