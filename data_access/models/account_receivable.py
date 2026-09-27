@@ -109,6 +109,40 @@ class AccountReceivable(FiscalModuleAbstractModel):
         return base_retention + debit_retention - credit_retention
 
     @property
+    def base_receivable_balance(self) -> Decimal:
+        """Calcula el saldo de la factura original previo a notas de crédito y débito.
+
+        Ecuación: Valor de factura original - Retenciones originarias (IVA e ISLR) - Imputaciones de pagos.
+        
+        Returns:
+            Decimal: El balance neto por cobrar de la factura base.
+        """
+        from data_access.models.vat_withholding_sales import VatWithHolding
+        from data_access.models.islr_withholding_sales import IslrWithHolding
+
+        # 1. Valor total de la factura original
+        total_sales = self.sales_record.total_sales_inc_vat or Decimal('0.00')
+
+        # 2. Retenciones (sólo de la factura origen)
+        # Se filtran directamente usando la instancia actual de sales_record para optimizar 
+        # y evitar la sobrecarga de instanciar querysets complejos o documentos anidados.
+        vat_retention = VatWithHolding.objects.filter(
+            document=self.sales_record
+        ).aggregate(total=Sum('withheld_amount'))['total'] or Decimal('0.00')
+
+        islr_retention = IslrWithHolding.objects.filter(
+            document=self.sales_record
+        ).aggregate(total=Sum('total_withheld_amount'))['total'] or Decimal('0.00')
+
+        # 3. Imputaciones de pagos directos a la cuenta por cobrar
+        imputations_total = self.imputations.aggregate(
+            total=Sum('imputed_amount')
+        )['total'] or Decimal('0.00')
+
+        # 4. Cálculo final de la ecuación base
+        return total_sales - (vat_retention + islr_retention) - imputations_total
+
+    @property
     def net_receivable_balance(self) -> Decimal:
         """Calcula en tiempo real el saldo exigible de la obligación comercial.
 

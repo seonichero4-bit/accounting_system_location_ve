@@ -88,6 +88,15 @@ class SalesRecord(FiscalModuleAbstractModel):
         max_digits=15, decimal_places=2, default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))]
     )
+    exempt_goods_amount = models.DecimalField(
+        max_digits=15, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))]
+    )
+    exempt_services_amount = models.DecimalField(
+        max_digits=15, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))]
+    )
+    
     transaction_type = models.CharField(max_length=20, choices=TransactionType.choices)
     sale_type = models.CharField(max_length=20, choices=SaleType.choices)
     fiscal_printer_number = models.CharField(max_length=50, null=True, blank=True)
@@ -415,14 +424,14 @@ class SalesRecord(FiscalModuleAbstractModel):
         super().save(*args, **kwargs)
 
         # 4. Creación automática de la Cuenta por Cobrar si el documento es una Factura
-        # if self.document_type == self.DocumentType.INVOICE:
-        #     # Importación local para evitar dependencias circulares
-        #     from data_access.models.account_receivable import AccountReceivable
+        if self.document_type == self.DocumentType.INVOICE:
+            # Importación local para evitar dependencias circulares
+            from data_access.models.account_receivable import AccountReceivable
 
-        #     AccountReceivable.objects.get_or_create(
-        #         sales_record=self,
-        #         defaults={
-        #             'fiscal_period': self.fiscal_period,
-        #             'fiscal_profile': self.fiscal_profile,
-        #         }
-        #     )
+            AccountReceivable.objects.get_or_create(
+                sales_record=self,
+                defaults={
+                    'fiscal_period': self.fiscal_period,
+                    'fiscal_profile': self.fiscal_profile,
+                }
+            )
