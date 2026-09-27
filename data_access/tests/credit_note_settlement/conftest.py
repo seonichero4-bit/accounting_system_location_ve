@@ -11,6 +11,7 @@ from typing import Any, Callable, Dict
 
 import pytest
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 from business_logic.services.fiscal_profile_service import FiscalProfileService
 from data_access.models.base import FiscalProfile
@@ -18,6 +19,8 @@ from data_access.models.customer import Customer
 from data_access.models.sales_record import SalesRecord
 from data_access.models.account_receivable import AccountReceivable, AccountReceivableStatusChoices
 from data_access.models.credit_note_settlement import CreditNoteSettlement
+from data_access.models.customer_payment import CustomerPayment, PaymentMethodTypeChoices, CurrencyChoices
+from data_access.models.payment_imputation import PaymentImputation
 
 
 @pytest.fixture
@@ -135,24 +138,98 @@ def credit_note_sales_record(
     record.save()
     return record
 
+@pytest.fixture
+def invoice_factory(fiscal_profile, standard_customer):
+    """Factory para generar facturas base (instancia automáticamente su CxC)."""
+    def _factory(**kwargs):
+        defaults = {
+            'fiscal_profile': fiscal_profile,
+            'client': standard_customer,
+            'document_type': SalesRecord.DocumentType.INVOICE,
+            'transaction_type': SalesRecord.TransactionType.REGISTER,
+            'sale_type': SalesRecord.SaleType.INTERNAL,
+            'sale_category': SalesRecord.SaleCategory.GOODS,
+            'document_date': timezone.now().date(),
+            'fiscal_period': timezone.now().date().replace(day=1),
+            'document_number': 'INV-0001',
+            'control_number': '00-00001',
+            'total_sales_inc_vat': Decimal('116.00'),
+            'exempt_internal_sales': Decimal('116.00'), # Usado para cuadrar la ecuación contable simple
+        }
+        defaults.update(kwargs)
+        
+        if defaults['sale_category'] == SalesRecord.SaleCategory.MIXED:
+            if 'goods_amount' not in kwargs:
+                defaults['goods_amount'] = defaults['total_sales_inc_vat'] / 2
+            if 'services_amount' not in kwargs:
+                defaults['services_amount'] = defaults['total_sales_inc_vat'] / 2
+
+        return SalesRecord.objects.create(**defaults)
+    return _factory
 
 @pytest.fixture
-def account_receivable(
-    db,
-    fiscal_profile: FiscalProfile,
-    sales_record: SalesRecord
-) -> AccountReceivable:
-    """Crea una cuenta por cobrar (AccountReceivable) válida vinculada a la factura de venta originaria."""
-    receivable = AccountReceivable(
-        fiscal_profile=fiscal_profile,
-        sales_record=sales_record,
-        fiscal_period=sales_record.fiscal_period,
-        status=AccountReceivableStatusChoices.PENDING
-    )
-    receivable.full_clean()
-    receivable.save()
-    return receivable
+def credit_note_factory(fiscal_profile, standard_customer):
+    """Factory para generar Notas de Crédito vinculadas a una factura originaria."""
+    def _factory(affected_invoice, **kwargs):
+        defaults = {
+            'fiscal_profile': fiscal_profile,
+            'client': standard_customer,
+            'document_type': SalesRecord.DocumentType.CREDIT_NOTE,
+            'transaction_type': SalesRecord.TransactionType.REGISTER,
+            'sale_type': SalesRecord.SaleType.INTERNAL,
+            'sale_category': SalesRecord.SaleCategory.GOODS,
+            'document_date': timezone.now().date(),
+            'fiscal_period': timezone.now().date().replace(day=1),
+            'document_number': 'CN-0001',
+            'control_number': '00-00002',
+            'affected_invoice': affected_invoice,
+            'total_sales_inc_vat': Decimal('116.00'),
+            'exempt_internal_sales': Decimal('116.00'),
+        }
+        defaults.update(kwargs)
 
+        if defaults['sale_category'] == SalesRecord.SaleCategory.MIXED:
+            if 'goods_amount' not in kwargs:
+                defaults['goods_amount'] = defaults['total_sales_inc_vat'] / 2
+            if 'services_amount' not in kwargs:
+                defaults['services_amount'] = defaults['total_sales_inc_vat'] / 2
+
+        return SalesRecord.objects.create(**defaults)
+    return _factory
+
+@pytest.fixture
+def customer_payment_factory(fiscal_profile, standard_customer):
+    """Factory para crear cobros/pagos consolidados del cliente."""
+    def _factory(**kwargs):
+        defaults = {
+            'fiscal_profile': fiscal_profile,
+            'customer': standard_customer,
+            'fiscal_period': timezone.now().date().replace(day=1),
+            'payment_date': timezone.now().date(),
+            'method_type': PaymentMethodTypeChoices.BANK_TRANSFER,
+            'currency': CurrencyChoices.VES,
+            'nominal_value': Decimal('116.00'),
+            'exchange_rate': Decimal('1.0000'),
+            'total_amount': Decimal('116.00'),
+        }
+        defaults.update(kwargs)
+        return CustomerPayment.objects.create(**defaults)
+    return _factory
+
+@pytest.fixture
+def payment_imputation_factory(fiscal_profile):
+    """Factory para imputar un pago existente a una Cuenta por Cobrar."""
+    def _factory(payment, account_receivable, imputed_amount, **kwargs):
+        defaults = {
+            'fiscal_profile': fiscal_profile,
+            'payment': payment,
+            'account_receivable': account_receivable,
+            'fiscal_period': timezone.now().date().replace(day=1),
+            'imputed_amount': Decimal(imputed_amount),
+        }
+        defaults.update(kwargs)
+        return PaymentImputation.objects.create(**defaults)
+    return _factory
 
 @pytest.fixture
 def credit_note_settlement_factory(

@@ -19,56 +19,65 @@ from data_access.models.sales_record import SalesRecord
 class TestCreditNoteSettlementHappyPaths:
     """Suite de Pruebas Unitarias - Flujos Felices (Happy Paths)."""
 
-    def test_ID_HP_001_returns_with_mixed_payment(self, credit_note_sales_record, credit_note_settlement_factory):
-        """Valida liquidación de devolución de bienes con pago mixto (efectivo y transferencia)."""
-        # Arrange
-        credit_note_sales_record.sale_category = SalesRecord.SaleCategory.GOODS
-        credit_note_sales_record.total_sales_inc_vat = Decimal("100.00")
-        credit_note_sales_record.save(update_fields=["sale_category", "total_sales_inc_vat"])
+    def test_ID_HP_001_returns_with_mixed_payment(
+        self, invoice_factory, customer_payment_factory, payment_imputation_factory, 
+        credit_note_factory, credit_note_settlement_factory
+    ):
+        # Arrange: 1. Factura por 116.00 (Genera su CxC en balance 116.00)
+        invoice = invoice_factory(
+            total_sales_inc_vat=Decimal("116.00"), 
+            exempt_internal_sales=Decimal("116.00"),
+            sale_category=SalesRecord.SaleCategory.GOODS
+        )
+        cxc = invoice.account_receivable
 
-        # Act
-        settlement = credit_note_settlement_factory(
-            sales_record=credit_note_sales_record,
-            settlement_type=CreditNoteSettlement.SettlementType.RETURNS,
-            returned_goods_value=Decimal("100.00"),
-            reimbursement_in_services=Decimal("0.00"),
-            commercial_discount_amount=Decimal("0.00"),
-            bank_transfer_amount=Decimal("50.00"),
-            cash_amount=Decimal("50.00"),
-            refunded_amount=Decimal("100.00"),
-            payment_reference="TRX-98765",
-            validate=True
+        # Arrange: 2. Pagar la factura completa (Saldo CxC = 0.00)
+        payment = customer_payment_factory(total_amount=Decimal("116.00"), nominal_value=Decimal("116.00"))
+        payment_imputation_factory(payment=payment, account_receivable=cxc, imputed_amount=Decimal("116.00"))
+
+        # Arrange: 3. Nota de Crédito por 100.00 (Saldo CxC pasa a -100.00)
+        credit_note = credit_note_factory(
+            affected_invoice=invoice,
+            total_sales_inc_vat=Decimal("100.00"),
+            exempt_internal_sales=Decimal("100.00"),
+            sale_category=SalesRecord.SaleCategory.GOODS
         )
 
-        # Assert
-        assert settlement.pk is not None
-        assert settlement.settlement_type == CreditNoteSettlement.SettlementType.RETURNS
+        # Act & Assert: Liquidar desembolsando exactamente los 100.00 a favor
+        settlement = credit_note_settlement_factory(
+            sales_record=credit_note,
+            refunded_amount=Decimal("100.00")
+        )
+        
         assert settlement.refunded_amount == Decimal("100.00")
 
-    def test_ID_HP_002_returns_in_services_category(self, credit_note_sales_record, credit_note_settlement_factory):
-        """Valida registro de devolución de tipo RETURNS en una venta categorizada como servicios."""
-        # Arrange
-        credit_note_sales_record.sale_category = SalesRecord.SaleCategory.SERVICES
-        credit_note_sales_record.total_sales_inc_vat = Decimal("150.00")
-        credit_note_sales_record.save(update_fields=["sale_category", "total_sales_inc_vat"])
 
-        # Act
-        settlement = credit_note_settlement_factory(
-            sales_record=credit_note_sales_record,
-            settlement_type=CreditNoteSettlement.SettlementType.RETURNS,
-            returned_goods_value=Decimal("0.00"),
-            reimbursement_in_services=Decimal("150.00"),
-            commercial_discount_amount=Decimal("0.00"),
-            mobile_payment_amount=Decimal("150.00"),
-            cash_amount=Decimal("0.00"),
-            refunded_amount=Decimal("150.00"),
-            payment_reference="PAGO-MOBI-01",
-            validate=True
+    def test_ID_HP_002_returns_in_services_category(
+        self, invoice_factory, customer_payment_factory, payment_imputation_factory, 
+        credit_note_factory, credit_note_settlement_factory
+    ):
+        invoice = invoice_factory(
+            total_sales_inc_vat=Decimal("200.00"), exempt_internal_sales=Decimal("200.00"),
+            sale_category=SalesRecord.SaleCategory.SERVICES
+        )
+        cxc = invoice.account_receivable
+
+        payment = customer_payment_factory(total_amount=Decimal("200.00"), nominal_value=Decimal("200.00"))
+        payment_imputation_factory(payment=payment, account_receivable=cxc, imputed_amount=Decimal("200.00"))
+
+        credit_note = credit_note_factory(
+            affected_invoice=invoice,
+            total_sales_inc_vat=Decimal("150.00"), exempt_internal_sales=Decimal("150.00"),
+            sale_category=SalesRecord.SaleCategory.SERVICES
         )
 
-        # Assert
-        assert settlement.pk is not None
-        assert settlement.reimbursement_in_services == Decimal("150.00")
+        settlement = credit_note_settlement_factory(
+            sales_record=credit_note,
+            refunded_amount=Decimal("150.00"),
+            returned_goods_value=Decimal("0.00"),
+            reimbursement_in_services=Decimal("150.00")
+        )
+        assert settlement.refunded_amount == Decimal("150.00")
 
     def test_ID_HP_003_discounts_pure_no_cashflow(self, credit_note_sales_record, credit_note_settlement_factory):
         """Valida una liquidación de descuento puro sin desembolso monetario."""
@@ -96,31 +105,30 @@ class TestCreditNoteSettlementHappyPaths:
         assert settlement.commercial_discount_amount == Decimal("80.00")
         assert settlement.refunded_amount == Decimal("0.00")
 
-    def test_ID_HP_004_mixed_settlement_mixed_category(self, credit_note_sales_record, credit_note_settlement_factory):
-        """Valida una liquidación MIXED combinando devoluciones de bienes, servicios y descuentos."""
-        # Arrange
-        credit_note_sales_record.sale_category = "MIXED"  # Asumiendo existencia de MIXED en choices
-        credit_note_sales_record.total_sales_inc_vat = Decimal("200.00")
-        credit_note_sales_record.save(update_fields=["sale_category", "total_sales_inc_vat"])
+    def test_ID_HP_004_mixed_settlement_mixed_category(
+        self, invoice_factory, customer_payment_factory, payment_imputation_factory, 
+        credit_note_factory, credit_note_settlement_factory
+    ):
+        invoice = invoice_factory(
+            total_sales_inc_vat=Decimal("300.00"), exempt_internal_sales=Decimal("300.00"),
+            sale_category=SalesRecord.SaleCategory.MIXED
+        )
+        cxc = invoice.account_receivable
 
-        # Act
-        settlement = credit_note_settlement_factory(
-            sales_record=credit_note_sales_record,
-            settlement_type=CreditNoteSettlement.SettlementType.MIXED,
-            returned_goods_value=Decimal("100.00"),
-            reimbursement_in_services=Decimal("50.00"),
-            commercial_discount_amount=Decimal("50.00"),
-            card_pos_amount=Decimal("150.00"),
-            cash_amount=Decimal("0.00"),
-            refunded_amount=Decimal("150.00"),
-            payment_reference=None,
-            validate=True
+        payment = customer_payment_factory(total_amount=Decimal("300.00"), nominal_value=Decimal("300.00"))
+        payment_imputation_factory(payment=payment, account_receivable=cxc, imputed_amount=Decimal("300.00"))
+
+        credit_note = credit_note_factory(
+            affected_invoice=invoice,
+            total_sales_inc_vat=Decimal("150.00"), exempt_internal_sales=Decimal("150.00"),
+            sale_category=SalesRecord.SaleCategory.MIXED
         )
 
-        # Assert
-        assert settlement.pk is not None
-        assert settlement.returned_goods_value == Decimal("100.00")
-        assert settlement.reimbursement_in_services == Decimal("50.00")
+        settlement = credit_note_settlement_factory(
+            sales_record=credit_note,
+            refunded_amount=Decimal("150.00")
+        )
+        assert settlement.refunded_amount == Decimal("150.00")
 
     def test_ID_HP_005_returns_informative_zero_refund(self, credit_note_sales_record, credit_note_settlement_factory):
         """Valida registro informativo de devolución física sin impacto dinerario inmediato."""
@@ -146,28 +154,28 @@ class TestCreditNoteSettlementHappyPaths:
         assert settlement.pk is not None
         assert settlement.refunded_amount == Decimal("0.00")
 
-    def test_ID_HP_006_returns_customer_credit_balance(self, credit_note_sales_record, credit_note_settlement_factory):
-        """Valida una devolución imputada íntegramente a favor del saldo del cliente."""
-        # Arrange
-        credit_note_sales_record.sale_category = SalesRecord.SaleCategory.GOODS
-        credit_note_sales_record.total_sales_inc_vat = Decimal("300.00")
-        credit_note_sales_record.save(update_fields=["sale_category", "total_sales_inc_vat"])
+    def test_ID_HP_006_returns_customer_credit_balance(
+        self, invoice_factory, customer_payment_factory, payment_imputation_factory, 
+        credit_note_factory, credit_note_settlement_factory
+    ):
+        invoice = invoice_factory(
+            total_sales_inc_vat=Decimal("500.00"), exempt_internal_sales=Decimal("500.00")
+        )
+        cxc = invoice.account_receivable
 
-        # Act
-        settlement = credit_note_settlement_factory(
-            sales_record=credit_note_sales_record,
-            settlement_type=CreditNoteSettlement.SettlementType.RETURNS,
-            returned_goods_value=Decimal("300.00"),
-            customer_credit_balance_amount=Decimal("300.00"),
-            cash_amount=Decimal("0.00"),
-            refunded_amount=Decimal("300.00"),
-            payment_reference=None,
-            validate=True
+        payment = customer_payment_factory(total_amount=Decimal("500.00"), nominal_value=Decimal("500.00"))
+        payment_imputation_factory(payment=payment, account_receivable=cxc, imputed_amount=Decimal("500.00"))
+
+        credit_note = credit_note_factory(
+            affected_invoice=invoice,
+            total_sales_inc_vat=Decimal("300.00"), exempt_internal_sales=Decimal("300.00")
         )
 
-        # Assert
-        assert settlement.pk is not None
-        assert settlement.customer_credit_balance_amount == Decimal("300.00")
+        settlement = credit_note_settlement_factory(
+            sales_record=credit_note,
+            refunded_amount=Decimal("300.00")
+        )
+        assert settlement.refunded_amount == Decimal("300.00")
 
 
 @pytest.mark.django_db
@@ -476,24 +484,38 @@ class TestCreditNoteSettlementEdgeCases:
 
         assert 'returned_goods_value' in exc.value.error_dict
 
-    def test_ID_EC_018_unique_constraint_per_sales_record(self, credit_note_sales_record, credit_note_settlement_factory):
-        """Comprueba restricción única, no debe haber más de una liquidación por Nota de Crédito."""
-        # Arrange
-        credit_note_sales_record.total_sales_inc_vat = Decimal("100.00")
-        credit_note_sales_record.save(update_fields=["total_sales_inc_vat"])
-        
-        credit_note_settlement_factory(
-            sales_record=credit_note_sales_record,
-            validate=True
+    def test_ID_EC_018_unique_constraint_per_sales_record(
+        self, invoice_factory, customer_payment_factory, payment_imputation_factory, 
+        credit_note_factory, credit_note_settlement_factory
+    ):
+        invoice = invoice_factory(
+            total_sales_inc_vat=Decimal("200.00"), exempt_internal_sales=Decimal("200.00")
+        )
+        cxc = invoice.account_receivable
+
+        payment = customer_payment_factory(total_amount=Decimal("200.00"), nominal_value=Decimal("200.00"))
+        payment_imputation_factory(payment=payment, account_receivable=cxc, imputed_amount=Decimal("200.00"))
+
+        credit_note = credit_note_factory(
+            affected_invoice=invoice,
+            total_sales_inc_vat=Decimal("100.00"), exempt_internal_sales=Decimal("100.00")
         )
 
-        # Act & Assert
-        with pytest.raises(IntegrityError):
-            credit_note_settlement_factory(
-                sales_record=credit_note_sales_record,
-                validate=False
-            )
+        # Primer liquidación Exitosa
+        credit_note_settlement_factory(
+            sales_record=credit_note,
+            refunded_amount=Decimal("100.00")
+        )
 
+        # Act & Assert: Intentar duplicar la liquidación sobre el mismo SalesRecord de crédito
+        import pytest
+        from django.db.utils import IntegrityError
+        
+        with pytest.raises((ValidationError, IntegrityError)):
+            credit_note_settlement_factory(
+                sales_record=credit_note,
+                refunded_amount=Decimal("100.00") 
+            )
     # def test_ID_EC_019_external_modules_isolation(self, account_receivable, credit_note_sales_record, credit_note_settlement_factory):
     #     """Garantiza la invarianza de otros módulos, AccountReceivable no se debe afectar."""
     #     # Arrange

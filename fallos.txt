@@ -5,101 +5,356 @@ django: version: 6.0.7, settings: accounting_system_ve.settings (from ini)
 rootdir: /workspaces/accounting_system_location_ve
 configfile: pytest.ini
 plugins: django-4.14.0, Faker-40.15.0
-collecting ... collected 26 items / 22 deselected / 4 selected
+collecting ... collected 24 items / 20 deselected / 4 selected
 run-last-failure: rerun previous 4 failures
 
-data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementEdgeCases::test_ID_EC_012_goods_returned_in_services_sale FAILED [ 25%]
-data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementEdgeCases::test_ID_EC_013_services_reimbursement_in_goods_sale FAILED [ 50%]
-data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementEdgeCases::test_ID_EC_019_external_modules_isolation FAILED [ 75%]
-data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementEdgeCases::test_ID_EC_020_missing_mandatory_sales_record FAILED [100%]
+data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementHappyPaths::test_ID_HP_001_returns_with_mixed_payment FAILED [ 25%]
+data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementHappyPaths::test_ID_HP_002_returns_in_services_category FAILED [ 50%]
+data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementHappyPaths::test_ID_HP_006_returns_customer_credit_balance FAILED [ 75%]
+data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementEdgeCases::test_ID_EC_018_unique_constraint_per_sales_record FAILED [100%]
 
 =================================== FAILURES ===================================
-_ TestCreditNoteSettlementEdgeCases.test_ID_EC_012_goods_returned_in_services_sale _
+_ TestCreditNoteSettlementHappyPaths.test_ID_HP_001_returns_with_mixed_payment _
 
-self = <test_credit_note_settlement.TestCreditNoteSettlementEdgeCases object at 0x76aa154d61b0>
-credit_note_sales_record = <SalesRecord id=621 doc=00000002>
-credit_note_settlement_factory = <function credit_note_settlement_factory.<locals>._create_settlement at 0x76aa1511eb60>
+self = <test_credit_note_settlement.TestCreditNoteSettlementHappyPaths object at 0x7506a63c9370>
+credit_note_sales_record = <SalesRecord id=971 doc=00000002>
+payment_imputation = <PaymentImputation: Imputación: 104.40 (CxC: 353)>
+credit_note_settlement_factory = <function credit_note_settlement_factory.<locals>._create_settlement at 0x7506a605cfe0>
 
-    def test_ID_EC_012_goods_returned_in_services_sale(self, credit_note_sales_record, credit_note_settlement_factory):
-        """Prohíbe devolución de bienes si la factura de origen es estrictamente de servicios."""
-        # Arrange
-        credit_note_sales_record.sale_category = SalesRecord.SaleCategory.SERVICES
-        credit_note_sales_record.total_sales_inc_vat = Decimal("50.00")
-        credit_note_sales_record.save(update_fields=["sale_category", "total_sales_inc_vat"])
-    
-        # Act & Assert
->       with pytest.raises(ValidationError) as exc:
-E       Failed: DID NOT RAISE ValidationError
-
-data_access/tests/credit_note_settlement/test_credit_note_settlement.py:381: Failed
----------------------------- Captured stderr setup -----------------------------
-Using existing test database for alias 'default'...
-_ TestCreditNoteSettlementEdgeCases.test_ID_EC_013_services_reimbursement_in_goods_sale _
-
-self = <test_credit_note_settlement.TestCreditNoteSettlementEdgeCases object at 0x76aa154b8920>
-credit_note_sales_record = <SalesRecord id=623 doc=00000002>
-credit_note_settlement_factory = <function credit_note_settlement_factory.<locals>._create_settlement at 0x76aa15161b20>
-
-    def test_ID_EC_013_services_reimbursement_in_goods_sale(self, credit_note_sales_record, credit_note_settlement_factory):
-        """Prohíbe reversión de servicios si la factura de origen es estrictamente de bienes."""
+    def test_ID_HP_001_returns_with_mixed_payment(self, credit_note_sales_record, payment_imputation, credit_note_settlement_factory):
+        """Valida liquidación de devolución de bienes con pago mixto (efectivo y transferencia)."""
         # Arrange
         credit_note_sales_record.sale_category = SalesRecord.SaleCategory.GOODS
-        credit_note_sales_record.total_sales_inc_vat = Decimal("75.00")
+        credit_note_sales_record.total_sales_inc_vat = Decimal("100.00")
         credit_note_sales_record.save(update_fields=["sale_category", "total_sales_inc_vat"])
     
-        # Act & Assert
->       with pytest.raises(ValidationError) as exc:
-E       Failed: DID NOT RAISE ValidationError
+        # Act
+>       settlement = credit_note_settlement_factory(
+            sales_record=credit_note_sales_record,
+            settlement_type=CreditNoteSettlement.SettlementType.RETURNS,
+            returned_goods_value=Decimal("100.00"),
+            reimbursement_in_services=Decimal("0.00"),
+            commercial_discount_amount=Decimal("0.00"),
+            bank_transfer_amount=Decimal("50.00"),
+            cash_amount=Decimal("50.00"),
+            refunded_amount=Decimal("100.00"),
+            payment_reference="TRX-98765",
+            validate=True
+        )
 
-data_access/tests/credit_note_settlement/test_credit_note_settlement.py:399: Failed
-_ TestCreditNoteSettlementEdgeCases.test_ID_EC_019_external_modules_isolation __
-
-self = <test_credit_note_settlement.TestCreditNoteSettlementEdgeCases object at 0x76aa154e6d80>
-account_receivable = <AccountReceivable: CxC - Documento: 624 - Estado: PENDING>
-credit_note_sales_record = <SalesRecord id=625 doc=00000002>
-credit_note_settlement_factory = <function credit_note_settlement_factory.<locals>._create_settlement at 0x76aa15162200>
-
-    def test_ID_EC_019_external_modules_isolation(self, account_receivable, credit_note_sales_record, credit_note_settlement_factory):
-        """Garantiza la invarianza de otros módulos, AccountReceivable no se debe afectar."""
-        # Arrange
->       account_receivable.net_receivable_balance = Decimal("500.00")
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       AttributeError: property 'net_receivable_balance' of 'AccountReceivable' object has no setter
-
-data_access/tests/credit_note_settlement/test_credit_note_settlement.py:500: AttributeError
-_ TestCreditNoteSettlementEdgeCases.test_ID_EC_020_missing_mandatory_sales_record _
-
-self = <test_credit_note_settlement.TestCreditNoteSettlementEdgeCases object at 0x76aa154e73b0>
-credit_note_settlement_factory = <function credit_note_settlement_factory.<locals>._create_settlement at 0x76aa157c1300>
-
-    def test_ID_EC_020_missing_mandatory_sales_record(self, credit_note_settlement_factory):
-        """Maneja controladamente el intento de validadción sin un registro base (sales_record=None)."""
-        # Arrange
-        # Act & Assert
-        with pytest.raises(ValidationError) as exc:
->           credit_note_settlement_factory(
-                sales_record=None,
-                validate=True
-            )
-
-data_access/tests/credit_note_settlement/test_credit_note_settlement.py:521: 
+data_access/tests/credit_note_settlement/test_credit_note_settlement.py:30: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+data_access/tests/credit_note_settlement/conftest.py:218: in _create_settlement
+    settlement.full_clean()
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-kwargs = {}
+self = <[AttributeError("'CreditNoteSettlement' object has no attribute 'name'") raised in repr()] CreditNoteSettlement object at 0x7506a60373b0>
+exclude = {'refunded_amount'}, validate_unique = True
+validate_constraints = True
 
-    def _create_settlement(**kwargs) -> CreditNoteSettlement:
-        target_sales_record = kwargs.pop("sales_record", credit_note_sales_record)
-        target_fiscal_profile = kwargs.pop("fiscal_profile", fiscal_profile)
-        should_validate = kwargs.pop("validate", True)
+    def full_clean(self, exclude=None, validate_unique=True, validate_constraints=True):
+        """
+        Call clean_fields(), clean(), validate_unique(), and
+        validate_constraints() on the model. Raise a ValidationError for any
+        errors that occur.
+        """
+        errors = {}
+        if exclude is None:
+            exclude = set()
+        else:
+            exclude = set(exclude)
     
->       total_amount = target_sales_record.total_sales_inc_vat or Decimal("0.00")
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       AttributeError: 'NoneType' object has no attribute 'total_sales_inc_vat'
+        try:
+            self.clean_fields(exclude=exclude)
+        except ValidationError as e:
+            errors = e.update_error_dict(errors)
+    
+        # Form.clean() is run even if other validation fails, so do the
+        # same with Model.clean() for consistency.
+        try:
+            self.clean()
+        except ValidationError as e:
+            errors = e.update_error_dict(errors)
+    
+        # Run unique checks, but only for fields that passed validation.
+        if validate_unique:
+            for name in errors:
+                if name != NON_FIELD_ERRORS and name not in exclude:
+                    exclude.add(name)
+            try:
+                self.validate_unique(exclude=exclude)
+            except ValidationError as e:
+                errors = e.update_error_dict(errors)
+    
+        # Run constraints checks, but only for fields that passed validation.
+        if validate_constraints:
+            for name in errors:
+                if name != NON_FIELD_ERRORS and name not in exclude:
+                    exclude.add(name)
+            try:
+                self.validate_constraints(exclude=exclude)
+            except ValidationError as e:
+                errors = e.update_error_dict(errors)
+    
+        if errors:
+>           raise ValidationError(errors)
+E           django.core.exceptions.ValidationError: {'refunded_amount': ['El monto a desembolsar (100.00) debe ser exactamente igual al valor absoluto del saldo a favor de la cuenta por cobrar (88.40).']}
 
-data_access/tests/credit_note_settlement/conftest.py:173: AttributeError
+venv/lib/python3.12/site-packages/django/db/models/base.py:1712: ValidationError
+---------------------------- Captured stderr setup -----------------------------
+Using existing test database for alias 'default'...
+_ TestCreditNoteSettlementHappyPaths.test_ID_HP_002_returns_in_services_category _
+
+self = <test_credit_note_settlement.TestCreditNoteSettlementHappyPaths object at 0x7506a63c9b20>
+credit_note_sales_record = <SalesRecord id=973 doc=00000002>
+payment_imputation = <PaymentImputation: Imputación: 104.40 (CxC: 354)>
+credit_note_settlement_factory = <function credit_note_settlement_factory.<locals>._create_settlement at 0x7506a66c4900>
+
+    def test_ID_HP_002_returns_in_services_category(self, credit_note_sales_record, payment_imputation, credit_note_settlement_factory):
+        """Valida registro de devolución de tipo RETURNS en una venta categorizada como servicios."""
+        # Arrange
+        credit_note_sales_record.sale_category = SalesRecord.SaleCategory.SERVICES
+        credit_note_sales_record.total_sales_inc_vat = Decimal("150.00")
+        credit_note_sales_record.save(update_fields=["sale_category", "total_sales_inc_vat"])
+    
+        # Act
+>       settlement = credit_note_settlement_factory(
+            sales_record=credit_note_sales_record,
+            settlement_type=CreditNoteSettlement.SettlementType.RETURNS,
+            returned_goods_value=Decimal("0.00"),
+            reimbursement_in_services=Decimal("150.00"),
+            commercial_discount_amount=Decimal("0.00"),
+            mobile_payment_amount=Decimal("150.00"),
+            cash_amount=Decimal("0.00"),
+            refunded_amount=Decimal("150.00"),
+            payment_reference="PAGO-MOBI-01",
+            validate=True
+        )
+
+data_access/tests/credit_note_settlement/test_credit_note_settlement.py:56: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+data_access/tests/credit_note_settlement/conftest.py:218: in _create_settlement
+    settlement.full_clean()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <[AttributeError("'CreditNoteSettlement' object has no attribute 'name'") raised in repr()] CreditNoteSettlement object at 0x7506a6139a60>
+exclude = {'refunded_amount'}, validate_unique = True
+validate_constraints = True
+
+    def full_clean(self, exclude=None, validate_unique=True, validate_constraints=True):
+        """
+        Call clean_fields(), clean(), validate_unique(), and
+        validate_constraints() on the model. Raise a ValidationError for any
+        errors that occur.
+        """
+        errors = {}
+        if exclude is None:
+            exclude = set()
+        else:
+            exclude = set(exclude)
+    
+        try:
+            self.clean_fields(exclude=exclude)
+        except ValidationError as e:
+            errors = e.update_error_dict(errors)
+    
+        # Form.clean() is run even if other validation fails, so do the
+        # same with Model.clean() for consistency.
+        try:
+            self.clean()
+        except ValidationError as e:
+            errors = e.update_error_dict(errors)
+    
+        # Run unique checks, but only for fields that passed validation.
+        if validate_unique:
+            for name in errors:
+                if name != NON_FIELD_ERRORS and name not in exclude:
+                    exclude.add(name)
+            try:
+                self.validate_unique(exclude=exclude)
+            except ValidationError as e:
+                errors = e.update_error_dict(errors)
+    
+        # Run constraints checks, but only for fields that passed validation.
+        if validate_constraints:
+            for name in errors:
+                if name != NON_FIELD_ERRORS and name not in exclude:
+                    exclude.add(name)
+            try:
+                self.validate_constraints(exclude=exclude)
+            except ValidationError as e:
+                errors = e.update_error_dict(errors)
+    
+        if errors:
+>           raise ValidationError(errors)
+E           django.core.exceptions.ValidationError: {'refunded_amount': ['El monto a desembolsar (150.00) debe ser exactamente igual al valor absoluto del saldo a favor de la cuenta por cobrar (138.40).']}
+
+venv/lib/python3.12/site-packages/django/db/models/base.py:1712: ValidationError
+_ TestCreditNoteSettlementHappyPaths.test_ID_HP_006_returns_customer_credit_balance _
+
+self = <test_credit_note_settlement.TestCreditNoteSettlementHappyPaths object at 0x7506a63cb9e0>
+credit_note_sales_record = <SalesRecord id=975 doc=00000002>
+payment_imputation = <PaymentImputation: Imputación: 104.40 (CxC: 355)>
+credit_note_settlement_factory = <function credit_note_settlement_factory.<locals>._create_settlement at 0x7506a68334c0>
+
+    def test_ID_HP_006_returns_customer_credit_balance(self, credit_note_sales_record, payment_imputation, credit_note_settlement_factory):
+        """Valida una devolución imputada íntegramente a favor del saldo del cliente."""
+        # Arrange
+        credit_note_sales_record.sale_category = SalesRecord.SaleCategory.GOODS
+        credit_note_sales_record.total_sales_inc_vat = Decimal("300.00")
+        credit_note_sales_record.save(update_fields=["sale_category", "total_sales_inc_vat"])
+    
+        # Act
+>       settlement = credit_note_settlement_factory(
+            sales_record=credit_note_sales_record,
+            settlement_type=CreditNoteSettlement.SettlementType.RETURNS,
+            returned_goods_value=Decimal("300.00"),
+            customer_credit_balance_amount=Decimal("300.00"),
+            cash_amount=Decimal("0.00"),
+            refunded_amount=Decimal("300.00"),
+            payment_reference=None,
+            validate=True
+        )
+
+data_access/tests/credit_note_settlement/test_credit_note_settlement.py:165: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+data_access/tests/credit_note_settlement/conftest.py:218: in _create_settlement
+    settlement.full_clean()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <[AttributeError("'CreditNoteSettlement' object has no attribute 'name'") raised in repr()] CreditNoteSettlement object at 0x7506a5e7ba10>
+exclude = {'refunded_amount'}, validate_unique = True
+validate_constraints = True
+
+    def full_clean(self, exclude=None, validate_unique=True, validate_constraints=True):
+        """
+        Call clean_fields(), clean(), validate_unique(), and
+        validate_constraints() on the model. Raise a ValidationError for any
+        errors that occur.
+        """
+        errors = {}
+        if exclude is None:
+            exclude = set()
+        else:
+            exclude = set(exclude)
+    
+        try:
+            self.clean_fields(exclude=exclude)
+        except ValidationError as e:
+            errors = e.update_error_dict(errors)
+    
+        # Form.clean() is run even if other validation fails, so do the
+        # same with Model.clean() for consistency.
+        try:
+            self.clean()
+        except ValidationError as e:
+            errors = e.update_error_dict(errors)
+    
+        # Run unique checks, but only for fields that passed validation.
+        if validate_unique:
+            for name in errors:
+                if name != NON_FIELD_ERRORS and name not in exclude:
+                    exclude.add(name)
+            try:
+                self.validate_unique(exclude=exclude)
+            except ValidationError as e:
+                errors = e.update_error_dict(errors)
+    
+        # Run constraints checks, but only for fields that passed validation.
+        if validate_constraints:
+            for name in errors:
+                if name != NON_FIELD_ERRORS and name not in exclude:
+                    exclude.add(name)
+            try:
+                self.validate_constraints(exclude=exclude)
+            except ValidationError as e:
+                errors = e.update_error_dict(errors)
+    
+        if errors:
+>           raise ValidationError(errors)
+E           django.core.exceptions.ValidationError: {'refunded_amount': ['El monto a desembolsar (300.00) debe ser exactamente igual al valor absoluto del saldo a favor de la cuenta por cobrar (288.40).']}
+
+venv/lib/python3.12/site-packages/django/db/models/base.py:1712: ValidationError
+_ TestCreditNoteSettlementEdgeCases.test_ID_EC_018_unique_constraint_per_sales_record _
+
+self = <test_credit_note_settlement.TestCreditNoteSettlementEdgeCases object at 0x7506a63f6c60>
+credit_note_sales_record = <SalesRecord id=977 doc=00000002>
+payment_imputation = <PaymentImputation: Imputación: 104.40 (CxC: 356)>
+credit_note_settlement_factory = <function credit_note_settlement_factory.<locals>._create_settlement at 0x7506a8e42fc0>
+
+    def test_ID_EC_018_unique_constraint_per_sales_record(self, credit_note_sales_record, payment_imputation, credit_note_settlement_factory):
+        """Comprueba restricción única, no debe haber más de una liquidación por Nota de Crédito."""
+        # Arrange
+        credit_note_sales_record.total_sales_inc_vat = Decimal("100.00")
+        credit_note_sales_record.save(update_fields=["total_sales_inc_vat"])
+    
+>       credit_note_settlement_factory(
+            sales_record=credit_note_sales_record,
+            validate=True
+        )
+
+data_access/tests/credit_note_settlement/test_credit_note_settlement.py:493: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+data_access/tests/credit_note_settlement/conftest.py:218: in _create_settlement
+    settlement.full_clean()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <[AttributeError("'CreditNoteSettlement' object has no attribute 'name'") raised in repr()] CreditNoteSettlement object at 0x7506a5ed3320>
+exclude = {'refunded_amount'}, validate_unique = True
+validate_constraints = True
+
+    def full_clean(self, exclude=None, validate_unique=True, validate_constraints=True):
+        """
+        Call clean_fields(), clean(), validate_unique(), and
+        validate_constraints() on the model. Raise a ValidationError for any
+        errors that occur.
+        """
+        errors = {}
+        if exclude is None:
+            exclude = set()
+        else:
+            exclude = set(exclude)
+    
+        try:
+            self.clean_fields(exclude=exclude)
+        except ValidationError as e:
+            errors = e.update_error_dict(errors)
+    
+        # Form.clean() is run even if other validation fails, so do the
+        # same with Model.clean() for consistency.
+        try:
+            self.clean()
+        except ValidationError as e:
+            errors = e.update_error_dict(errors)
+    
+        # Run unique checks, but only for fields that passed validation.
+        if validate_unique:
+            for name in errors:
+                if name != NON_FIELD_ERRORS and name not in exclude:
+                    exclude.add(name)
+            try:
+                self.validate_unique(exclude=exclude)
+            except ValidationError as e:
+                errors = e.update_error_dict(errors)
+    
+        # Run constraints checks, but only for fields that passed validation.
+        if validate_constraints:
+            for name in errors:
+                if name != NON_FIELD_ERRORS and name not in exclude:
+                    exclude.add(name)
+            try:
+                self.validate_constraints(exclude=exclude)
+            except ValidationError as e:
+                errors = e.update_error_dict(errors)
+    
+        if errors:
+>           raise ValidationError(errors)
+E           django.core.exceptions.ValidationError: {'refunded_amount': ['El monto a desembolsar (100.00) debe ser exactamente igual al valor absoluto del saldo a favor de la cuenta por cobrar (88.40).']}
+
+venv/lib/python3.12/site-packages/django/db/models/base.py:1712: ValidationError
 =========================== short test summary info ============================
-FAILED data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementEdgeCases::test_ID_EC_012_goods_returned_in_services_sale
-FAILED data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementEdgeCases::test_ID_EC_013_services_reimbursement_in_goods_sale
-FAILED data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementEdgeCases::test_ID_EC_019_external_modules_isolation
-FAILED data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementEdgeCases::test_ID_EC_020_missing_mandatory_sales_record
-====================== 4 failed, 22 deselected in 21.33s =======================
+FAILED data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementHappyPaths::test_ID_HP_001_returns_with_mixed_payment
+FAILED data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementHappyPaths::test_ID_HP_002_returns_in_services_category
+FAILED data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementHappyPaths::test_ID_HP_006_returns_customer_credit_balance
+FAILED data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementEdgeCases::test_ID_EC_018_unique_constraint_per_sales_record
+====================== 4 failed, 20 deselected in 37.32s =======================

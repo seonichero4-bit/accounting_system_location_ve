@@ -266,5 +266,24 @@ class CreditNoteSettlement(FiscalModuleAbstractModel):
                     "vía transferencia bancaria o pago móvil."
                 )
 
+        # 7. Restricción de Desembolsos según Saldo de Cuenta por Cobrar
+        if ra > Decimal("0.00"):
+            affected_invoice = getattr(sales_record, "affected_invoice", None)
+            if affected_invoice:
+                account_receivable = getattr(affected_invoice, "account_receivable", None)
+                if account_receivable:
+                    balance = account_receivable.net_receivable_balance
+                    
+                    if balance >= Decimal("0.00"):
+                        errors["refunded_amount"] = (
+                            "Solo se permiten desembolsos de dinero cuando la cuenta por "
+                            "cobrar de la factura original tiene un saldo a favor (menor a cero)."
+                        )
+                    elif ra != abs(balance):
+                        errors["refunded_amount"] = (
+                            f"El monto a desembolsar ({ra}) debe ser exactamente igual al "
+                            f"valor absoluto del saldo a favor de la cuenta por cobrar ({abs(balance)})."
+                        )
+
         if errors:
             raise ValidationError(errors)
