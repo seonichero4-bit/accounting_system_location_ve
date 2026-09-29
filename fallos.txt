@@ -5,356 +5,764 @@ django: version: 6.0.7, settings: accounting_system_ve.settings (from ini)
 rootdir: /workspaces/accounting_system_location_ve
 configfile: pytest.ini
 plugins: django-4.14.0, Faker-40.15.0
-collecting ... collected 24 items / 20 deselected / 4 selected
-run-last-failure: rerun previous 4 failures
+collecting ... collected 15 items / 10 deselected / 5 selected
+run-last-failure: rerun previous 5 failures
 
-data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementHappyPaths::test_ID_HP_001_returns_with_mixed_payment FAILED [ 25%]
-data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementHappyPaths::test_ID_HP_002_returns_in_services_category FAILED [ 50%]
-data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementHappyPaths::test_ID_HP_006_returns_customer_credit_balance FAILED [ 75%]
-data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementEdgeCases::test_ID_EC_018_unique_constraint_per_sales_record FAILED [100%]
+data_access/tests/cxc_treasury/net_receivable/test_net_receivable_balance.py::test_id_hp_007_net_receivable_balance_multivariable_integration FAILED [ 20%]
+data_access/tests/cxc_treasury/net_receivable/test_net_receivable_balance.py::test_id_ec_003_net_receivable_balance_multiple_credit_and_debit_notes FAILED [ 40%]
+data_access/tests/cxc_treasury/net_receivable/test_net_receivable_balance.py::test_id_ec_005_net_receivable_balance_multiple_credit_note_settlements FAILED [ 60%]
+data_access/tests/cxc_treasury/net_receivable/test_net_receivable_balance.py::test_id_ec_007_net_receivable_balance_cross_tenant_isolation FAILED [ 80%]
+data_access/tests/cxc_treasury/net_receivable/test_net_receivable_balance.py::test_id_ec_008_net_receivable_balance_isolation_from_other_credit_note_settlements FAILED [100%]
 
 =================================== FAILURES ===================================
-_ TestCreditNoteSettlementHappyPaths.test_ID_HP_001_returns_with_mixed_payment _
+_______ test_id_hp_007_net_receivable_balance_multivariable_integration ________
 
-self = <test_credit_note_settlement.TestCreditNoteSettlementHappyPaths object at 0x7506a63c9370>
-credit_note_sales_record = <SalesRecord id=971 doc=00000002>
-payment_imputation = <PaymentImputation: Imputación: 104.40 (CxC: 353)>
-credit_note_settlement_factory = <function credit_note_settlement_factory.<locals>._create_settlement at 0x7506a605cfe0>
+self = <django.db.backends.utils.CursorWrapper object at 0x70c5e8406360>
+sql = 'INSERT INTO "data_access_vatwithholding" ("fiscal_profile_id", "voucher_number", "issue_date", "fiscal_period", "clie...ument_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_vatwithholding"."id"'
+params = (1045, '20260100000001', datetime.date(2026, 1, 25), datetime.date(2026, 1, 1), 'Inversiones Andinas C.A.', 'J312345678', ...)
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x70c5e8406360>})
 
-    def test_ID_HP_001_returns_with_mixed_payment(self, credit_note_sales_record, payment_imputation, credit_note_settlement_factory):
-        """Valida liquidación de devolución de bienes con pago mixto (efectivo y transferencia)."""
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        # Raise a warning during app initialization (stored_app_configs is only
+        # ever set during testing).
+        if not apps.ready and not apps.stored_app_configs:
+            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+                return self.cursor.execute(sql)
+            else:
+>               return self.cursor.execute(sql, params)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-dajl7eh594qs73ckve60-a.oregon-postgres.render.com user=sa_g6eq_user database=test_sa_g6eq) at 0x70c5e84ee750>
+query = 'INSERT INTO "data_access_vatwithholding" ("fiscal_profile_id", "voucher_number", "issue_date", "fiscal_period", "clie...ument_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_vatwithholding"."id"'
+params = (1045, '20260100000001', datetime.date(2026, 1, 25), datetime.date(2026, 1, 1), 'Inversiones Andinas C.A.', 'J312345678', ...)
+prepare = None, binary = None
+
+    def execute(
+        self,
+        query: Query,
+        params: Params | None = None,
+        *,
+        prepare: bool | None = None,
+        binary: bool | None = None,
+    ) -> Self:
+        """
+        Execute a query or command to the database.
+        """
+        try:
+            with self._conn.lock:
+                self._conn.wait(
+                    self._execute_gen(query, params, prepare=prepare, binary=binary)
+                )
+        except e._NO_TRACEBACK as ex:
+>           raise ex.with_traceback(None)
+E           psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "data_access_vatwithholding_unique_voucher_per_client_tenant"
+E           DETAIL:  Key (voucher_number, client_id, fiscal_profile_id)=(20260100000001, 1066, 1045) already exists.
+
+venv/lib/python3.12/site-packages/psycopg/cursor.py:117: UniqueViolation
+
+The above exception was the direct cause of the following exception:
+
+sales_record_factory = <function sales_record_factory.<locals>._factory at 0x70c5e8408400>
+vat_withholding_factory = <function vat_withholding_factory.<locals>._factory at 0x70c5e8409ee0>
+payment_imputation_factory = <function payment_imputation_factory.<locals>._factory at 0x70c5e840b4c0>
+credit_note_settlement_factory = <function credit_note_settlement_factory.<locals>._factory at 0x70c5e840b600>
+
+    @pytest.mark.django_db
+    def test_id_hp_007_net_receivable_balance_multivariable_integration(
+        sales_record_factory: Callable,
+        vat_withholding_factory: Callable,
+        payment_imputation_factory: Callable,
+        credit_note_settlement_factory: Callable,
+    ) -> None:
+        """[ID_HP_007] Evaluar la precisión algebraica consolidando todas las variables."""
         # Arrange
-        credit_note_sales_record.sale_category = SalesRecord.SaleCategory.GOODS
-        credit_note_sales_record.total_sales_inc_vat = Decimal("100.00")
-        credit_note_sales_record.save(update_fields=["sale_category", "total_sales_inc_vat"])
+        base_invoice = sales_record_factory(
+            total_sales_inc_vat=Decimal("2000.00")
+        )
+        account_receivable: AccountReceivable = base_invoice.account_receivable
     
-        # Act
->       settlement = credit_note_settlement_factory(
-            sales_record=credit_note_sales_record,
-            settlement_type=CreditNoteSettlement.SettlementType.RETURNS,
-            returned_goods_value=Decimal("100.00"),
-            reimbursement_in_services=Decimal("0.00"),
-            commercial_discount_amount=Decimal("0.00"),
-            bank_transfer_amount=Decimal("50.00"),
-            cash_amount=Decimal("50.00"),
-            refunded_amount=Decimal("100.00"),
-            payment_reference="TRX-98765",
-            validate=True
+        vat_withholding_factory(
+            document=base_invoice,
+            withheld_amount=Decimal("240.00")
+        )
+    
+        debit_note = sales_record_factory(
+            document_type=SalesRecord.DocumentType.DEBIT_NOTE,
+            affected_invoice=base_invoice,
+            total_sales_inc_vat=Decimal("500.00")
+        )
+>       vat_withholding_factory(
+            document=debit_note,
+            withheld_amount=Decimal("60.00")
         )
 
-data_access/tests/credit_note_settlement/test_credit_note_settlement.py:30: 
+data_access/tests/cxc_treasury/net_receivable/test_net_receivable_balance.py:194: 
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-data_access/tests/credit_note_settlement/conftest.py:218: in _create_settlement
-    settlement.full_clean()
+data_access/tests/cxc_treasury/net_receivable/conftest.py:128: in _factory
+    return VatWithHolding.objects.create(**defaults)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:669: in create
+    obj.save(force_insert=True, using=self.db)
+venv/lib/python3.12/site-packages/django/db/models/base.py:874: in save
+    self.save_base(
+venv/lib/python3.12/site-packages/django/db/models/base.py:966: in save_base
+    updated = self._save_table(
+venv/lib/python3.12/site-packages/django/db/models/base.py:1169: in _save_table
+    results = self._do_insert(
+venv/lib/python3.12/site-packages/django/db/models/base.py:1220: in _do_insert
+    return manager._insert(
+venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:1918: in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1925: in execute_sql
+    cursor.execute(sql, params)
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
+    return self._execute_with_wrappers(
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
+    with self.db.wrap_database_errors:
+venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <[AttributeError("'CreditNoteSettlement' object has no attribute 'name'") raised in repr()] CreditNoteSettlement object at 0x7506a60373b0>
-exclude = {'refunded_amount'}, validate_unique = True
-validate_constraints = True
+self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-dajl7eh594qs73ckve60-a.oregon-postgres.render.com user=sa_g6eq_user database=test_sa_g6eq) at 0x70c5e84ee750>
+query = 'INSERT INTO "data_access_vatwithholding" ("fiscal_profile_id", "voucher_number", "issue_date", "fiscal_period", "clie...ument_id") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_vatwithholding"."id"'
+params = (1045, '20260100000001', datetime.date(2026, 1, 25), datetime.date(2026, 1, 1), 'Inversiones Andinas C.A.', 'J312345678', ...)
+prepare = None, binary = None
 
-    def full_clean(self, exclude=None, validate_unique=True, validate_constraints=True):
+    def execute(
+        self,
+        query: Query,
+        params: Params | None = None,
+        *,
+        prepare: bool | None = None,
+        binary: bool | None = None,
+    ) -> Self:
         """
-        Call clean_fields(), clean(), validate_unique(), and
-        validate_constraints() on the model. Raise a ValidationError for any
-        errors that occur.
+        Execute a query or command to the database.
         """
-        errors = {}
-        if exclude is None:
-            exclude = set()
-        else:
-            exclude = set(exclude)
-    
         try:
-            self.clean_fields(exclude=exclude)
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Form.clean() is run even if other validation fails, so do the
-        # same with Model.clean() for consistency.
-        try:
-            self.clean()
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Run unique checks, but only for fields that passed validation.
-        if validate_unique:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_unique(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        # Run constraints checks, but only for fields that passed validation.
-        if validate_constraints:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_constraints(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        if errors:
->           raise ValidationError(errors)
-E           django.core.exceptions.ValidationError: {'refunded_amount': ['El monto a desembolsar (100.00) debe ser exactamente igual al valor absoluto del saldo a favor de la cuenta por cobrar (88.40).']}
+            with self._conn.lock:
+                self._conn.wait(
+                    self._execute_gen(query, params, prepare=prepare, binary=binary)
+                )
+        except e._NO_TRACEBACK as ex:
+>           raise ex.with_traceback(None)
+E           django.db.utils.IntegrityError: duplicate key value violates unique constraint "data_access_vatwithholding_unique_voucher_per_client_tenant"
+E           DETAIL:  Key (voucher_number, client_id, fiscal_profile_id)=(20260100000001, 1066, 1045) already exists.
 
-venv/lib/python3.12/site-packages/django/db/models/base.py:1712: ValidationError
+venv/lib/python3.12/site-packages/psycopg/cursor.py:117: IntegrityError
 ---------------------------- Captured stderr setup -----------------------------
 Using existing test database for alias 'default'...
-_ TestCreditNoteSettlementHappyPaths.test_ID_HP_002_returns_in_services_category _
+____ test_id_ec_003_net_receivable_balance_multiple_credit_and_debit_notes _____
 
-self = <test_credit_note_settlement.TestCreditNoteSettlementHappyPaths object at 0x7506a63c9b20>
-credit_note_sales_record = <SalesRecord id=973 doc=00000002>
-payment_imputation = <PaymentImputation: Imputación: 104.40 (CxC: 354)>
-credit_note_settlement_factory = <function credit_note_settlement_factory.<locals>._create_settlement at 0x7506a66c4900>
+self = <django.db.backends.utils.CursorWrapper object at 0x70c5e81a0ef0>
+sql = 'INSERT INTO "data_access_salesrecord" ("fiscal_profile_id", "fiscal_period", "document_date", "invoice_number", "last..., %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_salesrecord"."id"'
+params = (1046, datetime.date(2026, 1, 1), datetime.date(2026, 1, 20), None, None, '00000001', ...)
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x70c5e81a0ef0>})
 
-    def test_ID_HP_002_returns_in_services_category(self, credit_note_sales_record, payment_imputation, credit_note_settlement_factory):
-        """Valida registro de devolución de tipo RETURNS en una venta categorizada como servicios."""
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        # Raise a warning during app initialization (stored_app_configs is only
+        # ever set during testing).
+        if not apps.ready and not apps.stored_app_configs:
+            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+                return self.cursor.execute(sql)
+            else:
+>               return self.cursor.execute(sql, params)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-dajl7eh594qs73ckve60-a.oregon-postgres.render.com user=sa_g6eq_user database=test_sa_g6eq) at 0x70c5e84ede50>
+query = 'INSERT INTO "data_access_salesrecord" ("fiscal_profile_id", "fiscal_period", "document_date", "invoice_number", "last..., %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_salesrecord"."id"'
+params = (1046, datetime.date(2026, 1, 1), datetime.date(2026, 1, 20), None, None, '00000001', ...)
+prepare = None, binary = None
+
+    def execute(
+        self,
+        query: Query,
+        params: Params | None = None,
+        *,
+        prepare: bool | None = None,
+        binary: bool | None = None,
+    ) -> Self:
+        """
+        Execute a query or command to the database.
+        """
+        try:
+            with self._conn.lock:
+                self._conn.wait(
+                    self._execute_gen(query, params, prepare=prepare, binary=binary)
+                )
+        except e._NO_TRACEBACK as ex:
+>           raise ex.with_traceback(None)
+E           psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "unique_issued_document"
+E           DETAIL:  Key (fiscal_profile_id, control_number, document_type)=(1046, 00-00001, CREDIT_NOTE) already exists.
+
+venv/lib/python3.12/site-packages/psycopg/cursor.py:117: UniqueViolation
+
+The above exception was the direct cause of the following exception:
+
+sales_record_factory = <function sales_record_factory.<locals>._factory at 0x70c5e8a95f80>
+
+    @pytest.mark.django_db
+    def test_id_ec_003_net_receivable_balance_multiple_credit_and_debit_notes(
+        sales_record_factory: Callable,
+    ) -> None:
+        """[ID_EC_003] Validar agregación con múltiples notas de crédito y débito."""
         # Arrange
-        credit_note_sales_record.sale_category = SalesRecord.SaleCategory.SERVICES
-        credit_note_sales_record.total_sales_inc_vat = Decimal("150.00")
-        credit_note_sales_record.save(update_fields=["sale_category", "total_sales_inc_vat"])
+        base_invoice = sales_record_factory(
+            total_sales_inc_vat=Decimal("5000.00")
+        )
+        account_receivable: AccountReceivable = base_invoice.account_receivable
     
-        # Act
->       settlement = credit_note_settlement_factory(
-            sales_record=credit_note_sales_record,
-            settlement_type=CreditNoteSettlement.SettlementType.RETURNS,
-            returned_goods_value=Decimal("0.00"),
-            reimbursement_in_services=Decimal("150.00"),
-            commercial_discount_amount=Decimal("0.00"),
-            mobile_payment_amount=Decimal("150.00"),
-            cash_amount=Decimal("0.00"),
-            refunded_amount=Decimal("150.00"),
-            payment_reference="PAGO-MOBI-01",
-            validate=True
+        sales_record_factory(
+            document_type=SalesRecord.DocumentType.CREDIT_NOTE,
+            affected_invoice=base_invoice,
+            total_sales_inc_vat=Decimal("500.00")
+        )
+>       sales_record_factory(
+            document_type=SalesRecord.DocumentType.CREDIT_NOTE,
+            affected_invoice=base_invoice,
+            total_sales_inc_vat=Decimal("300.00")
         )
 
-data_access/tests/credit_note_settlement/test_credit_note_settlement.py:56: 
+data_access/tests/cxc_treasury/net_receivable/test_net_receivable_balance.py:295: 
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-data_access/tests/credit_note_settlement/conftest.py:218: in _create_settlement
-    settlement.full_clean()
+data_access/tests/cxc_treasury/net_receivable/conftest.py:87: in _factory
+    return SalesRecord.objects.create(**defaults)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:669: in create
+    obj.save(force_insert=True, using=self.db)
+data_access/models/sales_record.py:434: in save
+    super().save(*args, **kwargs)
+venv/lib/python3.12/site-packages/django/db/models/base.py:874: in save
+    self.save_base(
+venv/lib/python3.12/site-packages/django/db/models/base.py:966: in save_base
+    updated = self._save_table(
+venv/lib/python3.12/site-packages/django/db/models/base.py:1169: in _save_table
+    results = self._do_insert(
+venv/lib/python3.12/site-packages/django/db/models/base.py:1220: in _do_insert
+    return manager._insert(
+venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:1918: in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1925: in execute_sql
+    cursor.execute(sql, params)
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
+    return self._execute_with_wrappers(
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
+    with self.db.wrap_database_errors:
+venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <[AttributeError("'CreditNoteSettlement' object has no attribute 'name'") raised in repr()] CreditNoteSettlement object at 0x7506a6139a60>
-exclude = {'refunded_amount'}, validate_unique = True
-validate_constraints = True
+self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-dajl7eh594qs73ckve60-a.oregon-postgres.render.com user=sa_g6eq_user database=test_sa_g6eq) at 0x70c5e84ede50>
+query = 'INSERT INTO "data_access_salesrecord" ("fiscal_profile_id", "fiscal_period", "document_date", "invoice_number", "last..., %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_salesrecord"."id"'
+params = (1046, datetime.date(2026, 1, 1), datetime.date(2026, 1, 20), None, None, '00000001', ...)
+prepare = None, binary = None
 
-    def full_clean(self, exclude=None, validate_unique=True, validate_constraints=True):
+    def execute(
+        self,
+        query: Query,
+        params: Params | None = None,
+        *,
+        prepare: bool | None = None,
+        binary: bool | None = None,
+    ) -> Self:
         """
-        Call clean_fields(), clean(), validate_unique(), and
-        validate_constraints() on the model. Raise a ValidationError for any
-        errors that occur.
+        Execute a query or command to the database.
         """
-        errors = {}
-        if exclude is None:
-            exclude = set()
-        else:
-            exclude = set(exclude)
-    
         try:
-            self.clean_fields(exclude=exclude)
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Form.clean() is run even if other validation fails, so do the
-        # same with Model.clean() for consistency.
+            with self._conn.lock:
+                self._conn.wait(
+                    self._execute_gen(query, params, prepare=prepare, binary=binary)
+                )
+        except e._NO_TRACEBACK as ex:
+>           raise ex.with_traceback(None)
+E           django.db.utils.IntegrityError: duplicate key value violates unique constraint "unique_issued_document"
+E           DETAIL:  Key (fiscal_profile_id, control_number, document_type)=(1046, 00-00001, CREDIT_NOTE) already exists.
+
+venv/lib/python3.12/site-packages/psycopg/cursor.py:117: IntegrityError
+____ test_id_ec_005_net_receivable_balance_multiple_credit_note_settlements ____
+
+self = <django.db.backends.utils.CursorWrapper object at 0x70c5e81a3050>
+sql = 'INSERT INTO "data_access_salesrecord" ("fiscal_profile_id", "fiscal_period", "document_date", "invoice_number", "last..., %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_salesrecord"."id"'
+params = (1047, datetime.date(2026, 1, 1), datetime.date(2026, 1, 20), None, None, '00000001', ...)
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x70c5e81a3050>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        # Raise a warning during app initialization (stored_app_configs is only
+        # ever set during testing).
+        if not apps.ready and not apps.stored_app_configs:
+            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+                return self.cursor.execute(sql)
+            else:
+>               return self.cursor.execute(sql, params)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-dajl7eh594qs73ckve60-a.oregon-postgres.render.com user=sa_g6eq_user database=test_sa_g6eq) at 0x70c5e84eff50>
+query = 'INSERT INTO "data_access_salesrecord" ("fiscal_profile_id", "fiscal_period", "document_date", "invoice_number", "last..., %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_salesrecord"."id"'
+params = (1047, datetime.date(2026, 1, 1), datetime.date(2026, 1, 20), None, None, '00000001', ...)
+prepare = None, binary = None
+
+    def execute(
+        self,
+        query: Query,
+        params: Params | None = None,
+        *,
+        prepare: bool | None = None,
+        binary: bool | None = None,
+    ) -> Self:
+        """
+        Execute a query or command to the database.
+        """
         try:
-            self.clean()
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Run unique checks, but only for fields that passed validation.
-        if validate_unique:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_unique(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        # Run constraints checks, but only for fields that passed validation.
-        if validate_constraints:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_constraints(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        if errors:
->           raise ValidationError(errors)
-E           django.core.exceptions.ValidationError: {'refunded_amount': ['El monto a desembolsar (150.00) debe ser exactamente igual al valor absoluto del saldo a favor de la cuenta por cobrar (138.40).']}
+            with self._conn.lock:
+                self._conn.wait(
+                    self._execute_gen(query, params, prepare=prepare, binary=binary)
+                )
+        except e._NO_TRACEBACK as ex:
+>           raise ex.with_traceback(None)
+E           psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "unique_issued_document"
+E           DETAIL:  Key (fiscal_profile_id, control_number, document_type)=(1047, 00-00001, CREDIT_NOTE) already exists.
 
-venv/lib/python3.12/site-packages/django/db/models/base.py:1712: ValidationError
-_ TestCreditNoteSettlementHappyPaths.test_ID_HP_006_returns_customer_credit_balance _
+venv/lib/python3.12/site-packages/psycopg/cursor.py:117: UniqueViolation
 
-self = <test_credit_note_settlement.TestCreditNoteSettlementHappyPaths object at 0x7506a63cb9e0>
-credit_note_sales_record = <SalesRecord id=975 doc=00000002>
-payment_imputation = <PaymentImputation: Imputación: 104.40 (CxC: 355)>
-credit_note_settlement_factory = <function credit_note_settlement_factory.<locals>._create_settlement at 0x7506a68334c0>
+The above exception was the direct cause of the following exception:
 
-    def test_ID_HP_006_returns_customer_credit_balance(self, credit_note_sales_record, payment_imputation, credit_note_settlement_factory):
-        """Valida una devolución imputada íntegramente a favor del saldo del cliente."""
+sales_record_factory = <function sales_record_factory.<locals>._factory at 0x70c5e8447a60>
+payment_imputation_factory = <function payment_imputation_factory.<locals>._factory at 0x70c5e8341120>
+credit_note_settlement_factory = <function credit_note_settlement_factory.<locals>._factory at 0x70c5e8340400>
+
+    @pytest.mark.django_db
+    def test_id_ec_005_net_receivable_balance_multiple_credit_note_settlements(
+        sales_record_factory: Callable,
+        payment_imputation_factory: Callable,
+        credit_note_settlement_factory: Callable,
+    ) -> None:
+        """[ID_EC_005] Probar liquidaciones múltiples con reembolsos parciales acumulados."""
         # Arrange
-        credit_note_sales_record.sale_category = SalesRecord.SaleCategory.GOODS
-        credit_note_sales_record.total_sales_inc_vat = Decimal("300.00")
-        credit_note_sales_record.save(update_fields=["sale_category", "total_sales_inc_vat"])
+        base_invoice = sales_record_factory(
+            total_sales_inc_vat=Decimal("2000.00")
+        )
+        account_receivable: AccountReceivable = base_invoice.account_receivable
     
-        # Act
->       settlement = credit_note_settlement_factory(
-            sales_record=credit_note_sales_record,
-            settlement_type=CreditNoteSettlement.SettlementType.RETURNS,
-            returned_goods_value=Decimal("300.00"),
-            customer_credit_balance_amount=Decimal("300.00"),
-            cash_amount=Decimal("0.00"),
-            refunded_amount=Decimal("300.00"),
-            payment_reference=None,
-            validate=True
+        payment_imputation_factory(
+            account_receivable=account_receivable,
+            imputed_amount=Decimal("2000.00")
+        )
+    
+        nc1 = sales_record_factory(
+            document_type=SalesRecord.DocumentType.CREDIT_NOTE,
+            affected_invoice=base_invoice,
+            total_sales_inc_vat=Decimal("300.00")
+        )
+>       nc2 = sales_record_factory(
+            document_type=SalesRecord.DocumentType.CREDIT_NOTE,
+            affected_invoice=base_invoice,
+            total_sales_inc_vat=Decimal("200.00")
         )
 
-data_access/tests/credit_note_settlement/test_credit_note_settlement.py:165: 
+data_access/tests/cxc_treasury/net_receivable/test_net_receivable_balance.py:383: 
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-data_access/tests/credit_note_settlement/conftest.py:218: in _create_settlement
-    settlement.full_clean()
+data_access/tests/cxc_treasury/net_receivable/conftest.py:87: in _factory
+    return SalesRecord.objects.create(**defaults)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:669: in create
+    obj.save(force_insert=True, using=self.db)
+data_access/models/sales_record.py:434: in save
+    super().save(*args, **kwargs)
+venv/lib/python3.12/site-packages/django/db/models/base.py:874: in save
+    self.save_base(
+venv/lib/python3.12/site-packages/django/db/models/base.py:966: in save_base
+    updated = self._save_table(
+venv/lib/python3.12/site-packages/django/db/models/base.py:1169: in _save_table
+    results = self._do_insert(
+venv/lib/python3.12/site-packages/django/db/models/base.py:1220: in _do_insert
+    return manager._insert(
+venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:1918: in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1925: in execute_sql
+    cursor.execute(sql, params)
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
+    return self._execute_with_wrappers(
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
+    with self.db.wrap_database_errors:
+venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <[AttributeError("'CreditNoteSettlement' object has no attribute 'name'") raised in repr()] CreditNoteSettlement object at 0x7506a5e7ba10>
-exclude = {'refunded_amount'}, validate_unique = True
-validate_constraints = True
+self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-dajl7eh594qs73ckve60-a.oregon-postgres.render.com user=sa_g6eq_user database=test_sa_g6eq) at 0x70c5e84eff50>
+query = 'INSERT INTO "data_access_salesrecord" ("fiscal_profile_id", "fiscal_period", "document_date", "invoice_number", "last..., %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_salesrecord"."id"'
+params = (1047, datetime.date(2026, 1, 1), datetime.date(2026, 1, 20), None, None, '00000001', ...)
+prepare = None, binary = None
 
-    def full_clean(self, exclude=None, validate_unique=True, validate_constraints=True):
+    def execute(
+        self,
+        query: Query,
+        params: Params | None = None,
+        *,
+        prepare: bool | None = None,
+        binary: bool | None = None,
+    ) -> Self:
         """
-        Call clean_fields(), clean(), validate_unique(), and
-        validate_constraints() on the model. Raise a ValidationError for any
-        errors that occur.
+        Execute a query or command to the database.
         """
-        errors = {}
-        if exclude is None:
-            exclude = set()
-        else:
-            exclude = set(exclude)
-    
         try:
-            self.clean_fields(exclude=exclude)
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Form.clean() is run even if other validation fails, so do the
-        # same with Model.clean() for consistency.
+            with self._conn.lock:
+                self._conn.wait(
+                    self._execute_gen(query, params, prepare=prepare, binary=binary)
+                )
+        except e._NO_TRACEBACK as ex:
+>           raise ex.with_traceback(None)
+E           django.db.utils.IntegrityError: duplicate key value violates unique constraint "unique_issued_document"
+E           DETAIL:  Key (fiscal_profile_id, control_number, document_type)=(1047, 00-00001, CREDIT_NOTE) already exists.
+
+venv/lib/python3.12/site-packages/psycopg/cursor.py:117: IntegrityError
+_________ test_id_ec_007_net_receivable_balance_cross_tenant_isolation _________
+
+self = <django.db.backends.utils.CursorWrapper object at 0x70c5e820ab70>
+sql = 'INSERT INTO "data_access_salesrecord" ("fiscal_profile_id", "fiscal_period", "document_date", "invoice_number", "last..., %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_salesrecord"."id"'
+params = (1048, datetime.date(2026, 1, 1), datetime.date(2026, 1, 20), None, None, '00000001', ...)
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x70c5e820ab70>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        # Raise a warning during app initialization (stored_app_configs is only
+        # ever set during testing).
+        if not apps.ready and not apps.stored_app_configs:
+            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+                return self.cursor.execute(sql)
+            else:
+>               return self.cursor.execute(sql, params)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-dajl7eh594qs73ckve60-a.oregon-postgres.render.com user=sa_g6eq_user database=test_sa_g6eq) at 0x70c5e84ef710>
+query = 'INSERT INTO "data_access_salesrecord" ("fiscal_profile_id", "fiscal_period", "document_date", "invoice_number", "last..., %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_salesrecord"."id"'
+params = (1048, datetime.date(2026, 1, 1), datetime.date(2026, 1, 20), None, None, '00000001', ...)
+prepare = None, binary = None
+
+    def execute(
+        self,
+        query: Query,
+        params: Params | None = None,
+        *,
+        prepare: bool | None = None,
+        binary: bool | None = None,
+    ) -> Self:
+        """
+        Execute a query or command to the database.
+        """
         try:
-            self.clean()
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Run unique checks, but only for fields that passed validation.
-        if validate_unique:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_unique(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        # Run constraints checks, but only for fields that passed validation.
-        if validate_constraints:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_constraints(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        if errors:
->           raise ValidationError(errors)
-E           django.core.exceptions.ValidationError: {'refunded_amount': ['El monto a desembolsar (300.00) debe ser exactamente igual al valor absoluto del saldo a favor de la cuenta por cobrar (288.40).']}
+            with self._conn.lock:
+                self._conn.wait(
+                    self._execute_gen(query, params, prepare=prepare, binary=binary)
+                )
+        except e._NO_TRACEBACK as ex:
+>           raise ex.with_traceback(None)
+E           psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "unique_issued_document"
+E           DETAIL:  Key (fiscal_profile_id, control_number, document_type)=(1048, 00-00001, INVOICE) already exists.
 
-venv/lib/python3.12/site-packages/django/db/models/base.py:1712: ValidationError
-_ TestCreditNoteSettlementEdgeCases.test_ID_EC_018_unique_constraint_per_sales_record _
+venv/lib/python3.12/site-packages/psycopg/cursor.py:117: UniqueViolation
 
-self = <test_credit_note_settlement.TestCreditNoteSettlementEdgeCases object at 0x7506a63f6c60>
-credit_note_sales_record = <SalesRecord id=977 doc=00000002>
-payment_imputation = <PaymentImputation: Imputación: 104.40 (CxC: 356)>
-credit_note_settlement_factory = <function credit_note_settlement_factory.<locals>._create_settlement at 0x7506a8e42fc0>
+The above exception was the direct cause of the following exception:
 
-    def test_ID_EC_018_unique_constraint_per_sales_record(self, credit_note_sales_record, payment_imputation, credit_note_settlement_factory):
-        """Comprueba restricción única, no debe haber más de una liquidación por Nota de Crédito."""
+sales_record_factory = <function sales_record_factory.<locals>._factory at 0x70c5e8341b20>
+payment_imputation_factory = <function payment_imputation_factory.<locals>._factory at 0x70c5e8256840>
+
+    @pytest.mark.django_db
+    def test_id_ec_007_net_receivable_balance_cross_tenant_isolation(
+        sales_record_factory: Callable,
+        payment_imputation_factory: Callable,
+    ) -> None:
+        """[ID_EC_007] Verificar aislamiento estricto de notas e imputaciones entre facturas."""
         # Arrange
-        credit_note_sales_record.total_sales_inc_vat = Decimal("100.00")
-        credit_note_sales_record.save(update_fields=["total_sales_inc_vat"])
+        invoice_a = sales_record_factory(
+            total_sales_inc_vat=Decimal("1000.00")
+        )
+        account_receivable_a: AccountReceivable = invoice_a.account_receivable
     
->       credit_note_settlement_factory(
-            sales_record=credit_note_sales_record,
-            validate=True
+>       invoice_b = sales_record_factory(
+            total_sales_inc_vat=Decimal("5000.00")
         )
 
-data_access/tests/credit_note_settlement/test_credit_note_settlement.py:493: 
+data_access/tests/cxc_treasury/net_receivable/test_net_receivable_balance.py:463: 
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-data_access/tests/credit_note_settlement/conftest.py:218: in _create_settlement
-    settlement.full_clean()
+data_access/tests/cxc_treasury/net_receivable/conftest.py:87: in _factory
+    return SalesRecord.objects.create(**defaults)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:669: in create
+    obj.save(force_insert=True, using=self.db)
+data_access/models/sales_record.py:434: in save
+    super().save(*args, **kwargs)
+venv/lib/python3.12/site-packages/django/db/models/base.py:874: in save
+    self.save_base(
+venv/lib/python3.12/site-packages/django/db/models/base.py:966: in save_base
+    updated = self._save_table(
+venv/lib/python3.12/site-packages/django/db/models/base.py:1169: in _save_table
+    results = self._do_insert(
+venv/lib/python3.12/site-packages/django/db/models/base.py:1220: in _do_insert
+    return manager._insert(
+venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:1918: in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1925: in execute_sql
+    cursor.execute(sql, params)
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
+    return self._execute_with_wrappers(
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
+    with self.db.wrap_database_errors:
+venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <[AttributeError("'CreditNoteSettlement' object has no attribute 'name'") raised in repr()] CreditNoteSettlement object at 0x7506a5ed3320>
-exclude = {'refunded_amount'}, validate_unique = True
-validate_constraints = True
+self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-dajl7eh594qs73ckve60-a.oregon-postgres.render.com user=sa_g6eq_user database=test_sa_g6eq) at 0x70c5e84ef710>
+query = 'INSERT INTO "data_access_salesrecord" ("fiscal_profile_id", "fiscal_period", "document_date", "invoice_number", "last..., %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_salesrecord"."id"'
+params = (1048, datetime.date(2026, 1, 1), datetime.date(2026, 1, 20), None, None, '00000001', ...)
+prepare = None, binary = None
 
-    def full_clean(self, exclude=None, validate_unique=True, validate_constraints=True):
+    def execute(
+        self,
+        query: Query,
+        params: Params | None = None,
+        *,
+        prepare: bool | None = None,
+        binary: bool | None = None,
+    ) -> Self:
         """
-        Call clean_fields(), clean(), validate_unique(), and
-        validate_constraints() on the model. Raise a ValidationError for any
-        errors that occur.
+        Execute a query or command to the database.
         """
-        errors = {}
-        if exclude is None:
-            exclude = set()
-        else:
-            exclude = set(exclude)
-    
         try:
-            self.clean_fields(exclude=exclude)
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Form.clean() is run even if other validation fails, so do the
-        # same with Model.clean() for consistency.
-        try:
-            self.clean()
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
-    
-        # Run unique checks, but only for fields that passed validation.
-        if validate_unique:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_unique(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        # Run constraints checks, but only for fields that passed validation.
-        if validate_constraints:
-            for name in errors:
-                if name != NON_FIELD_ERRORS and name not in exclude:
-                    exclude.add(name)
-            try:
-                self.validate_constraints(exclude=exclude)
-            except ValidationError as e:
-                errors = e.update_error_dict(errors)
-    
-        if errors:
->           raise ValidationError(errors)
-E           django.core.exceptions.ValidationError: {'refunded_amount': ['El monto a desembolsar (100.00) debe ser exactamente igual al valor absoluto del saldo a favor de la cuenta por cobrar (88.40).']}
+            with self._conn.lock:
+                self._conn.wait(
+                    self._execute_gen(query, params, prepare=prepare, binary=binary)
+                )
+        except e._NO_TRACEBACK as ex:
+>           raise ex.with_traceback(None)
+E           django.db.utils.IntegrityError: duplicate key value violates unique constraint "unique_issued_document"
+E           DETAIL:  Key (fiscal_profile_id, control_number, document_type)=(1048, 00-00001, INVOICE) already exists.
 
-venv/lib/python3.12/site-packages/django/db/models/base.py:1712: ValidationError
+venv/lib/python3.12/site-packages/psycopg/cursor.py:117: IntegrityError
+_ test_id_ec_008_net_receivable_balance_isolation_from_other_credit_note_settlements _
+
+self = <django.db.backends.utils.CursorWrapper object at 0x70c5e81e5430>
+sql = 'INSERT INTO "data_access_salesrecord" ("fiscal_profile_id", "fiscal_period", "document_date", "invoice_number", "last..., %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_salesrecord"."id"'
+params = (1049, datetime.date(2026, 1, 1), datetime.date(2026, 1, 20), None, None, '00000001', ...)
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x70c5e81e5430>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        # Raise a warning during app initialization (stored_app_configs is only
+        # ever set during testing).
+        if not apps.ready and not apps.stored_app_configs:
+            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+                return self.cursor.execute(sql)
+            else:
+>               return self.cursor.execute(sql, params)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-dajl7eh594qs73ckve60-a.oregon-postgres.render.com user=sa_g6eq_user database=test_sa_g6eq) at 0x70c5e84ef950>
+query = 'INSERT INTO "data_access_salesrecord" ("fiscal_profile_id", "fiscal_period", "document_date", "invoice_number", "last..., %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_salesrecord"."id"'
+params = (1049, datetime.date(2026, 1, 1), datetime.date(2026, 1, 20), None, None, '00000001', ...)
+prepare = None, binary = None
+
+    def execute(
+        self,
+        query: Query,
+        params: Params | None = None,
+        *,
+        prepare: bool | None = None,
+        binary: bool | None = None,
+    ) -> Self:
+        """
+        Execute a query or command to the database.
+        """
+        try:
+            with self._conn.lock:
+                self._conn.wait(
+                    self._execute_gen(query, params, prepare=prepare, binary=binary)
+                )
+        except e._NO_TRACEBACK as ex:
+>           raise ex.with_traceback(None)
+E           psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "unique_issued_document"
+E           DETAIL:  Key (fiscal_profile_id, control_number, document_type)=(1049, 00-00001, INVOICE) already exists.
+
+venv/lib/python3.12/site-packages/psycopg/cursor.py:117: UniqueViolation
+
+The above exception was the direct cause of the following exception:
+
+sales_record_factory = <function sales_record_factory.<locals>._factory at 0x70c5e8257f60>
+credit_note_settlement_factory = <function credit_note_settlement_factory.<locals>._factory at 0x70c5e82576a0>
+
+    @pytest.mark.django_db
+    def test_id_ec_008_net_receivable_balance_isolation_from_other_credit_note_settlements(
+        sales_record_factory: Callable,
+        credit_note_settlement_factory: Callable,
+    ) -> None:
+        """[ID_EC_008] Validar que liquidaciones de otras facturas no alteren el saldo."""
+        # Arrange
+        invoice_a = sales_record_factory(
+            total_sales_inc_vat=Decimal("1000.00")
+        )
+        account_receivable_a: AccountReceivable = invoice_a.account_receivable
+    
+>       invoice_b = sales_record_factory(
+            total_sales_inc_vat=Decimal("5000.00")
+        )
+
+data_access/tests/cxc_treasury/net_receivable/test_net_receivable_balance.py:497: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+data_access/tests/cxc_treasury/net_receivable/conftest.py:87: in _factory
+    return SalesRecord.objects.create(**defaults)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:669: in create
+    obj.save(force_insert=True, using=self.db)
+data_access/models/sales_record.py:434: in save
+    super().save(*args, **kwargs)
+venv/lib/python3.12/site-packages/django/db/models/base.py:874: in save
+    self.save_base(
+venv/lib/python3.12/site-packages/django/db/models/base.py:966: in save_base
+    updated = self._save_table(
+venv/lib/python3.12/site-packages/django/db/models/base.py:1169: in _save_table
+    results = self._do_insert(
+venv/lib/python3.12/site-packages/django/db/models/base.py:1220: in _do_insert
+    return manager._insert(
+venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/query.py:1918: in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py:1925: in execute_sql
+    cursor.execute(sql, params)
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:79: in execute
+    return self._execute_with_wrappers(
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:100: in _execute
+    with self.db.wrap_database_errors:
+venv/lib/python3.12/site-packages/django/db/utils.py:94: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+venv/lib/python3.12/site-packages/django/db/backends/utils.py:105: in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.postgresql.base.Cursor [closed] [INERROR] (host=dpg-dajl7eh594qs73ckve60-a.oregon-postgres.render.com user=sa_g6eq_user database=test_sa_g6eq) at 0x70c5e84ef950>
+query = 'INSERT INTO "data_access_salesrecord" ("fiscal_profile_id", "fiscal_period", "document_date", "invoice_number", "last..., %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "data_access_salesrecord"."id"'
+params = (1049, datetime.date(2026, 1, 1), datetime.date(2026, 1, 20), None, None, '00000001', ...)
+prepare = None, binary = None
+
+    def execute(
+        self,
+        query: Query,
+        params: Params | None = None,
+        *,
+        prepare: bool | None = None,
+        binary: bool | None = None,
+    ) -> Self:
+        """
+        Execute a query or command to the database.
+        """
+        try:
+            with self._conn.lock:
+                self._conn.wait(
+                    self._execute_gen(query, params, prepare=prepare, binary=binary)
+                )
+        except e._NO_TRACEBACK as ex:
+>           raise ex.with_traceback(None)
+E           django.db.utils.IntegrityError: duplicate key value violates unique constraint "unique_issued_document"
+E           DETAIL:  Key (fiscal_profile_id, control_number, document_type)=(1049, 00-00001, INVOICE) already exists.
+
+venv/lib/python3.12/site-packages/psycopg/cursor.py:117: IntegrityError
 =========================== short test summary info ============================
-FAILED data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementHappyPaths::test_ID_HP_001_returns_with_mixed_payment
-FAILED data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementHappyPaths::test_ID_HP_002_returns_in_services_category
-FAILED data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementHappyPaths::test_ID_HP_006_returns_customer_credit_balance
-FAILED data_access/tests/credit_note_settlement/test_credit_note_settlement.py::TestCreditNoteSettlementEdgeCases::test_ID_EC_018_unique_constraint_per_sales_record
-====================== 4 failed, 20 deselected in 37.32s =======================
+FAILED data_access/tests/cxc_treasury/net_receivable/test_net_receivable_balance.py::test_id_hp_007_net_receivable_balance_multivariable_integration
+FAILED data_access/tests/cxc_treasury/net_receivable/test_net_receivable_balance.py::test_id_ec_003_net_receivable_balance_multiple_credit_and_debit_notes
+FAILED data_access/tests/cxc_treasury/net_receivable/test_net_receivable_balance.py::test_id_ec_005_net_receivable_balance_multiple_credit_note_settlements
+FAILED data_access/tests/cxc_treasury/net_receivable/test_net_receivable_balance.py::test_id_ec_007_net_receivable_balance_cross_tenant_isolation
+FAILED data_access/tests/cxc_treasury/net_receivable/test_net_receivable_balance.py::test_id_ec_008_net_receivable_balance_isolation_from_other_credit_note_settlements
+====================== 5 failed, 10 deselected in 17.57s =======================

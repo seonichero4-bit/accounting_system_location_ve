@@ -287,6 +287,16 @@ class SalesRecord(FiscalModuleAbstractModel):
                     "N° de control afectado y su fecha original."
                 )
 
+            # Restricción: Nota de Crédito no puede superar el monto de la factura afectada
+            if self.document_type == self.DocumentType.CREDIT_NOTE and self.affected_invoice:
+                credit_note_amount = self.total_sales_inc_vat or Decimal('0.00')
+                affected_invoice_amount = self.affected_invoice.total_sales_inc_vat or Decimal('0.00')
+                if credit_note_amount > affected_invoice_amount:
+                    errors['total_sales_inc_vat'] = (
+                        "El monto total de la nota de crédito no puede ser superior "
+                        "al monto total de la factura afectada."
+                    )
+
             if not self.document_number:
                 errors['document_number'] = "El número de documento es requerido y debe ser un valor válido."
             if not self.control_number:

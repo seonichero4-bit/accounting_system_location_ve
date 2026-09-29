@@ -289,6 +289,128 @@ def test_id_hp_013_registro_exitoso_operacion_mixta_con_desglose_valido(
 #     assert cxc.status == AccountReceivableStatusChoices.PENDING
 
 @pytest.mark.django_db
+def test_id_hp_014_registro_exitoso_nota_credito_monto_menor_factura_afectada(
+    persisted_sales_record: SalesRecord
+) -> None:
+    """Valida que una nota de crédito por un monto menor al de la factura afectada sea procesada exitosamente."""
+    # Arrange: Factura afectada con total_sales_inc_vat = 116.00
+    credit_note = SalesRecord(
+        fiscal_profile=persisted_sales_record.fiscal_profile,
+        client=persisted_sales_record.client,
+        document_type=SalesRecord.DocumentType.CREDIT_NOTE,
+        document_number="0005",
+        control_number="00-000005",
+        sale_type=SalesRecord.SaleType.INTERNAL,
+        transaction_type=SalesRecord.TransactionType.ADJUSTMENT,
+        record_status=SalesRecord.RecordStatus.PRELIMINARY,
+        document_date=timezone.now().date(),
+        total_sales_inc_vat=Decimal("58.00"),
+        general_tax_base_16=Decimal("50.00"),
+        general_tax_debit_16=Decimal("8.00"),
+        exempt_internal_sales=Decimal("0.00"),
+        exonerated_internal_sales=Decimal("0.00"),
+        non_subject_internal_sales=Decimal("0.00"),
+        reduced_tax_base_8=Decimal("0.00"),
+        reduced_tax_debit_8=Decimal("0.00"),
+        additional_tax_base_31=Decimal("0.00"),
+        additional_tax_debit_31=Decimal("0.00"),
+        igtf_tax_base=Decimal("0.00"),
+        igtf_tax_amount=Decimal("0.00"),
+        fob_export_value=Decimal("0.00"),
+        affected_invoice=persisted_sales_record
+    )
+
+    # Act
+    credit_note.full_clean()
+    credit_note.save()
+
+    # Assert
+    assert credit_note.pk is not None
+    assert credit_note.total_sales_inc_vat < credit_note.affected_invoice.total_sales_inc_vat
+
+
+@pytest.mark.django_db
+def test_id_hp_015_registro_exitoso_nota_credito_monto_igual_factura_afectada(
+    persisted_sales_record: SalesRecord
+) -> None:
+    """Valida que una nota de crédito por el monto total (100%) de la factura afectada sea procesada exitosamente."""
+    # Arrange: Factura afectada con total_sales_inc_vat = 116.00
+    credit_note = SalesRecord(
+        fiscal_profile=persisted_sales_record.fiscal_profile,
+        client=persisted_sales_record.client,
+        document_type=SalesRecord.DocumentType.CREDIT_NOTE,
+        document_number="0006",
+        control_number="00-000006",
+        sale_type=SalesRecord.SaleType.INTERNAL,
+        transaction_type=SalesRecord.TransactionType.ADJUSTMENT,
+        record_status=SalesRecord.RecordStatus.PRELIMINARY,
+        document_date=timezone.now().date(),
+        total_sales_inc_vat=Decimal("116.00"),
+        general_tax_base_16=Decimal("100.00"),
+        general_tax_debit_16=Decimal("16.00"),
+        exempt_internal_sales=Decimal("0.00"),
+        exonerated_internal_sales=Decimal("0.00"),
+        non_subject_internal_sales=Decimal("0.00"),
+        reduced_tax_base_8=Decimal("0.00"),
+        reduced_tax_debit_8=Decimal("0.00"),
+        additional_tax_base_31=Decimal("0.00"),
+        additional_tax_debit_31=Decimal("0.00"),
+        igtf_tax_base=Decimal("0.00"),
+        igtf_tax_amount=Decimal("0.00"),
+        fob_export_value=Decimal("0.00"),
+        affected_invoice=persisted_sales_record
+    )
+
+    # Act
+    credit_note.full_clean()
+    credit_note.save()
+
+    # Assert
+    assert credit_note.pk is not None
+    assert credit_note.total_sales_inc_vat == credit_note.affected_invoice.total_sales_inc_vat
+
+
+@pytest.mark.django_db
+def test_id_hp_016_registro_exitoso_nota_debito_monto_superior_factura_afectada(
+    persisted_sales_record: SalesRecord
+) -> None:
+    """Confirma que las notas de débito sí puedan registrarse con un monto superior al de la factura afectada."""
+    # Arrange: Factura afectada con total_sales_inc_vat = 116.00; ND con monto = 232.00
+    debit_note = SalesRecord(
+        fiscal_profile=persisted_sales_record.fiscal_profile,
+        client=persisted_sales_record.client,
+        document_type=SalesRecord.DocumentType.DEBIT_NOTE,
+        document_number="0007",
+        control_number="00-000007",
+        sale_type=SalesRecord.SaleType.INTERNAL,
+        transaction_type=SalesRecord.TransactionType.ADJUSTMENT,
+        record_status=SalesRecord.RecordStatus.PRELIMINARY,
+        document_date=timezone.now().date(),
+        total_sales_inc_vat=Decimal("232.00"),
+        general_tax_base_16=Decimal("200.00"),
+        general_tax_debit_16=Decimal("32.00"),
+        exempt_internal_sales=Decimal("0.00"),
+        exonerated_internal_sales=Decimal("0.00"),
+        non_subject_internal_sales=Decimal("0.00"),
+        reduced_tax_base_8=Decimal("0.00"),
+        reduced_tax_debit_8=Decimal("0.00"),
+        additional_tax_base_31=Decimal("0.00"),
+        additional_tax_debit_31=Decimal("0.00"),
+        igtf_tax_base=Decimal("0.00"),
+        igtf_tax_amount=Decimal("0.00"),
+        fob_export_value=Decimal("0.00"),
+        affected_invoice=persisted_sales_record
+    )
+
+    # Act
+    debit_note.full_clean()
+    debit_note.save()
+
+    # Assert
+    assert debit_note.pk is not None
+    assert debit_note.total_sales_inc_vat > debit_note.affected_invoice.total_sales_inc_vat
+
+@pytest.mark.django_db
 def test_id_ec_001_violacion_unicidad_documento_emitido(
     persisted_sales_record: SalesRecord
 ) -> None:
@@ -749,6 +871,44 @@ def test_id_ec_cxc_030_no_creacion_cxc_para_documentos_distintos_a_factura(
     assert not hasattr(group_b_fiscal_printer_record, 'account_receivable')
     assert AccountReceivable.objects.filter(sales_record=credit_note).exists() is False
     assert AccountReceivable.objects.filter(sales_record=group_b_fiscal_printer_record).exists() is False
+
+@pytest.mark.django_db
+def test_id_ec_031_monto_nota_credito_supera_factura_afectada(
+    persisted_sales_record: SalesRecord
+) -> None:
+    """Rechaza una nota de crédito cuyo monto total sea superior al de la factura afectada."""
+    # Arrange: Factura afectada con total_sales_inc_vat = 116.00; NC con monto = 232.00
+    credit_note = SalesRecord(
+        fiscal_profile=persisted_sales_record.fiscal_profile,
+        client=persisted_sales_record.client,
+        document_type=SalesRecord.DocumentType.CREDIT_NOTE,
+        document_number="0008",
+        control_number="00-000008",
+        sale_type=SalesRecord.SaleType.INTERNAL,
+        transaction_type=SalesRecord.TransactionType.ADJUSTMENT,
+        record_status=SalesRecord.RecordStatus.PRELIMINARY,
+        document_date=timezone.now().date(),
+        total_sales_inc_vat=Decimal("232.00"),
+        general_tax_base_16=Decimal("200.00"),
+        general_tax_debit_16=Decimal("32.00"),
+        exempt_internal_sales=Decimal("0.00"),
+        exonerated_internal_sales=Decimal("0.00"),
+        non_subject_internal_sales=Decimal("0.00"),
+        reduced_tax_base_8=Decimal("0.00"),
+        reduced_tax_debit_8=Decimal("0.00"),
+        additional_tax_base_31=Decimal("0.00"),
+        additional_tax_debit_31=Decimal("0.00"),
+        igtf_tax_base=Decimal("0.00"),
+        igtf_tax_amount=Decimal("0.00"),
+        fob_export_value=Decimal("0.00"),
+        affected_invoice=persisted_sales_record
+    )
+
+    # Act & Assert
+    with pytest.raises(ValidationError) as exc_info:
+        credit_note.clean()
+
+    assert "total_sales_inc_vat" in exc_info.value.error_dict
 
 
 # @pytest.mark.django_db

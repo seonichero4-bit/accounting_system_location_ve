@@ -547,3 +547,132 @@ class TestCreditNoteSettlementEdgeCases:
 
     #     # Validar que el error atrapado corresponda a la nulidad de la relación principal
     #     assert exc.value is not None
+
+    def test_ID_EC_021_refund_with_positive_balance(
+        self, invoice_factory, credit_note_factory, credit_note_settlement_factory
+    ):
+        """1. Deniega desembolsos si la factura originaria aún tiene saldo pendiente positivo."""
+        # Arrange: Factura por 100.00 sin pagos (Saldo = 100.00)
+        invoice = invoice_factory(
+            total_sales_inc_vat=Decimal("100.00"), exempt_internal_sales=Decimal("100.00")
+        )
+        
+        # Nota de crédito por 40.00 (El saldo dinámico de la CxC baja a 60.00, pero sigue positivo)
+        credit_note = credit_note_factory(
+            affected_invoice=invoice, 
+            total_sales_inc_vat=Decimal("40.00"), exempt_internal_sales=Decimal("40.00")
+        )
+        
+        # Act & Assert
+        with pytest.raises(ValidationError) as exc:
+            credit_note_settlement_factory(
+                sales_record=credit_note,
+                settlement_type=CreditNoteSettlement.SettlementType.RETURNS,
+                returned_goods_value=Decimal("40.00"),
+                cash_amount=Decimal("40.00"),
+                refunded_amount=Decimal("40.00"),
+                validate=True
+            )
+
+        assert 'refunded_amount' in exc.value.error_dict
+        error_msg = str(exc.value.error_dict['refunded_amount'][0].message)
+        assert "Solo se permiten desembolsos de dinero cuando la cuenta por cobrar" in error_msg
+
+    def test_ID_EC_022_refund_less_than_credit_balance(
+        self, invoice_factory, customer_payment_factory, payment_imputation_factory, 
+        credit_note_factory, credit_note_settlement_factory
+    ):
+        """3. Deniega liquidaciones donde el desembolso es menor al saldo a favor."""
+        # Arrange: Factura de 100.00 pagada por completo (Saldo CxC = 0.00)
+        invoice = invoice_factory(
+            total_sales_inc_vat=Decimal("100.00"), exempt_internal_sales=Decimal("100.00")
+        )
+        payment = customer_payment_factory(total_amount=Decimal("100.00"), nominal_value=Decimal("100.00"))
+        payment_imputation_factory(payment=payment, account_receivable=invoice.account_receivable, imputed_amount=Decimal("100.00"))
+        
+        # Nota de crédito por 100.00 (Genera un saldo dinámico a favor en CxC = -100.00)
+        credit_note = credit_note_factory(
+            affected_invoice=invoice, 
+            total_sales_inc_vat=Decimal("100.00"), exempt_internal_sales=Decimal("100.00")
+        )
+        
+        # Act & Assert: Intentar liquidar y reembolsar solo 60.00 (menor a los 100 de saldo a favor)
+        with pytest.raises(ValidationError) as exc:
+            credit_note_settlement_factory(
+                sales_record=credit_note,
+                settlement_type=CreditNoteSettlement.SettlementType.RETURNS,
+                returned_goods_value=Decimal("100.00"),
+                bank_transfer_amount=Decimal("60.00"),
+                refunded_amount=Decimal("60.00"),
+                payment_reference="REF-001",
+                validate=True
+            )
+
+        assert 'refunded_amount' in exc.value.error_dict
+        error_msg = str(exc.value.error_dict['refunded_amount'][0].message)
+        assert "debe ser exactamente igual al valor absoluto del saldo a favor" in error_msg
+
+    def test_ID_EC_023_refund_greater_than_credit_balance(
+        self, invoice_factory, customer_payment_factory, payment_imputation_factory, 
+        credit_note_factory, credit_note_settlement_factory
+    ):
+        """4. Impide que el desembolso supere el saldo a favor generado en la CxC."""
+        # Arrange: Factura de 100.00 pagada por completo (Saldo = 0.00)
+        invoice = invoice_factory(
+            total_sales_inc_vat=Decimal("100.00"), exempt_internal_sales=Decimal("100.00")
+        )
+        payment = customer_payment_factory(total_amount=Decimal("100.00"), nominal_value=Decimal("100.00"))
+        payment_imputation_factory(payment=payment, account_receivable=invoice.account_receivable, imputed_amount=Decimal("100.00"))
+        
+        # Nota de crédito por 50.00 (Genera un saldo a favor en CxC = -50.00)
+        credit_note = credit_note_factory(
+            affected_invoice=invoice, 
+            total_sales_inc_vat=Decimal("50.00"), exempt_internal_sales=Decimal("50.00")
+        )
+        
+        # Act & Assert: Intentar desembolsar 70.00 (supera el saldo a favor de 50.00)
+        with pytest.raises(ValidationError) as exc:
+            credit_note_settlement_factory(
+                sales_record=credit_note,
+                settlement_type=CreditNoteSettlement.SettlementType.RETURNS,
+                returned_goods_value=Decimal("50.00"),
+                cash_amount=Decimal("70.00"),
+                refunded_amount=Decimal("70.00"),
+                validate=True
+            )
+
+        assert 'refunded_amount' in exc.value.error_dict
+        error_msg = str(exc.value.error_dict['refunded_amount'][0].message)
+        assert "debe ser exactamente igual al valor absoluto del saldo a favor" in error_msg
+
+    def test_ID_EC_024_refund_decimal_precision_mismatch(
+        self, invoice_factory, customer_payment_factory, payment_imputation_factory, 
+        credit_note_factory, credit_note_settlement_factory
+    ):
+        """5. Valida la estricta coincidencia a nivel de centavos (diferencia de 0.01)."""
+        # Arrange: Factura pagada completa con Nota de Crédito por el mismo monto (Saldo CxC = -100.00)
+        invoice = invoice_factory(
+            total_sales_inc_vat=Decimal("100.00"), exempt_internal_sales=Decimal("100.00")
+        )
+        payment = customer_payment_factory(total_amount=Decimal("100.00"), nominal_value=Decimal("100.00"))
+        payment_imputation_factory(payment=payment, account_receivable=invoice.account_receivable, imputed_amount=Decimal("100.00"))
+        
+        credit_note = credit_note_factory(
+            affected_invoice=invoice, 
+            total_sales_inc_vat=Decimal("100.00"), exempt_internal_sales=Decimal("100.00")
+        )
+        
+        # Act & Assert: Intentar desembolsar 99.99 por falla de redondeo (0.01 de diferencia)
+        with pytest.raises(ValidationError) as exc:
+            credit_note_settlement_factory(
+                sales_record=credit_note,
+                settlement_type=CreditNoteSettlement.SettlementType.RETURNS,
+                returned_goods_value=Decimal("100.00"),
+                cash_amount=Decimal("99.99"),
+                refunded_amount=Decimal("99.99"),
+                validate=True
+            )
+
+        assert 'refunded_amount' in exc.value.error_dict
+        error_msg = str(exc.value.error_dict['refunded_amount'][0].message)
+        assert "debe ser exactamente igual al valor absoluto del saldo a favor" in error_msg
