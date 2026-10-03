@@ -12,6 +12,12 @@ from django.db import models
 
 from data_access.models.base import FiscalModuleAbstractModel
 
+class CurrencyChoices(models.TextChoices):
+    """Opciones de monedas permitidas en transacciones financieras."""
+
+    VES = 'VES', 'Bolívares'
+    USD = 'USD', 'Dólares'
+    EUR = 'EUR', 'Euros'
 
 class CreditNoteSettlement(FiscalModuleAbstractModel):
     """Modelo para la Liquidación y Ajuste de Notas de Crédito.
@@ -68,6 +74,30 @@ class CreditNoteSettlement(FiscalModuleAbstractModel):
     )
 
     # --- Atributos de Reembolso Financiero (Canales Monetarios) ---
+
+    currency = models.CharField(
+        max_length=10,
+        choices=CurrencyChoices.choices,
+        verbose_name="Currency"
+    )
+    nominal_value = models.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        default=Decimal('0.01'),
+        validators=[
+            MinValueValidator(
+                Decimal('0.01'),
+                message="El valor nominal debe ser mayor a cero."
+            )
+        ],
+        verbose_name="Nominal Value"
+    )
+    exchange_rate = models.DecimalField(
+        max_digits=20,
+        decimal_places=4,
+        default=Decimal('1.0000'),
+        verbose_name="Exchange Rate"
+    )
     bank_transfer_amount = models.DecimalField(
         max_digits=15,
         decimal_places=2,
