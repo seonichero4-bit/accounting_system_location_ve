@@ -78,7 +78,9 @@ class CreditNoteSettlement(FiscalModuleAbstractModel):
     currency = models.CharField(
         max_length=10,
         choices=CurrencyChoices.choices,
-        verbose_name="Currency"
+        verbose_name="Currency",
+        default=CurrencyChoices.VES
+
     )
     nominal_value = models.DecimalField(
         max_digits=20,

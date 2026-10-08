@@ -227,6 +227,15 @@ class FiscalProfile(models.Model):
         blank=True,
         help_text="Cuenta contable de pasivo comercial Cuentas por Pagar Proveedores.",
     )
+    customer_credit_balance_account = models.ForeignKey(
+        AccountModel,
+        on_delete=models.PROTECT,
+        related_name="+",
+        verbose_name="Customer Credit Balance Account",
+        null=True,
+        blank=True,
+        help_text="Cuenta contable de pasivo comercial para el saldo a favor de clientes.",
+    )
 
     # --- INGRESOS: Ingresos Principales y Adicionales ---
     taxable_goods_sales_account = models.ForeignKey(

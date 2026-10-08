@@ -1,196 +1,208 @@
 """Módulo de servicio para la totalización y contabilización de ventas.
 
-Proporciona la lógica de negocio para procesar los registros de ventas del período,
-generar los asientos contables correspondientes en Django-Ledger y actualizar el
-estado de los documentos.
+Proporciona la lógica de negocio para procesar los registros del Libro de Ventas,
+amortizaciones de cuentas por cobrar, notas de crédito, notas de débito e
+inventarios, generando los asientos contables correspondientes en Django-Ledger
+bajo las normativas fiscales venezolanas y aislamiento multi-tenant.
 """
 
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
 from django.utils import timezone
-
 from django_ledger.models import AccountModel, JournalEntryModel, TransactionModel
+
+from data_access.models.base import FiscalProfile
+from data_access.models.sales_record import SalesRecord
 
 
 class SalesAccountingTotalizationService:
-    """Servicio para la totalización y contabilización automatizada de ventas.
+    """Servicio de dominio para la totalización y contabilización de ventas.
 
-    Encapsula la agregación de datos del Libro de Ventas y la creación de asientos
-    contables en el Libro Mayor mediante la API de modelos de Django-Ledger.
+    Encapsula la lógica de agregación de operaciones del Libro de Ventas y la
+    creación estandarizada de asientos contables y transacciones en Django-Ledger.
     """
 
-    def __init__(self, fiscal_profile: Any, fiscal_period: str) -> None:
-        """Inicializa la instancia del servicio de totalización de ventas.
+    REQUIRED_FISCAL_ACCOUNTS = [
+        "ledger",
+        "cash_national_account",
+        "cash_foreign_account",
+        "bank_national_account",
+        "bank_foreign_account",
+        "ar_commercial_national_account",
+        "vat_withholdings_accumulated_account",
+        "islr_withholdings_accumulated_account",
+        "taxable_goods_sales_account",
+        "taxable_services_sales_account",
+        "exempt_goods_sales_account",
+        "exempt_services_sales_account",
+        "vat_debit_account",
+        "igtf_perceived_payable_account",
+        "goods_sales_returns_account",
+        "goods_sales_allowances_account",
+        "services_discounts_account",
+        "sales_surcharges_account",
+        "services_surcharges_account",
+        "cogs_account",
+        "inventory_account",
+        "customer_credit_balance_account",
+    ]
+
+    def __init__(self, fiscal_profile: FiscalProfile, fiscal_period: str) -> None:
+        """Inicializa el servicio de totalización contable de ventas.
 
         Args:
-            fiscal_profile: Instancia del perfil fiscal/tenant.
-            fiscal_period: Cadena de texto que identifica el período fiscal (ej. '2026-03').
+            fiscal_profile: Instancia del perfil fiscal del inquilino (tenant).
+            fiscal_period: Cadena con el período fiscal a procesar (ej. '2026-01').
+
+        Raises:
+            ValidationError: Si alguna cuenta contable obligatoria no está configurada.
         """
         self.fiscal_profile = fiscal_profile
         self.fiscal_period = fiscal_period
         self.ledger = getattr(fiscal_profile, "ledger", None)
+        self._validate_fiscal_profile_accounts()
+
+    def _validate_fiscal_profile_accounts(self) -> None:
+        """Valida que todas las cuentas contables de control estén asignadas.
+
+        Raises:
+            ValidationError: Si alguna cuenta de control requerida es None.
+        """
+        for account_attr in self.REQUIRED_FISCAL_ACCOUNTS:
+            if getattr(self.fiscal_profile, account_attr, None) is None:
+                raise ValidationError(
+                    f"Falta configurar la cuenta contable [{account_attr}] en el perfil fiscal."
+                )
 
     def _create_journal_entry_with_transactions(
         self,
         description: str,
-        debit_entries: List[Tuple[Optional[AccountModel], Any, str]],
-        credit_entries: List[Tuple[Optional[AccountModel], Any, str]],
-    ) -> Optional[JournalEntryModel]:
-        """Crea e inserta un asiento contable con sus transacciones en Django-Ledger.
-
-        Valida la integridad de la descripción, la estructura y datos de cada transacción,
-        y comprueba el estricto cumplimiento de la partida doble mediante el método `.verify()`.
+        debit_entries: list[tuple[AccountModel, Decimal, str]],
+        credit_entries: list[tuple[AccountModel, Decimal, str]],
+    ) -> JournalEntryModel | None:
+        """Crea y verifica un asiento contable en Django-Ledger con sus transacciones.
 
         Args:
             description: Glosa explicativa de la operación contable.
-            debit_entries: Lista de tuplas (AccountModel, Decimal, str) para cargos al DEBE.
-            credit_entries: Lista de tuplas (AccountModel, Decimal, str) para abonos al HABER.
+            debit_entries: Lista de tuplas (cuenta, monto, detalle) para el DEBE.
+            credit_entries: Lista de tuplas (cuenta, monto, detalle) para el HABER.
 
         Returns:
-            Instancia de JournalEntryModel creada y validada, o None si no hay entradas.
+            Instancia de JournalEntryModel auditada o None si las listas están vacías.
 
         Raises:
-            ValidationError: Si la descripción está vacía, los datos son inválidos o existe
-                descuadre en la partida doble.
+            ValidationError: Si se detectan montos menores o iguales a cero, o si
+                existe un descuadre en la partida doble.
         """
-        if not description or not isinstance(description, str) or not description.strip():
-            raise ValidationError(
-                "Error de validación en asiento contable: La descripción o glosa del asiento es requerida y no puede estar vacía."
-            )
-
         if not debit_entries and not credit_entries:
             return None
 
-        for entries in (debit_entries, credit_entries):
-            for entry in entries:
-                if not isinstance(entry, (tuple, list)) or len(entry) != 3:
-                    raise ValidationError(
-                        f"Error de formato en entradas de {description}: Cada transacción debe ser una tupla válida de (AccountModel, Decimal, str)."
-                    )
+        two_decimals = Decimal("0.01")
 
-                account, amount, _ = entry
-
-                if account is None:
-                    raise ValidationError(
-                        f"Error de asignación contable en {description}: La cuenta contable especificada no es válida o se encuentra ausente."
-                    )
-
-                if not isinstance(amount, Decimal):
-                    raise ValidationError(
-                        f"Error de tipo de dato en {description}: El monto de la transacción debe ser de tipo Decimal preciso."
-                    )
-
-                if amount < Decimal("0.00"):
-                    raise ValidationError(
-                        f"Error de validación contable en {description}: No se permiten montos negativos en las transacciones del asiento contable."
-                    )
-
-                if amount == Decimal("0.00"):
-                    raise ValidationError(
-                        f"Error de validación contable en {description}: Las transacciones deben registrar montos superiores a 0.00 VES."
-                    )
-
-        debit_total = sum(amount for _, amount, _ in debit_entries)
-        credit_total = sum(amount for _, amount, _ in credit_entries)
-
-        if debit_total != credit_total:
-            raise ValidationError(
-                f"Error de cuadratura en {description} (Partida Doble)."
-            )
-
-        with transaction.atomic():
-            journal_entry = JournalEntryModel.objects.create(
-                ledger=self.ledger,
-                activity="operating",
-                timestamp=timezone.now(),
-                description=description,
-            )
-
-            for account, amount, tx_detail in debit_entries:
-                TransactionModel.objects.create(
-                    journal_entry=journal_entry,
-                    account=account,
-                    tx_type="debit",
-                    amount=amount,
-                    description=tx_detail,
-                )
-
-            for account, amount, tx_detail in credit_entries:
-                TransactionModel.objects.create(
-                    journal_entry=journal_entry,
-                    account=account,
-                    tx_type="credit",
-                    amount=amount,
-                    description=tx_detail,
-                )
-
-            is_valid = journal_entry.verify()
-            if not is_valid:
+        processed_debits: list[tuple[AccountModel, Decimal, str]] = []
+        for account, amount, detail in debit_entries:
+            quantized_amount = amount.quantize(two_decimals)
+            if quantized_amount <= Decimal("0.00"):
                 raise ValidationError(
-                    f"Error de cuadratura en {description} (Partida Doble)."
+                    f"El monto de la transacción para la cuenta '{account}' "
+                    f"debe ser mayor a 0.00."
                 )
+            processed_debits.append((account, quantized_amount, detail))
+
+        processed_credits: list[tuple[AccountModel, Decimal, str]] = []
+        for account, amount, detail in credit_entries:
+            quantized_amount = amount.quantize(two_decimals)
+            if quantized_amount <= Decimal("0.00"):
+                raise ValidationError(
+                    f"El monto de la transacción para la cuenta '{account}' "
+                    f"debe ser mayor a 0.00."
+                )
+            processed_credits.append((account, quantized_amount, detail))
+
+        total_debits = sum(amt for _, amt, _ in processed_debits)
+        total_credits = sum(amt for _, amt, _ in processed_credits)
+
+        if total_debits != total_credits:
+            raise ValidationError(
+                f"Descuadre en la partida doble: Total Débitos ({total_debits}) "
+                f"!= Total Créditos ({total_credits})."
+            )
+
+        journal_entry = JournalEntryModel.objects.create(
+            ledger=self.ledger,
+            timestamp=timezone.now(),
+            description=description,
+            activity="operating",
+        )
+
+        for account, amount, detail in processed_debits:
+            TransactionModel.objects.create(
+                journal_entry=journal_entry,
+                account=account,
+                tx_type="debit",
+                amount=amount,
+                description=detail,
+            )
+
+        for account, amount, detail in processed_credits:
+            TransactionModel.objects.create(
+                journal_entry=journal_entry,
+                account=account,
+                tx_type="credit",
+                amount=amount,
+                description=detail,
+            )
+
+        verified = journal_entry.verify(raise_exception=True)
+        if not verified:
+            raise ValidationError(
+                "La verificación del asiento contable denegó la aprobación por inconsistencia."
+            )
 
         return journal_entry
 
-    def _process_previous_period_receivables(self) -> Optional[JournalEntryModel]:
-        """Procesa el cobro de cuentas por cobrar originadas en períodos anteriores.
-
-        Returns:
-            Instancia de JournalEntryModel o None si no hay cobros de períodos pasados.
-        """
-        return None
+    def _process_previous_period_receivables(
+        self,
+    ) -> tuple[
+        list[tuple[AccountModel, Decimal, str]],
+        list[tuple[AccountModel, Decimal, str]],
+    ]:
+        """Procesa y consolida los cobros de cuentas por cobrar de períodos anteriores."""
+        return [], []
 
     def _process_current_sales(
-        self, sales_records: List[Any]
-    ) -> Tuple[Optional[JournalEntryModel], Optional[JournalEntryModel]]:
-        """Totaliza las facturas y reportes Z del período fiscal actual.
-
-        Args:
-            sales_records: Sublista de registros de ventas de tipo factura/reporte Z.
-
-        Returns:
-            Tupla (asiento_ventas, asiento_inventario).
-        """
-        return None, None
+        self, sales_records: list[SalesRecord]
+    ) -> tuple[
+        list[tuple[AccountModel, Decimal, str]],
+        list[tuple[AccountModel, Decimal, str]],
+        list[tuple[AccountModel, Decimal, str]],
+        list[tuple[AccountModel, Decimal, str]],
+    ]:
+        """Procesa y consolida las facturas y reportes Z del período actual."""
+        return [], [], [], []
 
     def _process_credit_notes(
-        self, credit_notes_records: List[Any]
-    ) -> Tuple[Optional[JournalEntryModel], Optional[JournalEntryModel]]:
-        """Procesa y totaliza las notas de crédito del período fiscal actual.
-
-        Args:
-            credit_notes_records: Sublista de registros de notas de crédito.
-
-        Returns:
-            Tupla (asiento_notas_credito, asiento_reingreso_inventario).
-        """
-        return None, None
+        self, credit_notes_records: list[SalesRecord]
+    ) -> tuple[
+        list[tuple[AccountModel, Decimal, str]],
+        list[tuple[AccountModel, Decimal, str]],
+        list[tuple[AccountModel, Decimal, str]],
+        list[tuple[AccountModel, Decimal, str]],
+    ]:
+        """Procesa y consolida las notas de crédito del período actual."""
+        return [], [], [], []
 
     def _process_debit_notes(
-        self, debit_notes_records: List[Any]
-    ) -> Optional[JournalEntryModel]:
-        """Procesa y totaliza las notas de débito del período fiscal actual.
+        self, debit_notes_records: list[SalesRecord]
+    ) -> tuple[
+        list[tuple[AccountModel, Decimal, str]],
+        list[tuple[AccountModel, Decimal, str]],
+    ]:
+        """Procesa y consolida las notas de débito del período actual."""
+        return [], []
 
-        Args:
-            debit_notes_records: Sublista de registros de notas de débito.
-
-        Returns:
-            Instancia de JournalEntryModel o None si no existen notas de débito.
-        """
-        return None
-
-    def process_totalization(self) -> Dict[str, Any]:
-        """Orquesta el proceso completo de totalización de ventas dentro de un bloque atómico.
-
-        Returns:
-            Diccionario con el resumen del procesamiento y los IDs de asientos generados.
-        """
-        with transaction.atomic():
-            return {
-                "status": "PROCESSED",
-                "fiscal_period": self.fiscal_period,
-                "entries_created": [],
-            }
+    def process_totalization(self) -> dict[str, Any]:
+        """Orquesta el flujo completo de totalización y contabilización automatizada."""
+        return {}

@@ -29,56 +29,68 @@ from data_access.models.payment_imputation import PaymentImputation
 from data_access.models.credit_note_settlement import CreditNoteSettlement
 
 
-@pytest.fixture
-def admin_user(db) -> User:
-    """Instancia el usuario administrador requerido para la creación de la entidad."""
-    return User.objects.create_superuser(
-        username="admin_test",
-        email="admin@test.com",
-        password="password123"
-    )
+@pytest.fixture(scope="module")
+def admin_user(django_db_setup, django_db_blocker) -> User:
+    """Instancia o recupera el usuario administrador requerido para la creación de la entidad."""
+    with django_db_blocker.unblock():
+        user, created = User.objects.get_or_create(
+            username="admin_test_2",
+            defaults={
+                "email": "admin@test_2.com",
+                "is_superuser": True,
+                "is_staff": True,
+            },
+        )
+        if created:
+            user.set_password("password123")
+            user.save()
+        return user
+
+@pytest.fixture(scope="module")
+def fiscal_profile(django_db_setup, django_db_blocker, admin_user) -> FiscalProfile:
+    """Crea el perfil fiscal multi-tenant mediante el servicio FiscalProfileService (ámbito de módulo)."""
+    with django_db_blocker.unblock():
+        fiscal_profile = FiscalProfile.objects.filter(rif="J123456789").first()
+        if not fiscal_profile:
+            service = FiscalProfileService(admin_user=admin_user)
+            return service.create_fiscal_profile(
+                entity_name="Empresa de Prueba C.A.",
+                use_accrual_method=True,
+                fy_start_month=1,
+                rif="J123456789",
+                taxpayer_type="SPECIAL",
+                start_period=date(2026, 1, 15)
+            )
+        return fiscal_profile
 
 
-@pytest.fixture
-def fiscal_profile(db, admin_user) -> FiscalProfile:
-    """Crea el perfil fiscal multi-tenant mediante el servicio FiscalProfileService."""
-    service = FiscalProfileService(admin_user=admin_user)
-    return service.create_fiscal_profile(
-        entity_name="Empresa de Prueba C.A.",
-        use_accrual_method=True,
-        fy_start_month=1,
-        rif="J123456789",
-        taxpayer_type="SPECIAL",
-        start_period=date(2026, 1, 15)
-    )
+@pytest.fixture(scope="module")
+def ledger_model(django_db_setup, django_db_blocker, fiscal_profile) -> LedgerModel:
+    """Instancia el Libro Mayor General vía ORM vinculándolo a la entidad (ámbito de módulo)."""
+    with django_db_blocker.unblock():
+        ledger = LedgerModel.objects.create(
+            name="Libro Mayor General",
+            entity=fiscal_profile.entity
+        )
+        fiscal_profile.ledger = ledger
+        fiscal_profile.save()
+        return ledger
 
 
-@pytest.fixture
-def ledger_model(db, fiscal_profile) -> LedgerModel:
-    """Instancia el Libro Mayor General vía ORM vinculándolo a la entidad."""
-    ledger = LedgerModel.objects.create(
-        name="Libro Mayor General",
-        entity=fiscal_profile.entity
-    )
-    fiscal_profile.ledger = ledger
-    fiscal_profile.save()
-    return ledger
+@pytest.fixture(scope="module")
+def chart_of_accounts(django_db_setup, django_db_blocker, fiscal_profile):
+    """Genera el Plan de Cuentas base asociado a la entidad del perfil fiscal (ámbito de módulo)."""
+    with django_db_blocker.unblock():
+        return fiscal_profile.entity.create_chart_of_accounts(
+            coa_name="Plan de Cuentas Matriz",
+            assign_as_default=True,
+            commit=True
+        )
 
 
-@pytest.fixture
-def chart_of_accounts(db, fiscal_profile):
-    """Genera el Plan de Cuentas base asociado a la entidad del perfil fiscal."""
-    return fiscal_profile.entity.create_chart_of_accounts(
-        coa_name="Plan de Cuentas Matriz",
-        assign_as_default=True,
-        commit=True
-    )
-
-
-@pytest.fixture
-def setup_accounts(db, fiscal_profile, chart_of_accounts, ledger_model) -> dict:
-    """Instancia las cuentas contables preconfiguradas y asigna las cuentas de control al FiscalProfile."""
-
+@pytest.fixture(scope="module")
+def setup_accounts(django_db_setup, django_db_blocker, fiscal_profile, chart_of_accounts, ledger_model) -> dict:
+    """Instancia las cuentas contables preconfiguradas y asigna las cuentas de control al FiscalProfile (ámbito de módulo)."""
     accounts_config = [
         # 1. Cuentas de Ingresos (Ventas y Recargos) - Haber / Credit
         {
@@ -145,7 +157,7 @@ def setup_accounts(db, fiscal_profile, chart_of_accounts, ledger_model) -> dict:
             "role": roles.INCOME_OPERATIONAL,
             "balance_type": "debit",
         },
-        # 3. Cuentas de Pasivo (Impuestos por Enterar / Débitos Fiscales) - Haber / Credit
+        # 3. Cuentas de Pasivo (Impuestos por Enterar, Débitos Fiscales y Pasivos Comerciales) - Haber / Credit
         {
             "attr": "vat_debit_account",
             "code": "21201",
@@ -158,6 +170,13 @@ def setup_accounts(db, fiscal_profile, chart_of_accounts, ledger_model) -> dict:
             "code": "21202",
             "name": "IGTF Percibido por Enterar",
             "role": roles.LIABILITY_CL_TAXES_PAYABLE,
+            "balance_type": "credit",
+        },
+        {
+            "attr": "customer_credit_balance_account",
+            "code": "21101",
+            "name": "Saldo a Favor de Clientes",
+            "role": roles.LIABILITY_CL_ACC_PAYABLE,
             "balance_type": "credit",
         },
         # 4. Cuentas de Activo (Retenciones Soportadas en Ventas) - Debe / Debit
@@ -235,22 +254,22 @@ def setup_accounts(db, fiscal_profile, chart_of_accounts, ledger_model) -> dict:
         },
     ]
 
-    created_accounts = {}
+    with django_db_blocker.unblock():
+        created_accounts = {}
+        for cfg in accounts_config:
+            account_instance = fiscal_profile.entity.create_account(
+                coa_model=chart_of_accounts,
+                code=cfg["code"],
+                name=cfg["name"],
+                role=cfg["role"],
+                balance_type=cfg["balance_type"],
+                active=True,
+            )
+            setattr(fiscal_profile, cfg["attr"], account_instance)
+            created_accounts[cfg["attr"]] = account_instance
 
-    for cfg in accounts_config:
-        account_instance = fiscal_profile.entity.create_account(
-            coa_model=chart_of_accounts,
-            code=cfg["code"],
-            name=cfg["name"],
-            role=cfg["role"],
-            balance_type=cfg["balance_type"],
-            active=True,
-        )
-        setattr(fiscal_profile, cfg["attr"], account_instance)
-        created_accounts[cfg["attr"]] = account_instance
-
-    fiscal_profile.save()
-    return created_accounts
+        fiscal_profile.save()
+        return created_accounts
 
 
 # ==============================================================================
@@ -632,35 +651,40 @@ def credit_note_settlement(credit_note_settlement_factory) -> CreditNoteSettleme
 
 @pytest.fixture
 def account_debe(setup_accounts):
-    """Cuenta genérica de saldo deudor (Caja Moneda Nacional)[cite: 6]."""
+    """Cuenta genérica de saldo deudor (Caja Moneda Nacional)."""
     return setup_accounts["cash_national_account"]
 
 @pytest.fixture
 def account_haber(setup_accounts):
-    """Cuenta genérica de saldo acreedor (Ventas Gravadas)[cite: 6]."""
+    """Cuenta genérica de saldo acreedor (Ventas Gravadas)."""
     return setup_accounts["taxable_goods_sales_account"]
 
 @pytest.fixture
 def account_debe_1(setup_accounts):
-    """Cuenta deudora 1 para asientos compuestos (Banco Nacional)[cite: 6]."""
+    """Cuenta deudora 1 para asientos compuestos (Banco Nacional)."""
     return setup_accounts["bank_national_account"]
 
 @pytest.fixture
 def account_debe_2(setup_accounts):
-    """Cuenta deudora 2 para asientos compuestos (Cuentas por Cobrar Comerciales)[cite: 6]."""
+    """Cuenta deudora 2 para asientos compuestos (Cuentas por Cobrar Comerciales)."""
     return setup_accounts["ar_commercial_national_account"]
 
 @pytest.fixture
 def account_debe_3(setup_accounts):
-    """Cuenta deudora 3 para asientos compuestos (Retenciones de IVA Acumuladas)[cite: 6]."""
+    """Cuenta deudora 3 para asientos compuestos (Retenciones de IVA Acumuladas)."""
     return setup_accounts["vat_withholdings_accumulated_account"]
 
 @pytest.fixture
 def account_haber_1(setup_accounts):
-    """Cuenta acreedora 1 para asientos compuestos (Ventas Gravadas)[cite: 6]."""
+    """Cuenta acreedora 1 para asientos compuestos (Ventas Gravadas)."""
     return setup_accounts["taxable_goods_sales_account"]
 
 @pytest.fixture
 def account_haber_2(setup_accounts):
-    """Cuenta acreedora 2 para asientos compuestos (Débito Fiscal IVA)[cite: 6]."""
+    """Cuenta acreedora 2 para asientos compuestos (Débito Fiscal IVA)."""
     return setup_accounts["vat_debit_account"]
+
+@pytest.fixture
+def account_haber_3(setup_accounts):
+    """Cuenta acreedora 3 para asientos compuestos (Saldo a Favor de Clientes)."""
+    return setup_accounts["customer_credit_balance_account"]
