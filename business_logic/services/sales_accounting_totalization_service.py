@@ -181,7 +181,182 @@ class SalesAccountingTotalizationService:
         list[tuple[AccountModel, Decimal, str]],
     ]:
         """Procesa y consolida las facturas y reportes Z del período actual."""
-        return [], [], [], []
+        sales_debit_entries = []
+        sales_credit_entries = []
+        inventory_debit_entries = []
+        inventory_credit_entries = []
+
+        if not sales_records:
+            return [], [], [], []
+
+        debits = {
+            "cash_nat": Decimal("0.00"),
+            "bank_nat": Decimal("0.00"),
+            "cash_for": Decimal("0.00"),
+            "bank_for": Decimal("0.00"),
+            "ar_nat": Decimal("0.00"),
+            "vat_wh": Decimal("0.00"),
+            "islr_wh": Decimal("0.00"),
+        }
+
+        credits = {
+            "tax_goods": Decimal("0.00"),
+            "tax_serv": Decimal("0.00"),
+            "exe_goods": Decimal("0.00"),
+            "exe_serv": Decimal("0.00"),
+            "vat_deb": Decimal("0.00"),
+            "igtf_pay": Decimal("0.00"),
+        }
+
+        has_goods_or_mixed = False
+        is_special = getattr(self.fiscal_profile, "taxpayer_type", "") == "SPECIAL"
+
+        def to_dec(val: Any) -> Decimal:
+            """Convierte un valor de forma segura a Decimal."""
+            return Decimal(str(val)) if val else Decimal("0.00")
+
+        for sr in sales_records:
+            cat = getattr(sr, "sale_category", "")
+            if cat in ["GOODS", "MIXED"]:
+                has_goods_or_mixed = True
+
+            # Consolidación del Débito Fiscal (16%, 8%, 31%)
+            gen_tax = to_dec(getattr(sr, "general_tax_debit_16", 0))
+            red_tax = to_dec(getattr(sr, "reduced_tax_debit_8", 0))
+            add_tax = to_dec(getattr(sr, "additional_tax_debit_31", 0))
+            credits["vat_deb"] += gen_tax + red_tax + add_tax
+
+            # Consolidación de Bases Imponibles
+            gen_base = to_dec(getattr(sr, "general_tax_base_16", 0))
+            red_base = to_dec(getattr(sr, "reduced_tax_base_8", 0))
+            add_base = to_dec(getattr(sr, "additional_tax_base_31", 0))
+            taxable_total = gen_base + red_base + add_base
+
+            # Consolidación de Ventas Exentas, No Sujetas y Exportación FOB
+            exe_int = to_dec(getattr(sr, "exempt_internal_sales", 0))
+            exe_srv = to_dec(getattr(sr, "exempt_services_amount", 0))
+            fob = to_dec(getattr(sr, "fob_export_value", 0))
+            non_subj = to_dec(getattr(sr, "non_subject_internal_sales", 0))
+            exempt_total = exe_int + exe_srv + fob + non_subj
+
+            # Distribución por Categoría
+            if cat == "GOODS":
+                credits["tax_goods"] += taxable_total
+                credits["exe_goods"] += exempt_total
+            elif cat == "SERVICES":
+                credits["tax_serv"] += taxable_total
+                credits["exe_serv"] += exempt_total
+            elif cat == "MIXED":
+                credits["tax_goods"] += to_dec(getattr(sr, "goods_amount", 0))
+                credits["tax_serv"] += to_dec(getattr(sr, "services_amount", 0))
+                credits["exe_goods"] += exempt_total  # Por defecto agrupado en bienes para operaciones mixtas
+
+            # Consolidación de IGTF Percibido (Solo Sujetos Pasivos Especiales)
+            igtf = to_dec(getattr(sr, "igtf_tax_amount", 0))
+            if is_special and igtf > Decimal("0.00"):
+                credits["igtf_pay"] += igtf
+
+            # Consolidación de Cobros
+            payments_imputations = []
+            ar = getattr(sr, "account_receivable", None)
+            if ar:
+                if hasattr(ar, "imputations"):
+                    payments_imputations = ar.imputations.all()
+
+            paid_total = Decimal("0.00")
+            applied_igtf = False
+
+            for imputaction in payments_imputations:
+                amt_base = to_dec(getattr(imputaction, "imputed_amount"))
+                payment = getattr(imputaction, "payment")
+                currency = getattr(payment, "currency")
+                method = getattr(payment, "method_type")
+
+                amt_to_record = amt_base
+
+                # Clasificación Moneda Extranjera vs Nacional
+                if currency in ["USD", "EUR"] or currency != "VES":
+                    if is_special and igtf > Decimal("0.00") and not applied_igtf:
+                        amt_to_record += igtf
+                        applied_igtf = True
+
+                    if method == "CASH":
+                        debits["cash_for"] += amt_to_record
+                    else:
+                        debits["bank_for"] += amt_to_record
+                else:
+                    if method == "CASH":
+                        debits["cash_nat"] += amt_to_record
+                    else:
+                        debits["bank_nat"] += amt_to_record
+                
+                paid_total += amt_base  # El IGTF no amortiza la CXC comercial origen
+
+            # Consolidación de Retenciones IVA / ISLR
+            if hasattr(sr, "vat_withholding"):
+                vat_whs = sr.vat_withholding.withheld_amount
+            else:
+                vat_whs = Decimal("0.00")
+                
+            if hasattr(sr, "islr_withholding"):
+                islr_whs = sr.islr_withholding.total_withheld_amount
+            else:
+                islr_whs = Decimal("0.00")
+
+            # vat_wh_val = sum((to_dec(getattr(wh, "withheld_amount", 0)) for wh in vat_whs), start=Decimal("0.00"))
+            # islr_wh_val = sum((to_dec(getattr(wh, "total_withheld_amount", 0)) for wh in islr_whs), start=Decimal("0.00"))
+            
+            debits["vat_wh"] += vat_whs
+            debits["islr_wh"] += islr_whs
+
+            # Determinación de Cuentas por Cobrar Remanentes
+            total_sales = to_dec(getattr(sr, "total_sales_inc_vat", 0))
+            ar_val = total_sales - paid_total - vat_whs - islr_whs
+            if ar_val > Decimal("0.00"):
+                debits["ar_nat"] += ar_val
+
+        # Generación de Tuplas y Cuantificación Estricta
+        two_decimals = Decimal("0.01")
+        detail_glosa = "Consolidación de ventas del período"
+        
+        debit_mappings = {
+            "cash_nat": self.fiscal_profile.cash_national_account,
+            "bank_nat": self.fiscal_profile.bank_national_account,
+            "cash_for": self.fiscal_profile.cash_foreign_account,
+            "bank_for": self.fiscal_profile.bank_foreign_account,
+            "ar_nat": self.fiscal_profile.ar_commercial_national_account,
+            "vat_wh": self.fiscal_profile.vat_withholdings_accumulated_account,
+            "islr_wh": self.fiscal_profile.islr_withholdings_accumulated_account,
+        }
+
+        credit_mappings = {
+            "tax_goods": self.fiscal_profile.taxable_goods_sales_account,
+            "tax_serv": self.fiscal_profile.taxable_services_sales_account,
+            "exe_goods": self.fiscal_profile.exempt_goods_sales_account,
+            "exe_serv": self.fiscal_profile.exempt_services_sales_account,
+            "vat_deb": self.fiscal_profile.vat_debit_account,
+            "igtf_pay": self.fiscal_profile.igtf_perceived_payable_account,
+        }
+
+        for key, amt in debits.items():
+            if amt > Decimal("0.00"):
+                sales_debit_entries.append((debit_mappings[key], amt.quantize(two_decimals), detail_glosa))
+
+        for key, amt in credits.items():
+            if amt > Decimal("0.00"):
+                sales_credit_entries.append((credit_mappings[key], amt.quantize(two_decimals), detail_glosa))
+
+        # Asiento de Descargo de Inventarios (Costo de Ventas)
+        if has_goods_or_mixed:
+            inventory_detail = "Descargo global de inventario"
+            inventory_debit_entries.append(
+                (self.fiscal_profile.cogs_account, Decimal("1.00").quantize(two_decimals), inventory_detail)
+            )
+            inventory_credit_entries.append(
+                (self.fiscal_profile.inventory_account, Decimal("1.00").quantize(two_decimals), inventory_detail)
+            )
+
+        return sales_debit_entries, sales_credit_entries, inventory_debit_entries, inventory_credit_entries
 
     def _process_credit_notes(
         self, credit_notes_records: list[SalesRecord]

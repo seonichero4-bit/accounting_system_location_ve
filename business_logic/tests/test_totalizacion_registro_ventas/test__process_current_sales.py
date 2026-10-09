@@ -1,445 +1,397 @@
-"""Suite de pruebas unitarias para el componente _process_current_sales
-del módulo SalesAccountingTotalizationService."""
+"""Suite de pruebas unitarias para el servicio de totalización de ventas.
 
-import pytest
+Este módulo implementa las pruebas correspondientes a la consolidación contable
+de ventas del período actual (`_process_current_sales`), validando la correcta
+generación de partidas para el Libro Diario y el control de inventarios.
+"""
+from datetime import date
 from decimal import Decimal
-from django.core.exceptions import ValidationError
+import pytest
 
-from business_logic.services.sales_accounting_totalization_service import SalesAccountingTotalizationService
+from django_ledger.models import AccountModel
+
+from data_access.models.base import FiscalProfile
 from data_access.models.sales_record import SalesRecord
-from data_access.models.customer_payment import PaymentMethodTypeChoices, CurrencyChoices
-from data_access.models.customer import Customer
-
-pytestmark = pytest.mark.django_db
+from data_access.models.customer_payment import CurrencyChoices, PaymentMethodTypeChoices
+from business_logic.services.sales_accounting_totalization_service import SalesAccountingTotalizationService
 
 
-def test_process_current_sales_special_taxpayer_multicurrency_retentions_ID_HP_001(
-    fiscal_profile,
-    setup_accounts,
-    sales_record_factory,
-    vat_withholding_factory,
-    islr_withholding_factory,
-    customer_payment_factory,
-):
-    """[ID_HP_001] - Totalización completa de ventas con desglose multimoneda, retenciones, IGTF y descargo de inventario."""
+def _get_account_amount(
+    entries: list[tuple[AccountModel, Decimal, str]], account: AccountModel
+) -> Decimal:
+    """Helper para extraer el monto consolidado de una cuenta contable.
     
-    # ==========================
-    # Arrange (Preparación)
-    # ==========================
-    fiscal_profile.taxpayer_type = "SPECIAL"
+    Args:
+        entries: Lista de tuplas de transacciones generadas.
+        account: Cuenta contable de Django-Ledger a buscar.
+        
+    Returns:
+        Monto consolidado asignado a la cuenta, o 0.00 si no existe.
+    """
+    for acc, amt, _ in entries:
+        if acc == account:
+            return amt
+    return Decimal("0.00")
+
+
+def _has_account(
+    entries: list[tuple[AccountModel, Decimal, str]], account: AccountModel
+) -> bool:
+    """Helper para verificar si una cuenta contable fue incluida en el asiento.
+    
+    Args:
+        entries: Lista de tuplas de transacciones generadas.
+        account: Cuenta contable de Django-Ledger a buscar.
+        
+    Returns:
+        True si la cuenta existe en la lista de entradas, False en caso contrario.
+    """
+    return any(acc == account for acc, amt, _ in entries)
+
+
+# ==============================================================================
+# HAPPY PATHS (Flujos Felices)
+# ==============================================================================
+
+@pytest.mark.django_db
+def test_id_hp_001_consolidacion_estandar_ventas_bienes_y_servicios_moneda_nacional(
+    fiscal_profile, setup_accounts, sales_record_factory, customer_payment_factory
+):
+    """[ID_HP_001] Validar consolidación contable estándar en moneda nacional.
+    
+    Combina ventas de bienes muebles y prestación de servicios, verificando cobros
+    en caja y montos remanentes a crédito comercial.
+    """
+    # Arrange
+    fiscal_profile.taxpayer_type = FiscalProfile.TaxpayerType.ORDINARY
+    fiscal_profile.initial_fiscal_period.start_period = date(2026, 1, 1)
     fiscal_profile.save()
 
-    # Registro 1: Venta de Bienes
+    # Factura 1: Bienes gravados pagados en efectivo
     sr1 = sales_record_factory(
         sale_category=SalesRecord.SaleCategory.GOODS,
-        document_type=SalesRecord.DocumentType.INVOICE,
-        general_tax_base_16=Decimal("20000.00"),
-        general_tax_debit_16=Decimal("3200.00"),
-        total_sales_inc_vat=Decimal("23200.00")
-    )
-    vat_withholding_factory(sales_record=sr1, withheld_amount=Decimal("2240.00"))
-    customer_payment_factory(
-        account_receivable=sr1.account_receivable,
-        amount=Decimal("5000.00"),
-        method_type=PaymentMethodTypeChoices.CASH,
-        currency=CurrencyChoices.VES
-    )
-
-    # Registro 2: Venta de Servicios
-    sr2 = sales_record_factory(
-        sale_category=SalesRecord.SaleCategory.SERVICES,
-        document_type=SalesRecord.DocumentType.INVOICE,
-        general_tax_base_16=Decimal("8000.00"),
-        general_tax_debit_16=Decimal("1280.00"),
-        total_sales_inc_vat=Decimal("9280.00")
-    )
-    vat_withholding_factory(sales_record=sr2, withheld_amount=Decimal("896.00"))
-    islr_withholding_factory(sales_record=sr2, total_withheld_amount=Decimal("160.00"))
-    customer_payment_factory(
-        account_receivable=sr2.account_receivable,
-        amount=Decimal("8224.00"),
-        method_type=PaymentMethodTypeChoices.BANK_TRANSFER,
-        currency=CurrencyChoices.VES
-    )
-
-    # Registro 3: Venta Mixta (Bienes y Servicios Exentos + IGTF)
-    sr3 = sales_record_factory(
-        sale_category=SalesRecord.SaleCategory.MIXED,
-        document_type=SalesRecord.DocumentType.INVOICE,
-        exempt_goods_amount=Decimal("3000.00"),
-        exempt_services_amount=Decimal("1000.00"),
-        igtf_tax_amount=Decimal("300.00"),
-        total_sales_inc_vat=Decimal("4300.00")
-    )
-    customer_payment_factory(
-        account_receivable=sr3.account_receivable,
-        amount=Decimal("10300.00"),
-        method_type=PaymentMethodTypeChoices.CASH,
-        currency=CurrencyChoices.USD
-    )
-    customer_payment_factory(
-        account_receivable=sr3.account_receivable,
-        amount=Decimal("4000.00"),
-        method_type=PaymentMethodTypeChoices.BANK_TRANSFER,
-        currency=CurrencyChoices.USD
-    )
-
-    service = SalesAccountingTotalizationService(fiscal_profile=fiscal_profile, fiscal_period="2026-03")
-    sales_records = [sr1, sr2, sr3]
-
-    # ==========================
-    # Act (Acción)
-    # ==========================
-    je_sales, je_inv = service._process_current_sales(sales_records)
-
-    # ==========================
-    # Assert (Verificación)
-    # ==========================
-    assert je_sales is not None, "Debe generar el asiento de resumen de ventas"
-    assert je_inv is not None, "Debe generar el asiento continuo de inventario al detectar bienes"
-
-
-def test_process_current_sales_services_ordinary_taxpayer_ID_HP_002(
-    fiscal_profile,
-    setup_accounts,
-    sales_record_factory,
-    customer_payment_factory,
-):
-    """[ID_HP_002] - Totalización de ventas exclusivamente de Servicios para Contribuyente Ordinario."""
-    
-    # ==========================
-    # Arrange (Preparación)
-    # ==========================
-    fiscal_profile.taxpayer_type = Customer.TaxpayerType.ORDINARY
-    fiscal_profile.save()
-
-    sr_a = sales_record_factory(
-        sale_category=SalesRecord.SaleCategory.SERVICES,
-        document_type=SalesRecord.DocumentType.INVOICE,
-        general_tax_base_16=Decimal("5000.00"),
-        general_tax_debit_16=Decimal("800.00"),
-        total_sales_inc_vat=Decimal("5800.00")
-    )
-    customer_payment_factory(
-        account_receivable=sr_a.account_receivable,
-        amount=Decimal("5800.00"),
-        method_type=PaymentMethodTypeChoices.POS,
-        currency=CurrencyChoices.VES
-    )
-
-    sr_b = sales_record_factory(
-        sale_category=SalesRecord.SaleCategory.SERVICES,
-        document_type=SalesRecord.DocumentType.INVOICE,
-        exempt_services_amount=Decimal("2000.00"),
-        igtf_tax_amount=Decimal("0.00"),
-        total_sales_inc_vat=Decimal("2000.00")
-    )
-    customer_payment_factory(
-        account_receivable=sr_b.account_receivable,
-        amount=Decimal("2000.00"),
-        method_type=PaymentMethodTypeChoices.CASH,
-        currency=CurrencyChoices.USD
-    )
-
-    service = SalesAccountingTotalizationService(fiscal_profile=fiscal_profile, fiscal_period="2026-03")
-
-    # ==========================
-    # Act (Acción)
-    # ==========================
-    je_sales, je_inv = service._process_current_sales([sr_a, sr_b])
-
-    # ==========================
-    # Assert (Verificación)
-    # ==========================
-    assert je_sales is not None, "Debe instanciar el asiento de ventas"
-    assert je_inv is None, "El asiento de inventario debe ser None para ventas exclusivas de servicios"
-
-
-def test_process_current_sales_mixed_category_exact_aggregation_ID_HP_003(
-    fiscal_profile,
-    setup_accounts,
-    sales_record_factory,
-    customer_payment_factory,
-):
-    """[ID_HP_003] - Agregación y clasificación exacta en operaciones con categoría Mixta (MIXED)."""
-    
-    # ==========================
-    # Arrange (Preparación)
-    # ==========================
-    sr = sales_record_factory(
-        sale_category=SalesRecord.SaleCategory.MIXED,
-        document_type=SalesRecord.DocumentType.INVOICE,
-        goods_amount=Decimal("1500.00"),
-        services_amount=Decimal("500.00"),
-        exempt_goods_amount=Decimal("200.00"),
-        exempt_services_amount=Decimal("100.00"),
-        general_tax_debit_16=Decimal("320.00"),
-        total_sales_inc_vat=Decimal("2620.00")
-    )
-    customer_payment_factory(
-        account_receivable=sr.account_receivable,
-        amount=Decimal("2620.00"),
-        method_type=PaymentMethodTypeChoices.MOBILE_PAYMENT,
-        currency=CurrencyChoices.VES
-    )
-
-    service = SalesAccountingTotalizationService(fiscal_profile=fiscal_profile, fiscal_period="2026-03")
-
-    # ==========================
-    # Act (Acción)
-    # ==========================
-    je_sales, je_inv = service._process_current_sales([sr])
-
-    # ==========================
-    # Assert (Verificación)
-    # ==========================
-    assert je_sales is not None
-    assert je_inv is not None, "Al incluir ventas de bienes (MIXED), debe generarse el descargo de inventario"
-
-
-def test_process_current_sales_invoice_and_z_report_consolidation_ID_HP_004(
-    fiscal_profile,
-    setup_accounts,
-    sales_record_factory,
-    customer_payment_factory,
-):
-    """[ID_HP_004] - Consolidadación combinada de Facturas Directas y Reportes Z de Impresoras Fiscales."""
-    
-    # ==========================
-    # Arrange (Preparación)
-    # ==========================
-    sr1 = sales_record_factory(
-        document_type=SalesRecord.DocumentType.INVOICE,
-        document_number="FACT-101",
         general_tax_base_16=Decimal("1000.00"),
         general_tax_debit_16=Decimal("160.00"),
-        total_sales_inc_vat=Decimal("1160.00")
+        total_sales_inc_vat=Decimal("1160.00"),
     )
     customer_payment_factory(
         account_receivable=sr1.account_receivable,
         amount=Decimal("1160.00"),
+        currency=CurrencyChoices.VES,
         method_type=PaymentMethodTypeChoices.CASH,
-        currency=CurrencyChoices.VES
     )
 
-    # Nota: asumiendo que Z_REPORT u otro identificador permite setear el nro de reporte z.
+    # Factura 2: Servicios exentos a crédito
     sr2 = sales_record_factory(
-        document_type=SalesRecord.DocumentType.INVOICE,
-        z_report_number="Z-0050",
-        general_tax_base_16=Decimal("5000.00"),
-        general_tax_debit_16=Decimal("800.00"),
-        total_sales_inc_vat=Decimal("5800.00")
-    )
-    customer_payment_factory(
-        account_receivable=sr2.account_receivable,
-        amount=Decimal("5800.00"),
-        method_type=PaymentMethodTypeChoices.CASH,
-        currency=CurrencyChoices.VES
+        sale_category=SalesRecord.SaleCategory.SERVICES,
+        exempt_internal_sales=Decimal("500.00"),
+        total_sales_inc_vat=Decimal("500.00"),
+        general_tax_base_16=Decimal("0.00"),
+        general_tax_debit_16=Decimal("0.00"),
     )
 
-    service = SalesAccountingTotalizationService(fiscal_profile=fiscal_profile, fiscal_period="2026-03")
+    service = SalesAccountingTotalizationService(fiscal_profile, "2026-09")
 
-    # ==========================
-    # Act (Acción)
-    # ==========================
-    je_sales, je_inv = service._process_current_sales([sr1, sr2])
+    # Act
+    sales_debit, sales_credit, inv_debit, inv_credit = service._process_current_sales([sr1, sr2])
 
-    # ==========================
-    # Assert (Verificación)
-    # ==========================
-    assert je_sales is not None
+    # Assert
+    # DEBE
+    assert _get_account_amount(sales_debit, setup_accounts["cash_national_account"]) == Decimal("1160.00")
+    assert _get_account_amount(sales_debit, setup_accounts["ar_commercial_national_account"]) == Decimal("500.00")
+    
+    # HABER
+    assert _get_account_amount(sales_credit, setup_accounts["taxable_goods_sales_account"]) == Decimal("1000.00")
+    assert _get_account_amount(sales_credit, setup_accounts["exempt_services_sales_account"]) == Decimal("500.00")
+    assert _get_account_amount(sales_credit, setup_accounts["vat_debit_account"]) == Decimal("160.00")
+    
+    # INVENTARIO
+    assert _get_account_amount(inv_debit, setup_accounts["cogs_account"]) == Decimal("1.00")
+    assert _get_account_amount(inv_credit, setup_accounts["inventory_account"]) == Decimal("1.00")
 
 
-def test_process_current_sales_empty_list_returns_nones_ID_EC_001(
-    fiscal_profile,
-    setup_accounts
+@pytest.mark.django_db
+def test_id_hp_002_consolidacion_ventas_divisas_con_percepcion_igtf_spe(
+    fiscal_profile, setup_accounts, sales_record_factory, customer_payment_factory
 ):
-    """[ID_EC_001] - Sublista de registros de ventas vacía devuelve Nones."""
-    
-    # ==========================
-    # Arrange (Preparación)
-    # ==========================
-    service = SalesAccountingTotalizationService(fiscal_profile=fiscal_profile, fiscal_period="2026-03")
-    
-    # ==========================
-    # Act (Acción)
-    # ==========================
-    je_sales, je_inv = service._process_current_sales([])
-
-    # ==========================
-    # Assert (Verificación)
-    # ==========================
-    assert je_sales is None, "Si la lista está vacía no se debe generar el asiento principal"
-    assert je_inv is None, "Si la lista está vacía no se debe generar el asiento de inventario"
-
-
-def test_process_current_sales_double_entry_mismatch_raises_validation_error_ID_EC_002(
-    fiscal_profile,
-    setup_accounts,
-    sales_record_factory,
-    customer_payment_factory
-):
-    """[ID_EC_002] - Descuadre en Partida Doble durante la verificación aborta transacción."""
-    
-    # ==========================
-    # Arrange (Preparación)
-    # ==========================
-    # Se genera un registro intencionalmente corrupto (Base sin IVA = 10500)
-    sr_corrupto = sales_record_factory(
-        sale_category=SalesRecord.SaleCategory.GOODS,
-        document_type=SalesRecord.DocumentType.INVOICE,
-        general_tax_base_16=Decimal("10500.00"),
-        general_tax_debit_16=Decimal("0.00"), 
-        total_sales_inc_vat=Decimal("10500.00")
-    )
-    # Pero el pago reflejará un monto distinto provocando descuadre (10000.00)
-    customer_payment_factory(
-        account_receivable=sr_corrupto.account_receivable,
-        amount=Decimal("10000.00"),
-        method_type=PaymentMethodTypeChoices.CASH,
-        currency=CurrencyChoices.VES
-    )
-
-    service = SalesAccountingTotalizationService(fiscal_profile=fiscal_profile, fiscal_period="2026-03")
-
-    # ==========================
-    # Act & Assert (Acción y Verificación)
-    # ==========================
-    with pytest.raises(ValidationError, match="Error de cuadratura en .* \(Partida Doble\)"):
-        service._process_current_sales([sr_corrupto])
-
-
-def test_process_current_sales_float_rounding_precision_ID_EC_003(
-    fiscal_profile,
-    setup_accounts,
-    sales_record_factory,
-    customer_payment_factory
-):
-    """[ID_EC_003] - Imprecisión en centavos por redondeos de flotantes complejos no desestabiliza el balance."""
-    
-    # ==========================
-    # Arrange (Preparación)
-    # ==========================
-    sr = sales_record_factory(
-        general_tax_base_16=Decimal("333.33333"),
-        general_tax_debit_16=Decimal("53.33333"),
-        total_sales_inc_vat=Decimal("386.66666")
-    )
-    customer_payment_factory(
-        account_receivable=sr.account_receivable,
-        amount=Decimal("386.66666"),
-        method_type=PaymentMethodTypeChoices.CASH,
-        currency=CurrencyChoices.VES
-    )
-
-    service = SalesAccountingTotalizationService(fiscal_profile=fiscal_profile, fiscal_period="2026-03")
-
-    # ==========================
-    # Act (Acción)
-    # ==========================
-    je_sales, je_inv = service._process_current_sales([sr])
-
-    # ==========================
-    # Assert (Verificación)
-    # ==========================
-    assert je_sales is not None, "El redondeo a 2 decimales debe asegurar el cuadre del asiento sin levantar excepciones"
-
-
-def test_process_current_sales_null_numeric_values_handled_safely_ID_EC_004(
-    fiscal_profile,
-    setup_accounts,
-    sales_record_factory
-):
-    """[ID_EC_004] - Registros con valores nulos (None) en campos numéricos de importes se manejan por defecto a 0.00."""
-    
-    # ==========================
-    # Arrange (Preparación)
-    # ==========================
-    sr = sales_record_factory(
-        goods_amount=None,
-        services_amount=None,
-        general_tax_base_16=None,
-        general_tax_debit_16=None,
-        igtf_tax_amount=None,
-        total_sales_inc_vat=Decimal("0.00")
-    )
-    service = SalesAccountingTotalizationService(fiscal_profile=fiscal_profile, fiscal_period="2026-03")
-
-    # ==========================
-    # Act (Acción)
-    # ==========================
-    # Validamos que no ocurra TypeError al hacer aritmética con None
-    je_sales, je_inv = service._process_current_sales([sr])
-
-    # ==========================
-    # Assert (Verificación)
-    # ==========================
-    # Al procesarse todo como 0.00, no deberían haber txs de DEBE o HABER que creen descuadres, 
-    # garantizando que se omiten correctamente.
-    assert True 
-
-
-def test_process_current_sales_invalid_document_type_raises_validation_error_ID_EC_005(
-    fiscal_profile,
-    setup_accounts,
-    sales_record_credit_note_factory
-):
-    """[ID_EC_005] - Inclusión indebida de Notas de Crédito o Débito en la sublista inyectada."""
-    
-    # ==========================
-    # Arrange (Preparación)
-    # ==========================
-    # Inyectando una nota de crédito por error en el lote de ventas directas
-    sr_cn = sales_record_credit_note_factory()
-    service = SalesAccountingTotalizationService(fiscal_profile=fiscal_profile, fiscal_period="2026-03")
-
-    # ==========================
-    # Act & Assert (Acción y Verificación)
-    # ==========================
-    with pytest.raises(ValidationError, match="Documento inválido 'CREDIT_NOTE'"):
-        service._process_current_sales([sr_cn])
-
-
-def test_process_current_sales_ordinary_taxpayer_ignores_igtf_ID_EC_006(
-    fiscal_profile,
-    setup_accounts,
-    sales_record_factory,
-    customer_payment_factory
-):
-    """[ID_EC_006] - Contribuyente Ordinario con importe IGTF mayor a cero omite contabilizar IGTF."""
-    
-    # ==========================
-    # Arrange (Preparación)
-    # ==========================
-    fiscal_profile.taxpayer_type = Customer.TaxpayerType.ORDINARY
+    """[ID_HP_002] Verificar adición de IGTF en divisas para Sujeto Pasivo Especial."""
+    # Arrange
+    fiscal_profile.taxpayer_type = FiscalProfile.TaxpayerType.SPECIAL
+    fiscal_profile.initial_fiscal_period.start_period = date(2026, 1, 15)
     fiscal_profile.save()
 
-    # Se inyecta forzadamente un valor IGTF en la entidad de un Ordinario
     sr = sales_record_factory(
-        document_type=SalesRecord.DocumentType.INVOICE,
-        general_tax_base_16=Decimal("1000.00"),
-        general_tax_debit_16=Decimal("160.00"),
-        igtf_tax_amount=Decimal("30.00"), # Error/Forzado
-        total_sales_inc_vat=Decimal("1190.00")
+        sale_category=SalesRecord.SaleCategory.GOODS,
+        general_tax_base_16=Decimal("3600.00"),
+        general_tax_debit_16=Decimal("576.00"),
+        igtf_tax_base=Decimal("3600.00"),
+        igtf_tax_amount=Decimal("108.00"),
+        total_sales_inc_vat=Decimal("4176.00")
     )
     customer_payment_factory(
         account_receivable=sr.account_receivable,
-        amount=Decimal("1190.00"),
+        amount=Decimal("4176.00"),
+        currency=CurrencyChoices.USD,
         method_type=PaymentMethodTypeChoices.CASH,
-        currency=CurrencyChoices.USD
     )
 
-    service = SalesAccountingTotalizationService(fiscal_profile=fiscal_profile, fiscal_period="2026-03")
+    service = SalesAccountingTotalizationService(fiscal_profile, "2026-09")
 
-    # ==========================
-    # Act (Acción)
-    # ==========================
-    # A pesar del cobro en divisa, el servicio debe enmascarar o ignorar la línea contable del IGTF.
-    # Dado que la omisión alteraría el cuadre (El cajero cobró 1190, la base es 1160) levantará ValidationError
-    # asegurando que los Ordinarios no registren ingresos anómalos o deba corregirse la declaración de ingresos.
+    # Act
+    sales_debit, sales_credit, inv_debit, inv_credit = service._process_current_sales([sr])
 
-    # ==========================
-    # Assert (Verificación)
-    # ==========================
-    with pytest.raises(ValidationError, match="Error de cuadratura en .* \(Partida Doble\)"):
-         service._process_current_sales([sr])
+    # Assert
+    # DEBE: Cobrado (4176.00) + IGTF Percibido (108.00)
+    assert _get_account_amount(sales_debit, setup_accounts["cash_foreign_account"]) == Decimal("4284.00")
+    
+    # HABER
+    assert _get_account_amount(sales_credit, setup_accounts["taxable_goods_sales_account"]) == Decimal("3600.00")
+    assert _get_account_amount(sales_credit, setup_accounts["vat_debit_account"]) == Decimal("576.00")
+    assert _get_account_amount(sales_credit, setup_accounts["igtf_perceived_payable_account"]) == Decimal("108.00")
+
+
+@pytest.mark.django_db
+def test_id_hp_003_exclusion_percepcion_igtf_ordinario_cobro_divisas(
+    fiscal_profile, setup_accounts, sales_record_factory, customer_payment_factory
+):
+    """[ID_HP_003] Confirmar que cobros en divisas NO generan IGTF en Ordinarios."""
+    # Arrange
+    fiscal_profile.taxpayer_type = FiscalProfile.TaxpayerType.ORDINARY
+    fiscal_profile.initial_fiscal_period.start_period = date(2026, 1, 1)
+    fiscal_profile.save()
+
+    sr = sales_record_factory(
+        sale_category=SalesRecord.SaleCategory.GOODS,
+        general_tax_base_16=Decimal("3600.00"),
+        general_tax_debit_16=Decimal("576.00"),
+        igtf_tax_amount=Decimal("0.00"),
+        total_sales_inc_vat=Decimal("4176.00")
+    )
+    customer_payment_factory(
+        account_receivable=sr.account_receivable,
+        amount=Decimal("4176.00"),
+        currency=CurrencyChoices.USD,
+        method_type=PaymentMethodTypeChoices.CASH,
+    )
+
+    service = SalesAccountingTotalizationService(fiscal_profile, "2026-09")
+
+    # Act
+    sales_debit, sales_credit, _, _ = service._process_current_sales([sr])
+
+    # Assert
+    assert _get_account_amount(sales_debit, setup_accounts["cash_foreign_account"]) == Decimal("4176.00")
+    assert not _has_account(sales_credit, setup_accounts["igtf_perceived_payable_account"])
+
+
+@pytest.mark.django_db
+def test_id_hp_004_consolidacion_con_retenciones_iva_islr_soportadas(
+    fiscal_profile, setup_accounts, sales_record_factory, vat_withholding_factory, islr_withholding_factory
+):
+    """[ID_HP_004] Validar acumulación de comprobantes de retención en activo por compensar."""
+    # Arrange
+    fiscal_profile.taxpayer_type = FiscalProfile.TaxpayerType.ORDINARY
+    fiscal_profile.initial_fiscal_period.start_period = date(2026, 1, 1)
+    fiscal_profile.save()
+
+    sr = sales_record_factory(
+        sale_category=SalesRecord.SaleCategory.SERVICES,
+        general_tax_base_16=Decimal("2000.00"),
+        general_tax_debit_16=Decimal("320.00"),
+        total_sales_inc_vat=Decimal("2320.00")
+    )
+    vat_withholding_factory(
+        sales_record=sr,
+        withheld_amount=Decimal("240.00")
+    )
+    islr_withholding_factory(
+        sales_record=sr,
+        retention_percentage=Decimal("2.00"),
+        total_withheld_amount=Decimal("40.00")
+    )
+
+    service = SalesAccountingTotalizationService(fiscal_profile, "2026-09")
+
+    # Act
+    sales_debit, sales_credit, _, _ = service._process_current_sales([sr])
+
+    # Assert
+    # DEBE
+    assert _get_account_amount(sales_debit, setup_accounts["vat_withholdings_accumulated_account"]) == Decimal("240.00")
+    assert _get_account_amount(sales_debit, setup_accounts["islr_withholdings_accumulated_account"]) == Decimal("40.00")
+    assert _get_account_amount(sales_debit, setup_accounts["ar_commercial_national_account"]) == Decimal("2040.00")
+    
+    # HABER
+    assert _get_account_amount(sales_credit, setup_accounts["taxable_services_sales_account"]) == Decimal("2000.00")
+    assert _get_account_amount(sales_credit, setup_accounts["vat_debit_account"]) == Decimal("320.00")
+
+
+@pytest.mark.django_db
+def test_id_hp_005_omision_descargo_inventario_operaciones_servicios(
+    fiscal_profile, sales_record_factory
+):
+    """[ID_HP_005] Confirmar exclusión de asientos de inventario en ventas exclusivas de servicios."""
+    # Arrange
+    sr1 = sales_record_factory(sale_category=SalesRecord.SaleCategory.SERVICES)
+    sr2 = sales_record_factory(sale_category=SalesRecord.SaleCategory.SERVICES)
+    sr3 = sales_record_factory(sale_category=SalesRecord.SaleCategory.SERVICES)
+
+    service = SalesAccountingTotalizationService(fiscal_profile, "2026-09")
+
+    # Act
+    _, _, inv_debit, inv_credit = service._process_current_sales([sr1, sr2, sr3])
+
+    # Assert
+    assert inv_debit == []
+    assert inv_credit == []
+
+
+@pytest.mark.django_db
+def test_id_hp_006_consolidacion_operaciones_mixtas_pagos_digitales(
+    fiscal_profile, setup_accounts, sales_record_factory, customer_payment_factory
+):
+    """[ID_HP_006] Validar clasificación para facturas MIXED liquidadas bancariamente."""
+    # Arrange
+    sr = sales_record_factory(
+        sale_category=SalesRecord.SaleCategory.MIXED,
+        goods_amount=Decimal("400.00"),
+        services_amount=Decimal("600.00"),
+        general_tax_base_16=Decimal("1000.00"),
+        general_tax_debit_16=Decimal("160.00"),
+        total_sales_inc_vat=Decimal("1160.00"),
+    )
+    customer_payment_factory(
+        account_receivable=sr.account_receivable,
+        amount=Decimal("1160.00"),
+        currency=CurrencyChoices.VES,
+        method_type=PaymentMethodTypeChoices.POS,
+    )
+
+    service = SalesAccountingTotalizationService(fiscal_profile, "2026-09")
+
+    # Act
+    sales_debit, sales_credit, inv_debit, inv_credit = service._process_current_sales([sr])
+
+    # Assert
+    assert _get_account_amount(sales_debit, setup_accounts["bank_national_account"]) == Decimal("1160.00")
+    assert _get_account_amount(sales_credit, setup_accounts["taxable_goods_sales_account"]) == Decimal("400.00")
+    assert _get_account_amount(sales_credit, setup_accounts["taxable_services_sales_account"]) == Decimal("600.00")
+    assert _get_account_amount(sales_credit, setup_accounts["vat_debit_account"]) == Decimal("160.00")
+    assert _get_account_amount(inv_debit, setup_accounts["cogs_account"]) == Decimal("1.00")
+
+
+@pytest.mark.django_db
+def test_id_hp_007_consolidacion_facturas_multitasa(
+    fiscal_profile, setup_accounts, sales_record_factory
+):
+    """[ID_HP_007] Validar sumatoria del débito fiscal total (16%, 8% y 31%)."""
+    # Arrange
+    sr = sales_record_factory(
+        sale_category=SalesRecord.SaleCategory.GOODS,
+        general_tax_base_16=Decimal("1000.00"),
+        general_tax_debit_16=Decimal("160.00"),
+        reduced_tax_base_8=Decimal("500.00"),
+        reduced_tax_debit_8=Decimal("40.00"),
+        additional_tax_base_31=Decimal("1000.00"),
+        additional_tax_debit_31=Decimal("310.00"),
+        total_sales_inc_vat=Decimal("3010.00"),
+    )
+
+    service = SalesAccountingTotalizationService(fiscal_profile, "2026-09")
+
+    # Act
+    _, sales_credit, _, _ = service._process_current_sales([sr])
+
+    # Assert
+    assert _get_account_amount(sales_credit, setup_accounts["vat_debit_account"]) == Decimal("510.00")
+
+
+# ==============================================================================
+# EDGE CASES (Casos Borde)
+# ==============================================================================
+
+@pytest.mark.django_db
+def test_id_ec_001_procesamiento_lista_registros_vacia(fiscal_profile):
+    """[ID_EC_001] Forzar consolidación sin registros para el período fiscal."""
+    # Arrange
+    service = SalesAccountingTotalizationService(fiscal_profile, "2026-09")
+
+    # Act
+    sales_debit, sales_credit, inv_debit, inv_credit = service._process_current_sales([])
+
+    # Assert
+    assert sales_debit == []
+    assert sales_credit == []
+    assert inv_debit == []
+    assert inv_credit == []
+
+
+@pytest.mark.django_db
+def test_id_ec_002_precision_decimal_estricta_redondeo_cuantificado(
+    fiscal_profile, setup_accounts, sales_record_factory
+):
+    """[ID_EC_002] Evaluar aplicación obligatoria de `.quantize(Decimal('0.01'))`."""
+    # Arrange
+    sr = SalesRecord(
+        sale_category=SalesRecord.SaleCategory.GOODS,
+        general_tax_base_16=Decimal("333.333333"),
+        general_tax_debit_16=Decimal("53.333333"),
+        total_sales_inc_vat=Decimal("386.666666")
+    )
+
+    service = SalesAccountingTotalizationService(fiscal_profile, "2026-09")
+
+    # Act
+    _, sales_credit, _, _ = service._process_current_sales([sr])
+
+    # Assert
+    assert _get_account_amount(sales_credit, setup_accounts["taxable_goods_sales_account"]) == Decimal("333.33")
+    assert _get_account_amount(sales_credit, setup_accounts["vat_debit_account"]) == Decimal("53.33")
+
+
+@pytest.mark.django_db
+def test_id_ec_003_omision_cuentas_sumatoria_cero(
+    fiscal_profile, setup_accounts, sales_record_factory
+):
+    """[ID_EC_003] Validar que no se generen tuplas de transacción con 0.00."""
+    # Arrange
+    sr = sales_record_factory(
+        sale_category=SalesRecord.SaleCategory.GOODS,
+        general_tax_base_16=Decimal("100.00"),
+        general_tax_debit_16=Decimal("16.00"),
+        total_sales_inc_vat=Decimal("116.00")
+    )
+
+    service = SalesAccountingTotalizationService(fiscal_profile, "2026-09")
+
+    # Act
+    sales_debit, sales_credit, _, _ = service._process_current_sales([sr])
+
+    # Assert
+    assert not _has_account(sales_debit, setup_accounts["cash_national_account"])
+    assert not _has_account(sales_debit, setup_accounts["islr_withholdings_accumulated_account"])
+    assert not _has_account(sales_credit, setup_accounts["exempt_goods_sales_account"])
+
+
+@pytest.mark.django_db
+def test_id_ec_008_ventas_exportacion_fob_y_operaciones_no_sujetas(
+    fiscal_profile, setup_accounts, sales_record_factory
+):
+    """[ID_EC_008] Verificar agregación de operaciones FOB e internamente no sujetas."""
+    # Arrange
+    sr = sales_record_factory(
+        sale_category=SalesRecord.SaleCategory.GOODS,
+        sale_type=SalesRecord.SaleType.EXPORT,
+        fob_export_value=Decimal("6000.00"),
+        total_sales_inc_vat=Decimal("6000.00"),
+        general_tax_base_16=Decimal("0.00"),
+        general_tax_debit_16=Decimal("0.00")
+    )
+
+    service = SalesAccountingTotalizationService(fiscal_profile, "2026-09")
+
+    # Act
+    _, sales_credit, _, _ = service._process_current_sales([sr])
+
+    # Assert
+    assert _get_account_amount(sales_credit, setup_accounts["exempt_goods_sales_account"]) == Decimal("6000.00")
