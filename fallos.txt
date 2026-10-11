@@ -5,139 +5,17 @@ django: version: 6.0.7, settings: accounting_system_ve.settings (from ini)
 rootdir: /workspaces/accounting_system_location_ve
 configfile: pytest.ini
 plugins: django-4.14.0, Faker-40.15.0
-collecting ... collected 11 items / 8 deselected / 3 selected
-run-last-failure: rerun previous 3 failures
+collecting ... collected 11 items / 10 deselected / 1 selected
 
-business_logic/tests/test_totalizacion_registro_ventas/test__process_credit_notes.py::test_id_hp_002_reversion_igtf_percibido_spe_reembolso_divisas FAILED [ 33%]
-business_logic/tests/test_totalizacion_registro_ventas/test__process_credit_notes.py::test_id_hp_005_reajuste_proporcional_retenciones_acumuladas_islr_iva FAILED [ 66%]
 business_logic/tests/test_totalizacion_registro_ventas/test__process_credit_notes.py::test_id_ec_006_consolidacion_notas_credito_multitasa FAILED [100%]
 
 =================================== FAILURES ===================================
-________ test_id_hp_002_reversion_igtf_percibido_spe_reembolso_divisas _________
-
-fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
-setup_accounts = {'taxable_goods_sales_account': <AccountModel: EQUITY - 41101: Ventas de Bienes Muebles Gravadas (IN_OPERATIONAL/credi...t': <AccountModel: EQUITY - 41104: Ingresos por Servicios Prestados Exentos o Exonerados (IN_OPERATIONAL/credit)>, ...}
-sales_record_factory = <function sales_record_factory.<locals>._create_sales_record at 0x79c6ddfc2c00>
-sales_record_credit_note_factory = <function sales_record_credit_note_factory.<locals>._create_credit_note at 0x79c6dd0d9940>
-
-    @pytest.mark.django_db
-    def test_id_hp_002_reversion_igtf_percibido_spe_reembolso_divisas(
-        fiscal_profile, setup_accounts, sales_record_factory,
-        sales_record_credit_note_factory
-    ):
-        """[ID_HP_002] Verificar reversión de IGTF en DEBE y abono por reembolso divisas (SPE)."""
-        # Arrange
-        fiscal_profile.taxpayer_type = FiscalProfile.TaxpayerType.SPECIAL
-        fiscal_profile.initial_fiscal_period.start_period = date(2026, 2, 15)
-        fiscal_profile.save()
-    
-        sr_inv = sales_record_factory(
-            total_sales_inc_vat=Decimal("1160.00"),
-            general_tax_base_16=Decimal("1000.00"),
-            general_tax_debit_16=Decimal("160.00")
-        )
-        sr_cn = sales_record_credit_note_factory(
-            affected_invoice=sr_inv,
-            sale_category=SalesRecord.SaleCategory.GOODS,
-            total_sales_inc_vat=Decimal("1160.00"),
-            general_tax_base_16=Decimal("1000.00"),
-            general_tax_debit_16=Decimal("160.00"),
-            igtf_tax_base=Decimal("1000.00"),
-            igtf_tax_amount=Decimal("30.00")
-        )
-    
-        CreditNoteSettlement.objects.create(
-            fiscal_profile=fiscal_profile,
-            sales_record=sr_cn,
-            settlement_type=CreditNoteSettlement.SettlementType.RETURNS,
-            currency=CurrencyChoices.USD,
-            returned_goods_value=Decimal("1160.00"),
-            cash_amount=Decimal("1190.00"),
-            refunded_amount=Decimal("1190.00"),
-            fiscal_period=sr_cn.fiscal_period
-        )
-    
-        service = SalesAccountingTotalizationService(fiscal_profile, "2026-09")
-    
-        # Act
-        cn_debit, cn_credit, inv_debit, inv_credit = service._process_credit_notes([sr_cn])
-    
-        # Assert
-        assert _get_account_amount(cn_debit, setup_accounts["goods_sales_returns_account"]) == Decimal("1000.00")
-        assert _get_account_amount(cn_debit, setup_accounts["vat_debit_account"]) == Decimal("160.00")
-        assert _get_account_amount(cn_debit, setup_accounts["igtf_perceived_payable_account"]) == Decimal("30.00")
-    
->       assert _get_account_amount(cn_credit, setup_accounts["cash_foreign_account"]) == Decimal("1190.00")
-E       AssertionError: assert Decimal('1220.00') == Decimal('1190.00')
-E        +  where Decimal('1220.00') = _get_account_amount([(<AccountModel: ASSETS - 11102: Caja Moneda Extranjera (ASSET_CA_CASH/debit)>, Decimal('1220.00'), 'Consolidación de notas de crédito del período')], <AccountModel: ASSETS - 11102: Caja Moneda Extranjera (ASSET_CA_CASH/debit)>)
-E        +  and   Decimal('1190.00') = Decimal('1190.00')
-
-business_logic/tests/test_totalizacion_registro_ventas/test__process_credit_notes.py:162: AssertionError
----------------------------- Captured stderr setup -----------------------------
-Using existing test database for alias 'default'...
-_____ test_id_hp_005_reajuste_proporcional_retenciones_acumuladas_islr_iva _____
-
-fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
-setup_accounts = {'taxable_goods_sales_account': <AccountModel: EQUITY - 41101: Ventas de Bienes Muebles Gravadas (IN_OPERATIONAL/credi...t': <AccountModel: EQUITY - 41104: Ingresos por Servicios Prestados Exentos o Exonerados (IN_OPERATIONAL/credit)>, ...}
-sales_record_factory = <function sales_record_factory.<locals>._create_sales_record at 0x79c6dc7ed4e0>
-sales_record_credit_note_factory = <function sales_record_credit_note_factory.<locals>._create_credit_note at 0x79c6dc7ed620>
-vat_withholding_factory = <function vat_withholding_factory.<locals>._create_vat_withholding at 0x79c6dc7ed260>
-islr_withholding_factory = <function islr_withholding_factory.<locals>._create_islr_withholding at 0x79c6dc7ed580>
-
-    @pytest.mark.django_db
-    def test_id_hp_005_reajuste_proporcional_retenciones_acumuladas_islr_iva(
-        fiscal_profile, setup_accounts, sales_record_factory,
-        sales_record_credit_note_factory, vat_withholding_factory, islr_withholding_factory
-    ):
-        """[ID_HP_005] Verificar que los reajustes por retenciones se abonen al activo."""
-        # Arrange
-        sr_inv = sales_record_factory(
-            total_sales_inc_vat=Decimal("1000.00"),
-            general_tax_base_16=Decimal("862.07"),
-            general_tax_debit_16=Decimal("137.93")
-        )
-        sr_cn = sales_record_credit_note_factory(
-            affected_invoice=sr_inv,
-            sale_category=SalesRecord.SaleCategory.SERVICES,
-            total_sales_inc_vat=Decimal("580.00"),
-            general_tax_base_16=Decimal("500.00"),
-            general_tax_debit_16=Decimal("80.00")
-        )
-    
-        vat_withholding_factory(sales_record=sr_cn, withheld_amount=Decimal("60.00"))
-        islr_withholding_factory(sales_record=sr_cn, total_withheld_amount=Decimal("10.00"), subtracting=Decimal("5.00"))
-    
-        CreditNoteSettlement.objects.create(
-            fiscal_profile=fiscal_profile,
-            sales_record=sr_cn,
-            settlement_type=CreditNoteSettlement.SettlementType.DISCOUNTS,
-            currency=CurrencyChoices.VES,
-            commercial_discount_amount=Decimal("580.00"),
-            refunded_amount=Decimal("0.00"),
-            fiscal_period=sr_cn.fiscal_period
-        )
-    
-        service = SalesAccountingTotalizationService(fiscal_profile, "2026-09")
-    
-        # Act
-        cn_debit, cn_credit, inv_debit, inv_credit = service._process_credit_notes([sr_cn])
-    
-        # Assert
-        assert _get_account_amount(cn_debit, setup_accounts["services_discounts_account"]) == Decimal("500.00")
-        assert _get_account_amount(cn_debit, setup_accounts["vat_debit_account"]) == Decimal("80.00")
-    
->       assert _get_account_amount(cn_credit, setup_accounts["vat_withholdings_accumulated_account"]) == Decimal("60.00")
-E       AssertionError: assert Decimal('0.00') == Decimal('60.00')
-E        +  where Decimal('0.00') = _get_account_amount([(<AccountModel: ASSETS - 11201: Cuentas por Cobrar Comerciales (Nacional) (ASSET_CA_RECV/debit)>, Decimal('580.00'), 'Consolidación de notas de crédito del período')], <AccountModel: ASSETS - 11301: Retenciones de IVA Acumuladas por Compensar (ASSET_CA_PREPAID/debit)>)
-E        +  and   Decimal('60.00') = Decimal('60.00')
-
-business_logic/tests/test_totalizacion_registro_ventas/test__process_credit_notes.py:304: AssertionError
 _____________ test_id_ec_006_consolidacion_notas_credito_multitasa _____________
 
 fiscal_profile = <FiscalProfile: Empresa de Prueba C.A. (J123456789)>
 setup_accounts = {'taxable_goods_sales_account': <AccountModel: EQUITY - 41101: Ventas de Bienes Muebles Gravadas (IN_OPERATIONAL/credi...t': <AccountModel: EQUITY - 41104: Ingresos por Servicios Prestados Exentos o Exonerados (IN_OPERATIONAL/credit)>, ...}
-sales_record_factory = <function sales_record_factory.<locals>._create_sales_record at 0x79c6dc7ef060>
-sales_record_credit_note_factory = <function sales_record_credit_note_factory.<locals>._create_credit_note at 0x79c6dc7ee3e0>
+sales_record_factory = <function sales_record_factory.<locals>._create_sales_record at 0x74140e5af7e0>
+sales_record_credit_note_factory = <function sales_record_credit_note_factory.<locals>._create_credit_note at 0x74140e6eae80>
 
     @pytest.mark.django_db
     def test_id_ec_006_consolidacion_notas_credito_multitasa(
@@ -193,9 +71,9 @@ E       AssertionError: assert Decimal('1800.00') == Decimal('2000.00')
 E        +  where Decimal('1800.00') = _get_account_amount([(<AccountModel: EQUITY - 42101: Devoluciones en Ventas de Bienes (IN_OPERATIONAL/debit)>, Decimal('1800.00'), 'Consolidación de notas de crédito del período'), (<AccountModel: LIABILITIES - 21201: Débito Fiscal IVA (LIA_CL_TAXES_PAYABLE/credit)>, Decimal('339.00'), 'Consolidación de notas de crédito del período')], <AccountModel: EQUITY - 42101: Devoluciones en Ventas de Bienes (IN_OPERATIONAL/debit)>)
 E        +  and   Decimal('2000.00') = Decimal('2000.00')
 
-business_logic/tests/test_totalizacion_registro_ventas/test__process_credit_notes.py:540: AssertionError
+business_logic/tests/test_totalizacion_registro_ventas/test__process_credit_notes.py:589: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+Using existing test database for alias 'default'...
 =========================== short test summary info ============================
-FAILED business_logic/tests/test_totalizacion_registro_ventas/test__process_credit_notes.py::test_id_hp_002_reversion_igtf_percibido_spe_reembolso_divisas
-FAILED business_logic/tests/test_totalizacion_registro_ventas/test__process_credit_notes.py::test_id_hp_005_reajuste_proporcional_retenciones_acumuladas_islr_iva
 FAILED business_logic/tests/test_totalizacion_registro_ventas/test__process_credit_notes.py::test_id_ec_006_consolidacion_notas_credito_multitasa
-======================= 3 failed, 8 deselected in 56.91s =======================
+====================== 1 failed, 10 deselected in 41.23s =======================

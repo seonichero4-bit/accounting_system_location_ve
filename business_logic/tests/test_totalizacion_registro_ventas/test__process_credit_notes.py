@@ -251,7 +251,7 @@ def test_id_hp_004_nota_credito_financiera_descuento_comercial(
     cn_debit, cn_credit, inv_debit, inv_credit = service._process_credit_notes([sr_cn])
 
     # Assert
-    assert _get_account_amount(cn_debit, setup_accounts["goods_sales_allowances_account"]) == Decimal("500.00")
+    assert _get_account_amount(cn_debit, setup_accounts["sales_discount_account"]) == Decimal("500.00")
     assert _get_account_amount(cn_debit, setup_accounts["vat_debit_account"]) == Decimal("80.00")
     assert _get_account_amount(cn_credit, setup_accounts["ar_commercial_national_account"]) == Decimal("580.00")
     
@@ -327,8 +327,8 @@ def test_id_hp_006_consolidacion_liquidacion_mixta_bancarizada(
         total_sales_inc_vat=Decimal("696.00"),
         general_tax_base_16=Decimal("600.00"),
         general_tax_debit_16=Decimal("96.00"),
-        goods_amount=Decimal("500.00"),
-        services_amount=Decimal("196.00")
+        goods_amount=Decimal("431.03"),
+        services_amount=Decimal("168.97")
     )
 
     CreditNoteSettlement.objects.create(
@@ -351,8 +351,8 @@ def test_id_hp_006_consolidacion_liquidacion_mixta_bancarizada(
     cn_debit, cn_credit, inv_debit, inv_credit = service._process_credit_notes([sr_cn])
 
     # Assert
-    assert _get_account_amount(cn_debit, setup_accounts["goods_sales_returns_account"]) == Decimal("400.00")
-    assert _get_account_amount(cn_debit, setup_accounts["goods_sales_allowances_account"]) == Decimal("200.00")
+    assert _get_account_amount(cn_debit, setup_accounts["goods_sales_returns_account"]) == Decimal("431.03")
+    assert _get_account_amount(cn_debit, setup_accounts["sales_discount_account"]) == Decimal("168.97")
     assert _get_account_amount(cn_debit, setup_accounts["vat_debit_account"]) == Decimal("96.00")
     
     assert _get_account_amount(cn_credit, setup_accounts["bank_national_account"]) == Decimal("500.00")
@@ -486,6 +486,55 @@ def test_id_ec_004_lanzamiento_excepcion_ausencia_liquidacion_operativa(
         match=r"La nota de crédito con N° de Control '00-00001234' no posee una liquidación operativa"
     ):
         service._process_credit_notes([sr_cn])
+
+
+# @pytest.mark.django_db
+# def test_id_ec_005_exclusion_reversion_igtf_contribuyente_ordinario(
+#     fiscal_profile, setup_accounts, sales_record_factory,
+#     sales_record_credit_note_factory
+# ):
+#     """[ID_EC_005] Evaluar exclusión de reversión de IGTF en contribuyente ORDINARY con IGTF positivo."""
+#     # Arrange
+#     fiscal_profile.taxpayer_type = FiscalProfile.TaxpayerType.ORDINARY
+#     fiscal_profile.initial_fiscal_period.start_period = date(2026, 2, 1)
+#     fiscal_profile.save()
+
+#     sr_inv = sales_record_factory(
+#         total_sales_inc_vat=Decimal("1160.00"),
+#         general_tax_base_16=Decimal("1000.00"),
+#         general_tax_debit_16=Decimal("160.00")
+#     )
+#     sr_cn = sales_record_credit_note_factory(
+#         affected_invoice=sr_inv,
+#         sale_category=SalesRecord.SaleCategory.GOODS,
+#         total_sales_inc_vat=Decimal("1160.00"),
+#         general_tax_base_16=Decimal("1000.00"),
+#         general_tax_debit_16=Decimal("160.00"),
+#         igtf_tax_base=Decimal("1000.00"),
+#         igtf_tax_amount=Decimal("30.00")
+#     )
+
+#     CreditNoteSettlement.objects.create(
+#         fiscal_profile=fiscal_profile,
+#         sales_record=sr_cn,
+#         settlement_type=CreditNoteSettlement.SettlementType.RETURNS,
+#         currency=CurrencyChoices.USD,
+#         returned_goods_value=Decimal("1160.00"),
+#         cash_amount=Decimal("1160.00"),
+#         refunded_amount=Decimal("1160.00"),
+#         fiscal_period=sr_cn.fiscal_period
+#     )
+
+#     service = SalesAccountingTotalizationService(fiscal_profile, "2026-09")
+
+#     # Act
+#     cn_debit, cn_credit, inv_debit, inv_credit = service._process_credit_notes([sr_cn])
+
+#     # Assert
+#     assert _get_account_amount(cn_debit, setup_accounts["goods_sales_returns_account"]) == Decimal("1000.00")
+#     assert _get_account_amount(cn_debit, setup_accounts["vat_debit_account"]) == Decimal("160.00")
+#     assert not _has_account(cn_debit, setup_accounts["igtf_perceived_payable_account"])
+#     assert _get_account_amount(cn_credit, setup_accounts["cash_foreign_account"]) == Decimal("1160.00")
 
 
 @pytest.mark.django_db

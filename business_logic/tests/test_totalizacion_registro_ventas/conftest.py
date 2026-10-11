@@ -144,7 +144,7 @@ def setup_accounts(django_db_setup, django_db_blocker, fiscal_profile, chart_of_
             "balance_type": "debit",
         },
         {
-            "attr": "goods_sales_allowances_account",
+            "attr": "sales_discount_account",
             "code": "42102",
             "name": "Rebajas en Ventas de Bienes",
             "role": roles.INCOME_OPERATIONAL,

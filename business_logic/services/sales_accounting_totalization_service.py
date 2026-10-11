@@ -40,7 +40,7 @@ class SalesAccountingTotalizationService:
         "vat_debit_account",
         "igtf_perceived_payable_account",
         "goods_sales_returns_account",
-        "goods_sales_allowances_account",
+        "sales_discount_account",
         "services_discounts_account",
         "sales_surcharges_account",
         "services_surcharges_account",
@@ -302,9 +302,6 @@ class SalesAccountingTotalizationService:
                 islr_whs = sr.islr_withholding.total_withheld_amount
             else:
                 islr_whs = Decimal("0.00")
-
-            # vat_wh_val = sum((to_dec(getattr(wh, "withheld_amount", 0)) for wh in vat_whs), start=Decimal("0.00"))
-            # islr_wh_val = sum((to_dec(getattr(wh, "total_withheld_amount", 0)) for wh in islr_whs), start=Decimal("0.00"))
             
             debits["vat_wh"] += vat_whs
             debits["islr_wh"] += islr_whs
@@ -393,7 +390,7 @@ class SalesAccountingTotalizationService:
 
         debits = {
             "goods_returns": Decimal("0.00"),
-            "goods_allowances": Decimal("0.00"),
+            "sales_discount": Decimal("0.00"),
             "serv_discounts": Decimal("0.00"),
             "vat_deb": Decimal("0.00"),
             "igtf_pay": Decimal("0.00"),
@@ -439,20 +436,18 @@ class SalesAccountingTotalizationService:
             total_vat = gen_tax + red_tax + add_tax
             debits["vat_deb"] += total_vat
 
-            gen_base = to_dec(getattr(sr, "general_tax_base_16", 0))
-            red_base = to_dec(getattr(sr, "reduced_tax_base_8", 0))
-            add_base = to_dec(getattr(sr, "additional_tax_base_31", 0))
-            total_tax_base = gen_base + red_base + add_base
+            # gen_base = to_dec(getattr(sr, "general_tax_base_16", 0))
+            # red_base = to_dec(getattr(sr, "reduced_tax_base_8", 0))
+            # add_base = to_dec(getattr(sr, "additional_tax_base_31", 0))
+            total_value_sales = total_sales - total_vat
 
             base_ratio = (
-                (total_tax_base / total_sales)
+                (total_value_sales / total_sales)
                 if total_sales > Decimal("0.00")
                 else Decimal("1.00")
             )
 
             if cat == "SERVICES":
-                if rgv > Decimal("0.00"):
-                    debits["goods_returns"] += rgv * base_ratio
                 if ris > Decimal("0.00"):
                     debits["serv_discounts"] += ris * base_ratio
                 if cda > Decimal("0.00"):
@@ -461,23 +456,12 @@ class SalesAccountingTotalizationService:
                 if rgv > Decimal("0.00"):
                     debits["goods_returns"] += rgv * base_ratio
                 if cda > Decimal("0.00"):
-                    debits["goods_allowances"] += cda * base_ratio
+                    debits["sales_discount"] += cda * base_ratio
             elif cat == "MIXED":
-                if rgv == Decimal("500.00") and cda == Decimal("196.00"):
-                    debits["goods_returns"] += Decimal("400.00")
-                    debits["goods_allowances"] += Decimal("200.00")
-                else:
-                    if rgv > Decimal("0.00"):
-                        debits["goods_returns"] += rgv * base_ratio
-                    if cda > Decimal("0.00"):
-                        debits["goods_allowances"] += cda * base_ratio
-                if ris > Decimal("0.00"):
-                    debits["serv_discounts"] += ris * base_ratio
-            else:
                 if rgv > Decimal("0.00"):
                     debits["goods_returns"] += rgv * base_ratio
                 if cda > Decimal("0.00"):
-                    debits["goods_allowances"] += cda * base_ratio
+                    debits["sales_discount"] += cda * base_ratio
                 if ris > Decimal("0.00"):
                     debits["serv_discounts"] += ris * base_ratio
 
@@ -503,8 +487,6 @@ class SalesAccountingTotalizationService:
                 total_refund_cash = refunded - cust_cred
 
             if currency in ["USD", "EUR"] or currency != "VES":
-                if is_special and igtf > Decimal("0.00"):
-                    total_refund_cash += igtf
                 if cash_amt > Decimal("0.00"):
                     credits["cash_for"] += total_refund_cash
                 else:
@@ -529,30 +511,8 @@ class SalesAccountingTotalizationService:
                         else:
                             credits["cash_nat"] += total_refund_cash
 
-            vat_whs = (
-                list(sr.vat_withholdings.all())
-                if hasattr(sr, "vat_withholdings")
-                else []
-            )
-            islr_whs = (
-                list(sr.islr_withholdings.all())
-                if hasattr(sr, "islr_withholdings")
-                else []
-            )
-            vat_wh_val = sum(
-                (
-                    to_dec(getattr(wh, "withheld_amount", 0))
-                    for wh in vat_whs
-                ),
-                start=Decimal("0.00"),
-            )
-            islr_wh_val = sum(
-                (
-                    to_dec(getattr(wh, "total_withheld_amount", 0))
-                    for wh in islr_whs
-                ),
-                start=Decimal("0.00"),
-            )
+            vat_wh_val = sr.vat_withholding.withheld_amount if hasattr(sr, "vat_withholding") else Decimal(0.00)
+            islr_wh_val = sr.islr_withholding.total_withheld_amount if hasattr(sr, "islr_withholding") else Decimal(0.00)
 
             credits["vat_wh"] += vat_wh_val
             credits["islr_wh"] += islr_wh_val
@@ -572,7 +532,7 @@ class SalesAccountingTotalizationService:
 
         debit_mappings = {
             "goods_returns": self.fiscal_profile.goods_sales_returns_account,
-            "goods_allowances": self.fiscal_profile.goods_sales_allowances_account,
+            "sales_discount": self.fiscal_profile.sales_discount_account,
             "serv_discounts": self.fiscal_profile.services_discounts_account,
             "vat_deb": self.fiscal_profile.vat_debit_account,
             "igtf_pay": self.fiscal_profile.igtf_perceived_payable_account,

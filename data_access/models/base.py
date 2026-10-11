@@ -303,14 +303,14 @@ class FiscalProfile(models.Model):
         blank=True,
         help_text="Cuenta contable para Devoluciones en Ventas de Bienes.",
     )
-    goods_sales_allowances_account = models.ForeignKey(
+    sales_discount_account = models.ForeignKey(
         AccountModel,
         on_delete=models.PROTECT,
         related_name="+",
-        verbose_name="Goods Sales Allowances",
+        verbose_name="Sales Discount",
         null=True,
         blank=True,
-        help_text="Cuenta contable para Rebajas en Ventas de Bienes.",
+        help_text="Cuenta contable para Rebajas en Ventas de Bienes/servicios.",
     )
     services_discounts_account = models.ForeignKey(
         AccountModel,
