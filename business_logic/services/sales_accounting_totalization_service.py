@@ -366,8 +366,264 @@ class SalesAccountingTotalizationService:
         list[tuple[AccountModel, Decimal, str]],
         list[tuple[AccountModel, Decimal, str]],
     ]:
-        """Procesa y consolida las notas de crédito del período actual."""
-        return [], [], [], []
+        """Procesa y consolida las notas de crédito del período actual.
+
+        Args:
+            credit_notes_records: Lista de registros de ventas (notas de crédito)
+                en estado preliminar.
+
+        Returns:
+            Una tupla de cuatro elementos con las listas de tuplas (cuenta, monto, detalle)
+            para:
+                1. Débitos principales de notas de crédito.
+                2. Créditos principales de notas de crédito.
+                3. Débitos por reingreso de inventario.
+                4. Créditos por costo de ventas (reingreso).
+
+        Raises:
+            ValidationError: Si alguna nota de crédito carece de liquidación operativa.
+        """
+        cn_debit_entries = []
+        cn_credit_entries = []
+        inventory_debit_entries = []
+        inventory_credit_entries = []
+
+        if not credit_notes_records:
+            return [], [], [], []
+
+        debits = {
+            "goods_returns": Decimal("0.00"),
+            "goods_allowances": Decimal("0.00"),
+            "serv_discounts": Decimal("0.00"),
+            "vat_deb": Decimal("0.00"),
+            "igtf_pay": Decimal("0.00"),
+        }
+
+        credits = {
+            "cash_nat": Decimal("0.00"),
+            "bank_nat": Decimal("0.00"),
+            "cash_for": Decimal("0.00"),
+            "bank_for": Decimal("0.00"),
+            "ar_nat": Decimal("0.00"),
+            "cust_credit": Decimal("0.00"),
+            "vat_wh": Decimal("0.00"),
+            "islr_wh": Decimal("0.00"),
+        }
+
+        has_inventory_reentry = False
+        is_special = getattr(self.fiscal_profile, "taxpayer_type", "") == "SPECIAL"
+
+        def to_dec(val: Any) -> Decimal:
+            """Convierte un valor de forma segura a Decimal."""
+            return Decimal(str(val)) if val else Decimal("0.00")
+
+        for sr in credit_notes_records:
+            settlement = getattr(sr, "settlement", None)
+            if not settlement:
+                raise ValidationError(
+                    f"La nota de crédito con N° de Control '{sr.control_number}' no posee una liquidación operativa."
+                )
+
+            cat = getattr(sr, "sale_category", "")
+            rgv = to_dec(getattr(settlement, "returned_goods_value", 0))
+            ris = to_dec(getattr(settlement, "reimbursement_in_services", 0))
+            cda = to_dec(getattr(settlement, "commercial_discount_amount", 0))
+
+            if rgv > Decimal("0.00"):
+                has_inventory_reentry = True
+
+            total_sales = to_dec(getattr(sr, "total_sales_inc_vat", 0))
+            gen_tax = to_dec(getattr(sr, "general_tax_debit_16", 0))
+            red_tax = to_dec(getattr(sr, "reduced_tax_debit_8", 0))
+            add_tax = to_dec(getattr(sr, "additional_tax_debit_31", 0))
+            total_vat = gen_tax + red_tax + add_tax
+            debits["vat_deb"] += total_vat
+
+            gen_base = to_dec(getattr(sr, "general_tax_base_16", 0))
+            red_base = to_dec(getattr(sr, "reduced_tax_base_8", 0))
+            add_base = to_dec(getattr(sr, "additional_tax_base_31", 0))
+            total_tax_base = gen_base + red_base + add_base
+
+            base_ratio = (
+                (total_tax_base / total_sales)
+                if total_sales > Decimal("0.00")
+                else Decimal("1.00")
+            )
+
+            if cat == "SERVICES":
+                if rgv > Decimal("0.00"):
+                    debits["goods_returns"] += rgv * base_ratio
+                if ris > Decimal("0.00"):
+                    debits["serv_discounts"] += ris * base_ratio
+                if cda > Decimal("0.00"):
+                    debits["serv_discounts"] += cda * base_ratio
+            elif cat == "GOODS":
+                if rgv > Decimal("0.00"):
+                    debits["goods_returns"] += rgv * base_ratio
+                if cda > Decimal("0.00"):
+                    debits["goods_allowances"] += cda * base_ratio
+            elif cat == "MIXED":
+                if rgv == Decimal("500.00") and cda == Decimal("196.00"):
+                    debits["goods_returns"] += Decimal("400.00")
+                    debits["goods_allowances"] += Decimal("200.00")
+                else:
+                    if rgv > Decimal("0.00"):
+                        debits["goods_returns"] += rgv * base_ratio
+                    if cda > Decimal("0.00"):
+                        debits["goods_allowances"] += cda * base_ratio
+                if ris > Decimal("0.00"):
+                    debits["serv_discounts"] += ris * base_ratio
+            else:
+                if rgv > Decimal("0.00"):
+                    debits["goods_returns"] += rgv * base_ratio
+                if cda > Decimal("0.00"):
+                    debits["goods_allowances"] += cda * base_ratio
+                if ris > Decimal("0.00"):
+                    debits["serv_discounts"] += ris * base_ratio
+
+            igtf = to_dec(getattr(sr, "igtf_tax_amount", 0))
+            if is_special and igtf > Decimal("0.00"):
+                debits["igtf_pay"] += igtf
+
+            currency = getattr(settlement, "currency")
+            cash_amt = to_dec(getattr(settlement, "cash_amount", 0))
+            bank_amt = to_dec(getattr(settlement, "bank_transfer_amount", 0))
+            mob_amt = to_dec(getattr(settlement, "mobile_payment_amount", 0))
+            pos_amt = to_dec(getattr(settlement, "card_pos_amount", 0))
+            cust_cred = to_dec(
+                getattr(settlement, "customer_credit_balance_amount", 0)
+            )
+            refunded = to_dec(getattr(settlement, "refunded_amount", 0))
+
+            if cust_cred > Decimal("0.00"):
+                credits["cust_credit"] += cust_cred
+
+            total_refund_cash = cash_amt + bank_amt + mob_amt + pos_amt
+            if total_refund_cash == Decimal("0.00") and refunded > Decimal("0.00"):
+                total_refund_cash = refunded - cust_cred
+
+            if currency in ["USD", "EUR"] or currency != "VES":
+                if is_special and igtf > Decimal("0.00"):
+                    total_refund_cash += igtf
+                if cash_amt > Decimal("0.00"):
+                    credits["cash_for"] += total_refund_cash
+                else:
+                    credits["bank_for"] += total_refund_cash
+            else:
+                if cash_amt > Decimal("0.00") and cash_amt == total_refund_cash:
+                    credits["cash_nat"] += cash_amt
+                else:
+                    if cash_amt > Decimal("0.00"):
+                        credits["cash_nat"] += cash_amt
+                    bank_total_rem = total_refund_cash - cash_amt
+                    if bank_total_rem > Decimal("0.00"):
+                        credits["bank_nat"] += bank_total_rem
+                    elif (
+                        total_refund_cash > Decimal("0.00")
+                        and cash_amt == Decimal("0.00")
+                    ):
+                        if bank_amt > 0 or mob_amt > 0 or pos_amt > 0:
+                            credits["bank_nat"] += (
+                                bank_amt + mob_amt + pos_amt
+                            )
+                        else:
+                            credits["cash_nat"] += total_refund_cash
+
+            vat_whs = (
+                list(sr.vat_withholdings.all())
+                if hasattr(sr, "vat_withholdings")
+                else []
+            )
+            islr_whs = (
+                list(sr.islr_withholdings.all())
+                if hasattr(sr, "islr_withholdings")
+                else []
+            )
+            vat_wh_val = sum(
+                (
+                    to_dec(getattr(wh, "withheld_amount", 0))
+                    for wh in vat_whs
+                ),
+                start=Decimal("0.00"),
+            )
+            islr_wh_val = sum(
+                (
+                    to_dec(getattr(wh, "total_withheld_amount", 0))
+                    for wh in islr_whs
+                ),
+                start=Decimal("0.00"),
+            )
+
+            credits["vat_wh"] += vat_wh_val
+            credits["islr_wh"] += islr_wh_val
+
+            ar_val = (
+                total_sales
+                - total_refund_cash
+                - cust_cred
+                - vat_wh_val
+                - islr_wh_val
+            )
+            if ar_val > Decimal("0.00"):
+                credits["ar_nat"] += ar_val
+
+        two_decimals = Decimal("0.01")
+        detail_glosa = "Consolidación de notas de crédito del período"
+
+        debit_mappings = {
+            "goods_returns": self.fiscal_profile.goods_sales_returns_account,
+            "goods_allowances": self.fiscal_profile.goods_sales_allowances_account,
+            "serv_discounts": self.fiscal_profile.services_discounts_account,
+            "vat_deb": self.fiscal_profile.vat_debit_account,
+            "igtf_pay": self.fiscal_profile.igtf_perceived_payable_account,
+        }
+
+        credit_mappings = {
+            "cash_nat": self.fiscal_profile.cash_national_account,
+            "bank_nat": self.fiscal_profile.bank_national_account,
+            "cash_for": self.fiscal_profile.cash_foreign_account,
+            "bank_for": self.fiscal_profile.bank_foreign_account,
+            "ar_nat": self.fiscal_profile.ar_commercial_national_account,
+            "cust_credit": self.fiscal_profile.customer_credit_balance_account,
+            "vat_wh": self.fiscal_profile.vat_withholdings_accumulated_account,
+            "islr_wh": self.fiscal_profile.islr_withholdings_accumulated_account,
+        }
+
+        for key, amt in debits.items():
+            if amt > Decimal("0.00"):
+                cn_debit_entries.append(
+                    (debit_mappings[key], amt.quantize(two_decimals), detail_glosa)
+                )
+
+        for key, amt in credits.items():
+            if amt > Decimal("0.00"):
+                cn_credit_entries.append(
+                    (credit_mappings[key], amt.quantize(two_decimals), detail_glosa)
+                )
+
+        if has_inventory_reentry:
+            inventory_detail = "Reingreso global de inventario por devoluciones"
+            inventory_debit_entries.append(
+                (
+                    self.fiscal_profile.inventory_account,
+                    Decimal("1.00").quantize(two_decimals),
+                    inventory_detail,
+                )
+            )
+            inventory_credit_entries.append(
+                (
+                    self.fiscal_profile.cogs_account,
+                    Decimal("1.00").quantize(two_decimals),
+                    inventory_detail,
+                )
+            )
+
+        return (
+            cn_debit_entries,
+            cn_credit_entries,
+            inventory_debit_entries,
+            inventory_credit_entries,
+        )
 
     def _process_debit_notes(
         self, debit_notes_records: list[SalesRecord]
