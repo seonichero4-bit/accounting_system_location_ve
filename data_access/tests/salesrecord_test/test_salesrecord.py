@@ -4,7 +4,7 @@ Verifica las restricciones de base de datos (Meta) y las validaciones
 de lógica de negocio (clean y save) según la especificación técnica.
 """
 
-from datetime import timedelta
+from datetime import timedelta, date
 from decimal import Decimal
 
 import pytest
@@ -930,7 +930,22 @@ def test_id_ec_031_monto_nota_credito_supera_factura_afectada(
 #     assert AccountReceivable.objects.filter(sales_record=group_a_invoice_record).count() == 1
 #     assert group_a_invoice_record.account_receivable.pk == initial_cxc_id
 
-
+@pytest.mark.django_db
+def test_id_ec_032_igtf_no_permitido_para_contribuyente_no_especial(
+    group_a_invoice_record: SalesRecord
+) -> None:
+    """Rechaza el registro con valores de IGTF cuando el tipo de contribuyente del perfil fiscal no es SPECIAL."""
+    # Arrange
+    group_a_invoice_record.fiscal_profile.taxpayer_type = "ORDINARY"
+    group_a_invoice_record.fiscal_profile.initial_fiscal_period.start_period = date(2026, 1, 1)
+    group_a_invoice_record.fiscal_profile.save()
+    group_a_invoice_record.igtf_tax_base = Decimal("100.00")
+    group_a_invoice_record.igtf_tax_amount = Decimal("3.00")
+    
+    # Act & Assert
+    with pytest.raises(ValidationError) as exc_info:
+        group_a_invoice_record.clean()
+    assert "igtf_tax_base" in exc_info.value.error_dict
 
         
 

@@ -26,8 +26,8 @@ from data_access.models.sales_record import SalesRecord
 def admin_user(db) -> User:
     """Instancia el usuario administrador requerido para la creación de la entidad."""
     return User.objects.create_superuser(
-        username="admin_test",
-        email="admin@test.com",
+        username="admin_test_8",
+        email="admin@test_8.com",
         password="password123"
     )
 
@@ -39,7 +39,7 @@ def fiscal_profile(db, admin_user: User) -> FiscalProfile:
         entity_name="Empresa de Prueba C.A.",
         use_accrual_method=True,
         fy_start_month=1,
-        rif="J123456789",
+        rif="J127456789",
         taxpayer_type="SPECIAL",
         start_period=date(2026, 1, 15)
     )

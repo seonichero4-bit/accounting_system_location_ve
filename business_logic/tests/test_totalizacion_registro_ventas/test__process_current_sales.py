@@ -279,9 +279,46 @@ def test_id_hp_006_consolidacion_operaciones_mixtas_pagos_digitales(
     assert _get_account_amount(sales_credit, setup_accounts["vat_debit_account"]) == Decimal("160.00")
     assert _get_account_amount(inv_debit, setup_accounts["cogs_account"]) == Decimal("1.00")
 
+@pytest.mark.django_db
+def test_id_hp_007_consolidacion_operaciones_mixtas_excentas_pagos_digitales(
+    fiscal_profile, setup_accounts, sales_record_factory, customer_payment_factory
+):
+    """[ID_HP_007] Validar clasificación para facturas MIXED con producto excentos liquidadas bancariamente."""
+    # Arrange
+    sr = sales_record_factory(
+        sale_category=SalesRecord.SaleCategory.MIXED,
+        goods_amount=Decimal("400.00"),
+        services_amount=Decimal("600.00"),
+        exempt_goods_amount=Decimal("600.00"),
+        exempt_services_amount=Decimal("400.00"),
+        exempt_internal_sales=Decimal("1000.00"),  
+        general_tax_base_16=Decimal("1000.00"),
+        general_tax_debit_16=Decimal("160.00"),
+        total_sales_inc_vat=Decimal("2160.00"),
+    )
+    customer_payment_factory(
+        account_receivable=sr.account_receivable,
+        amount=Decimal("2160.00"),
+        currency=CurrencyChoices.VES,
+        method_type=PaymentMethodTypeChoices.POS,
+    )
+
+    service = SalesAccountingTotalizationService(fiscal_profile, "2026-09")
+
+    # Act
+    sales_debit, sales_credit, inv_debit, inv_credit = service._process_current_sales([sr])
+
+    # Assert
+    assert _get_account_amount(sales_debit, setup_accounts["bank_national_account"]) == Decimal("2160.00")
+    assert _get_account_amount(sales_credit, setup_accounts["taxable_goods_sales_account"]) == Decimal("400.00")
+    assert _get_account_amount(sales_credit, setup_accounts["taxable_services_sales_account"]) == Decimal("600.00")
+    assert _get_account_amount(sales_credit, setup_accounts["exempt_goods_sales_account"]) == Decimal("600.00")
+    assert _get_account_amount(sales_credit, setup_accounts["exempt_services_sales_account"]) == Decimal("400.00")
+    assert _get_account_amount(sales_credit, setup_accounts["vat_debit_account"]) == Decimal("160.00")
+    assert _get_account_amount(inv_debit, setup_accounts["cogs_account"]) == Decimal("1.00")
 
 @pytest.mark.django_db
-def test_id_hp_007_consolidacion_facturas_multitasa(
+def test_id_hp_008_consolidacion_facturas_multitasa(
     fiscal_profile, setup_accounts, sales_record_factory
 ):
     """[ID_HP_007] Validar sumatoria del débito fiscal total (16%, 8% y 31%)."""
@@ -334,6 +371,7 @@ def test_id_ec_002_precision_decimal_estricta_redondeo_cuantificado(
     # Arrange
     sr = SalesRecord(
         sale_category=SalesRecord.SaleCategory.GOODS,
+        document_type=SalesRecord.DocumentType.INVOICE,
         general_tax_base_16=Decimal("333.333333"),
         general_tax_debit_16=Decimal("53.333333"),
         total_sales_inc_vat=Decimal("386.666666")
@@ -377,7 +415,7 @@ def test_id_ec_003_omision_cuentas_sumatoria_cero(
 def test_id_ec_008_ventas_exportacion_fob_y_operaciones_no_sujetas(
     fiscal_profile, setup_accounts, sales_record_factory
 ):
-    """[ID_EC_008] Verificar agregación de operaciones FOB e internamente no sujetas."""
+    """[ID_EC_004] Verificar agregación de operaciones FOB e internamente no sujetas."""
     # Arrange
     sr = sales_record_factory(
         sale_category=SalesRecord.SaleCategory.GOODS,
@@ -395,3 +433,141 @@ def test_id_ec_008_ventas_exportacion_fob_y_operaciones_no_sujetas(
 
     # Assert
     assert _get_account_amount(sales_credit, setup_accounts["exempt_goods_sales_account"]) == Decimal("6000.00")
+
+
+# ==============================================================================
+# HAPPY PAHTS Totalizacion Nota de Debito (ND)
+# ==============================================================================
+
+
+@pytest.mark.django_db
+def test_id_hp_001_consolidacion_estandar_ND_bienes_y_servicios(
+    fiscal_profile, setup_accounts, sales_record_debit_note_factory
+):
+    """[ID_HP_001] Validar consolidación contable estándar.
+    
+    Combina Nota de credito que involucra bienes muebles y prestación de servicios.
+    """
+    # Arrange
+    fiscal_profile.taxpayer_type = FiscalProfile.TaxpayerType.ORDINARY
+    fiscal_profile.initial_fiscal_period.start_period = date(2026, 1, 1)
+    fiscal_profile.save()
+
+    # Factura 1: Bienes gravados pagados en efectivo
+    sr1 = sales_record_debit_note_factory(
+        sale_category=SalesRecord.SaleCategory.GOODS,
+        general_tax_base_16=Decimal("1000.00"),
+        general_tax_debit_16=Decimal("160.00"),
+        total_sales_inc_vat=Decimal("1160.00"),
+    )
+   
+    # Factura 2: Servicios exentos a crédito
+    sr2 = sales_record_debit_note_factory(
+        sale_category=SalesRecord.SaleCategory.SERVICES,
+        exempt_internal_sales=Decimal("500.00"),
+        total_sales_inc_vat=Decimal("500.00"),
+        general_tax_base_16=Decimal("0.00"),
+        general_tax_debit_16=Decimal("0.00"),
+    )
+
+    service = SalesAccountingTotalizationService(fiscal_profile, "2026-09")
+
+    # Act
+    sales_debit, sales_credit, inv_debit, inv_credit = service._process_current_sales([sr1, sr2])
+
+    # Assert
+    # DEBE
+    assert _get_account_amount(sales_debit, setup_accounts["ar_commercial_national_account"]) == Decimal("1660.00")
+    
+    # HABER
+    assert _get_account_amount(sales_credit, setup_accounts["sales_surcharges_account"]) == Decimal("1000.00")
+    assert _get_account_amount(sales_credit, setup_accounts["services_surcharges_account"]) == Decimal("500.00")
+    assert _get_account_amount(sales_credit, setup_accounts["vat_debit_account"]) == Decimal("160.00")
+    
+    # INVENTARIO
+    assert _get_account_amount(inv_debit, setup_accounts["cogs_account"]) == Decimal("1.00")
+    assert _get_account_amount(inv_credit, setup_accounts["inventory_account"]) == Decimal("1.00")
+
+
+@pytest.mark.django_db
+def test_id_hp_002_consolidacion_ND_mixtas(
+    fiscal_profile, setup_accounts, sales_record_debit_note_factory
+):
+    """[ID_HP_002] Validar clasificación para ND MIXED."""
+    # Arrange
+    sr = sales_record_debit_note_factory(
+        sale_category=SalesRecord.SaleCategory.MIXED,
+        goods_amount=Decimal("400.00"),
+        services_amount=Decimal("600.00"),
+        general_tax_base_16=Decimal("1000.00"),
+        general_tax_debit_16=Decimal("160.00"),
+        total_sales_inc_vat=Decimal("1160.00"),
+    )
+
+    service = SalesAccountingTotalizationService(fiscal_profile, "2026-09")
+
+    # Act
+    sales_debit, sales_credit, inv_debit, inv_credit = service._process_current_sales([sr])
+
+    # Assert
+    assert _get_account_amount(sales_debit, setup_accounts["ar_commercial_national_account"]) == Decimal("1160.00")
+    assert _get_account_amount(sales_credit, setup_accounts["sales_surcharges_account"]) == Decimal("400.00")
+    assert _get_account_amount(sales_credit, setup_accounts["services_surcharges_account"]) == Decimal("600.00")
+    assert _get_account_amount(sales_credit, setup_accounts["vat_debit_account"]) == Decimal("160.00")
+    assert _get_account_amount(inv_debit, setup_accounts["cogs_account"]) == Decimal("1.00")
+
+@pytest.mark.django_db
+def test_id_hp_003_consolidacion_ND_mixtas_excentas(
+    fiscal_profile, setup_accounts, sales_record_debit_note_factory
+):
+    """[ID_HP_003] Validar clasificación para ND MIXED con producto excentos."""
+    # Arrange
+    sr = sales_record_debit_note_factory(
+        sale_category=SalesRecord.SaleCategory.MIXED,
+        goods_amount=Decimal("400.00"),
+        services_amount=Decimal("600.00"),
+        exempt_goods_amount=Decimal("600.00"),
+        exempt_services_amount=Decimal("400.00"),
+        exempt_internal_sales=Decimal("1000.00"),  
+        general_tax_base_16=Decimal("1000.00"),
+        general_tax_debit_16=Decimal("160.00"),
+        total_sales_inc_vat=Decimal("2160.00"),
+    )
+
+    service = SalesAccountingTotalizationService(fiscal_profile, "2026-09")
+
+    # Act
+    sales_debit, sales_credit, inv_debit, inv_credit = service._process_current_sales([sr])
+
+    # Assert
+    assert _get_account_amount(sales_debit, setup_accounts["ar_commercial_national_account"]) == Decimal("2160.00")
+    assert _get_account_amount(sales_credit, setup_accounts["sales_surcharges_account"]) == Decimal("1000.00")
+    assert _get_account_amount(sales_credit, setup_accounts["services_surcharges_account"]) == Decimal("1000.00")
+    assert _get_account_amount(sales_credit, setup_accounts["vat_debit_account"]) == Decimal("160.00")
+    assert _get_account_amount(inv_debit, setup_accounts["cogs_account"]) == Decimal("1.00")
+
+@pytest.mark.django_db
+def test_id_hp_004_consolidacion_ND_multitasa(
+    fiscal_profile, setup_accounts, sales_record_debit_note_factory
+):
+    """[ID_HP_004] Validar sumatoria del débito fiscal total (16%, 8% y 31%)."""
+    # Arrange
+    sr = sales_record_debit_note_factory(
+        sale_category=SalesRecord.SaleCategory.GOODS,
+        general_tax_base_16=Decimal("1000.00"),
+        general_tax_debit_16=Decimal("160.00"),
+        reduced_tax_base_8=Decimal("500.00"),
+        reduced_tax_debit_8=Decimal("40.00"),
+        additional_tax_base_31=Decimal("1000.00"),
+        additional_tax_debit_31=Decimal("310.00"),
+        total_sales_inc_vat=Decimal("3010.00"),
+    )
+
+    service = SalesAccountingTotalizationService(fiscal_profile, "2026-09")
+
+    # Act
+    _, sales_credit, _, _ = service._process_current_sales([sr])
+
+    # Assert
+    assert _get_account_amount(sales_credit, setup_accounts["vat_debit_account"]) == Decimal("510.00")
+    assert _get_account_amount(sales_credit, setup_accounts["sales_surcharges_account"]) == Decimal("2500.00")

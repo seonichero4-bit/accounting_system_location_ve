@@ -376,14 +376,23 @@ class SalesRecord(FiscalModuleAbstractModel):
             if any(val != Decimal('0.00') for val in amounts_to_check if val is not None):
                 errors['transaction_type'] = "Para transacciones de anulación, el nombre o razón social debe ser 'ANULADO' y todos los montos deben ser iguales a 0.00."
 
-        # Cálculo IGTF (3%)
+       # Validación del Tipo de Contribuyente e IGTF
         igtf_base = self.igtf_tax_base or Decimal('0.00')
         igtf_amount = self.igtf_tax_amount or Decimal('0.00')
-        if igtf_base > Decimal('0.00'):
-            if abs((igtf_base * Decimal('0.03')) - igtf_amount) > Decimal('0.01'):
+
+        if self.fiscal_profile and getattr(self.fiscal_profile, 'taxpayer_type', None) != 'SPECIAL':
+            if igtf_base > Decimal('0.00') or igtf_amount > Decimal('0.00'):
+                errors['igtf_tax_base'] = (
+                    "Los campos 'igtf_tax_base' y 'igtf_tax_amount' deben ser iguales a 0.00 "
+                    "cuando el tipo de contribuyente del perfil fiscal no es 'SPECIAL'."
+                )
+        else:
+            # Cálculo IGTF (3%)
+            if igtf_base > Decimal('0.00'):
+                if abs((igtf_base * Decimal('0.03')) - igtf_amount) > Decimal('0.01'):
+                    errors['igtf_tax_amount'] = "El monto de IGTF debe corresponder exactamente al 3% de la base imponible de IGTF declarada."
+            elif igtf_base == Decimal('0.00') and igtf_amount > Decimal('0.00'):
                 errors['igtf_tax_amount'] = "El monto de IGTF debe corresponder exactamente al 3% de la base imponible de IGTF declarada."
-        elif igtf_base == Decimal('0.00') and igtf_amount > Decimal('0.00'):
-            errors['igtf_tax_amount'] = "El monto de IGTF debe corresponder exactamente al 3% de la base imponible de IGTF declarada."
 
         # Restricción de Fecha Futura
         if self.document_date and self.document_date > timezone.now().date():

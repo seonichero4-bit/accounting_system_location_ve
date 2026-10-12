@@ -204,6 +204,8 @@ class SalesAccountingTotalizationService:
             "tax_serv": Decimal("0.00"),
             "exe_goods": Decimal("0.00"),
             "exe_serv": Decimal("0.00"),
+            "surcharges_goods": Decimal("0.00"),
+            "surcharges_services": Decimal("0.00"),
             "vat_deb": Decimal("0.00"),
             "igtf_pay": Decimal("0.00"),
         }
@@ -231,25 +233,36 @@ class SalesAccountingTotalizationService:
             red_base = to_dec(getattr(sr, "reduced_tax_base_8", 0))
             add_base = to_dec(getattr(sr, "additional_tax_base_31", 0))
             taxable_total = gen_base + red_base + add_base
-
             # Consolidación de Ventas Exentas, No Sujetas y Exportación FOB
             exe_int = to_dec(getattr(sr, "exempt_internal_sales", 0))
-            exe_srv = to_dec(getattr(sr, "exempt_services_amount", 0))
+            exon_int = to_dec(getattr(sr, "exonerated_internal_sales", 0))
+            non_subj = to_dec(getattr(sr, "non_subject_internal_sales", 0))    
             fob = to_dec(getattr(sr, "fob_export_value", 0))
-            non_subj = to_dec(getattr(sr, "non_subject_internal_sales", 0))
-            exempt_total = exe_int + exe_srv + fob + non_subj
+            exempt_total = exe_int + exon_int +  non_subj + fob
 
-            # Distribución por Categoría
-            if cat == "GOODS":
-                credits["tax_goods"] += taxable_total
-                credits["exe_goods"] += exempt_total
-            elif cat == "SERVICES":
-                credits["tax_serv"] += taxable_total
-                credits["exe_serv"] += exempt_total
-            elif cat == "MIXED":
-                credits["tax_goods"] += to_dec(getattr(sr, "goods_amount", 0))
-                credits["tax_serv"] += to_dec(getattr(sr, "services_amount", 0))
-                credits["exe_goods"] += exempt_total  # Por defecto agrupado en bienes para operaciones mixtas
+            # Distribución por Categoría (Documento facturas)
+            if sr.document_type == "INVOICE":
+              if cat == "GOODS":
+                  credits["tax_goods"] += taxable_total
+                  credits["exe_goods"] += exempt_total
+              elif cat == "SERVICES":
+                  credits["tax_serv"] += taxable_total
+                  credits["exe_serv"] += exempt_total
+              elif cat == "MIXED":
+                  credits["tax_goods"] += to_dec(getattr(sr, "goods_amount", 0))
+                  credits["tax_serv"] += to_dec(getattr(sr, "services_amount", 0))
+                  credits["exe_goods"] += to_dec(getattr(sr, "exempt_goods_amount", 0))
+                  credits["exe_serv"] += to_dec(getattr(sr, "exempt_services_amount", 0))
+            
+            # Distribución por Categoría (Documento Nota de Debito)
+            if sr.document_type == "DEBIT_NOTE":
+              if cat == "GOODS":
+                  credits["surcharges_goods"] += taxable_total + exempt_total
+              elif cat == "SERVICES":
+                  credits["surcharges_services"] += taxable_total + exempt_total 
+              elif cat == "MIXED":
+                  credits["surcharges_goods"] += to_dec(getattr(sr, "goods_amount", 0) + getattr(sr, "exempt_goods_amount", 0))
+                  credits["surcharges_services"] += to_dec(getattr(sr, "services_amount", 0) + getattr(sr, "exempt_services_amount", 0))
 
             # Consolidación de IGTF Percibido (Solo Sujetos Pasivos Especiales)
             igtf = to_dec(getattr(sr, "igtf_tax_amount", 0))
@@ -289,7 +302,7 @@ class SalesAccountingTotalizationService:
                         debits["cash_nat"] += amt_to_record
                     else:
                         debits["bank_nat"] += amt_to_record
-                
+
                 paid_total += amt_base  # El IGTF no amortiza la CXC comercial origen
 
             # Consolidación de Retenciones IVA / ISLR
@@ -297,12 +310,12 @@ class SalesAccountingTotalizationService:
                 vat_whs = sr.vat_withholding.withheld_amount
             else:
                 vat_whs = Decimal("0.00")
-                
+
             if hasattr(sr, "islr_withholding"):
                 islr_whs = sr.islr_withholding.total_withheld_amount
             else:
                 islr_whs = Decimal("0.00")
-            
+
             debits["vat_wh"] += vat_whs
             debits["islr_wh"] += islr_whs
 
@@ -315,7 +328,7 @@ class SalesAccountingTotalizationService:
         # Generación de Tuplas y Cuantificación Estricta
         two_decimals = Decimal("0.01")
         detail_glosa = "Consolidación de ventas del período"
-        
+
         debit_mappings = {
             "cash_nat": self.fiscal_profile.cash_national_account,
             "bank_nat": self.fiscal_profile.bank_national_account,
@@ -331,6 +344,8 @@ class SalesAccountingTotalizationService:
             "tax_serv": self.fiscal_profile.taxable_services_sales_account,
             "exe_goods": self.fiscal_profile.exempt_goods_sales_account,
             "exe_serv": self.fiscal_profile.exempt_services_sales_account,
+            "surcharges_goods":self.fiscal_profile.sales_surcharges_account,
+            "surcharges_services":self.fiscal_profile.services_surcharges_account,
             "vat_deb": self.fiscal_profile.vat_debit_account,
             "igtf_pay": self.fiscal_profile.igtf_perceived_payable_account,
         }
